@@ -1,5 +1,5 @@
 const ServiceError = require('../../service/common/ServiceError');
-const modes = ['wrong_answer', 'recommend'];
+const modes = ['wrong_answer', 'recommend', 'study_plan'];
 function field(value, label, max, optional = false) {
   if (optional && (value === undefined || value === '')) return '';
   if (typeof value !== 'string' || !value.trim() || value.length > max) throw new ServiceError(400, `${label}: cần nhập từ 1 đến ${max} ký tự.`);
@@ -24,6 +24,9 @@ module.exports = {
     const details = { goal: field(value.goal, 'Mục tiêu', 500), level: value.level };
     if (!['beginner', 'intermediate', 'advanced'].includes(details.level)) throw new ServiceError(400, 'Trình độ không hợp lệ.');
     if (mode === 'recommend') return { details, text: `Gợi ý khóa học cho mục tiêu: ${details.goal}. Trình độ: ${details.level}.` };
-    throw new ServiceError(400, 'Unsupported learning mode.');
+    details.weeks = integer(value.weeks, 'Số tuần', 1, 12);
+    details.daysPerWeek = integer(value.daysPerWeek, 'Số ngày mỗi tuần', 1, 7);
+    details.minutesPerDay = integer(value.minutesPerDay, 'Số phút mỗi ngày', 15, 180);
+    return { details, text: `Lập kế hoạch: ${details.goal}. Trình độ: ${details.level}. ${details.weeks} tuần, ${details.daysPerWeek} ngày/tuần, ${details.minutesPerDay} phút/ngày.` };
   },
 };

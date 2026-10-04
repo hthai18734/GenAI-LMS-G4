@@ -56,7 +56,25 @@ class ChatLearningService {
       },
       ...(candidates.length ? {} : { immediate: { mode: input.mode, recommendations: [], answer: 'Hiện không có khóa học mới khả dụng để đề xuất. Các khóa đã đăng ký hoặc hoàn thành không được gợi ý lại.' } }),
     };
-    return null;
+    const { weeks, daysPerWeek, minutesPerDay } = input.details;
+    return {
+      data,
+      instruction: `Chỉ xuất JSON hợp lệ dạng {"weeks":[{"week":1,"focus":"chủ đề","activities":"nhiệm vụ chia theo buổi","outcome":"kết quả tự kiểm tra","courseId":null}]}. Phải có đúng ${weeks} tuần, đánh số liên tiếp từ 1. Mỗi tuần mô tả ${daysPerWeek} buổi, mỗi buổi ${minutesPerDay} phút. Mỗi trường văn bản tối đa 1200 ký tự. courseId chỉ được lấy từ courses hoặc null; không bịa tên khóa học ngoài danh sách. Kế hoạch phải tăng dần theo trình độ và có ôn tập. Không cam kết thành thạo hoặc hoàn thành toàn khóa khi quỹ thời gian không đủ. Với catalog rỗng, lập kế hoạch tự học.`,
+      finish: text => {
+        const result = parseJson(text);
+        if (!Array.isArray(result.weeks) || result.weeks.length !== weeks) throw new ServiceError(502, 'Kế hoạch AI chưa đủ số tuần yêu cầu. Vui lòng thử lại.');
+        const schedule = result.weeks.map((week, index) => {
+          if (!week || week.week !== index + 1 || !['focus', 'activities', 'outcome'].every(key => validText(week[key]))) throw new ServiceError(502, 'Nội dung kế hoạch AI không hợp lệ. Vui lòng thử lại.');
+          const course = week.courseId == null ? null : candidates.find(c => c.id === week.courseId);
+          if (week.courseId != null && !course) throw new ServiceError(502, 'Kế hoạch chứa khóa học không hợp lệ. Vui lòng thử lại.');
+          return { week: index + 1, focus: week.focus.trim(), activities: week.activities.trim(), outcome: week.outcome.trim(), days: daysPerWeek, minutesPerDay,
+            ...(course ? { course: { id: course.id, title: course.title, url: `/courses/${course.id}` } } : {}) };
+        });
+        const studyPlan = { goal: input.details.goal, level: input.details.level, weeks: schedule, totalMinutes: weeks * daysPerWeek * minutesPerDay };
+        const answer = `### Kế hoạch học tập\n\n**Mục tiêu:** ${escapeMd(studyPlan.goal)}\n\n**Trình độ:** ${levels[studyPlan.level]} · **Quỹ thời gian:** ${weeks} tuần × ${daysPerWeek} buổi × ${minutesPerDay} phút = ${studyPlan.totalMinutes} phút.\n\n${schedule.map(w => `#### Tuần ${w.week}: ${escapeMd(w.focus)}\n\n${escapeMd(w.activities)}\n\n**Tự kiểm tra:** ${escapeMd(w.outcome)}${w.course ? `\n\n[${escapeMd(w.course.title)}](${w.course.url})` : ''}`).join('\n\n')}`;
+        return { mode: input.mode, studyPlan, answer };
+      },
+    };
   }
 }
 module.exports = ChatLearningService;
