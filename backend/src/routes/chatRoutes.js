@@ -1,0 +1,20 @@
+const express = require('express');
+const { AuthFilter, RoleFilter } = require('../filter/AuthFilter');
+const NoCacheFilter = require('../filter/NoCacheFilter');
+const ChatLimitFilter = require('../filter/ChatLimitFilter');
+const controller = require('../controller/chat/ChatController');
+const upload = require('../utils/upload/ChatDocumentUpload');
+const router = express.Router();
+router.use(NoCacheFilter, AuthFilter, RoleFilter('student', 'teacher', 'admin'), ChatLimitFilter);
+router.get('/conversations', controller.list);
+router.post('/conversations', controller.create);
+router.get('/conversations/:id', controller.get);
+router.delete('/conversations/:id', controller.remove);
+router.post('/conversations/:id/messages', controller.send);
+router.post('/conversations/:id/documents', controller.authorizeUpload, upload, controller.upload);
+router.delete('/conversations/:id/documents/:documentId', controller.removeDocument);
+router.use((error, req, res, next) => {
+  req.releaseChatSlot?.();
+  next(error);
+});
+module.exports = router;
