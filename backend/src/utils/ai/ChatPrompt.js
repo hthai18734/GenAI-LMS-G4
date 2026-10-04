@@ -4,7 +4,7 @@ const roles = {
   admin: 'Bạn hỗ trợ quản trị nội dung: phân tích rõ ràng, có cấu trúc, chỉ ra nội dung cần làm rõ.',
 };
 const styles = { friendly: 'Thân thiện, dễ hiểu.', concise: 'Ngắn gọn, trực tiếp.', academic: 'Học thuật, chính xác, định nghĩa thuật ngữ.' };
-const modes = { ask: 'Trả lời câu hỏi dựa trên nguồn được cung cấp.' };
+const modes = { ask: 'Trả lời câu hỏi dựa trên nguồn được cung cấp.', summary: 'Tóm tắt nội dung nguồn và kết luận chính.', keypoints: 'Rút ý chính theo gạch đầu dòng, giải thích các khái niệm quan trọng.' };
 
 module.exports = function chatPrompt(role, style, mode) {
   return { parts: [{ text: [
