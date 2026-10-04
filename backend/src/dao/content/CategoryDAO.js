@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const Category = require('../../model/content/Category');
 
 class CategoryDAO {
+  /**
+   * Find all active categories (UC-1.1, UC-1.6)
+   */
   async findAllActive() {
     return Category.find({ isActive: true }).sort({ name: 1 }).exec();
   }

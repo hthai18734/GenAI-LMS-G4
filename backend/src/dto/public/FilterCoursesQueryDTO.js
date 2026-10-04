@@ -1,3 +1,9 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Filter & Sort Courses Query DTO for Guest Public Courses (UC-1.4)
+ */
+
 const ALLOWED_SORTS = ['newest', 'oldest', 'popular', 'rating', 'price-asc', 'price-desc'];
 
 class FilterCoursesQueryDTO {
@@ -12,8 +18,7 @@ class FilterCoursesQueryDTO {
     let min = null;
     let max = null;
 
-    const isPresent = (val) =>
-      val !== undefined && val !== null && val !== '' && val !== 'undefined' && val !== 'null';
+    const isPresent = (val) => val !== undefined && val !== null && val !== '' && val !== 'undefined' && val !== 'null';
 
     if (isPresent(minPrice)) {
       min = Number(minPrice);
@@ -29,7 +34,13 @@ class FilterCoursesQueryDTO {
       }
     }
 
-    if (min !== null && max !== null && !isNaN(min) && !isNaN(max) && min > max) {
+    if (
+      min !== null &&
+      max !== null &&
+      !isNaN(min) &&
+      !isNaN(max) &&
+      min > max
+    ) {
       errors.priceRange = 'Invalid filter options';
     }
 
@@ -59,28 +70,28 @@ class FilterCoursesQueryDTO {
   }
 
   toObject() {
-    const isPresent = (val) =>
-      val !== undefined && val !== null && val !== '' && val !== 'undefined' && val !== 'null';
+    const isPresent = (val) => val !== undefined && val !== null && val !== '' && val !== 'undefined' && val !== 'null';
 
-    const rawSort =
-      (isPresent(this.query.sortBy) ? this.query.sortBy : null) ||
+    const rawSort = (isPresent(this.query.sortBy) ? this.query.sortBy : null) ||
       (isPresent(this.query.sort) ? this.query.sort : null) ||
       'newest';
     const normalizedSort = String(rawSort).replace('_', '-');
 
-    const cleanCategory =
-      isPresent(this.query.category) && this.query.category !== 'all'
-        ? String(this.query.category).trim()
-        : undefined;
+    const cleanCategory = isPresent(this.query.category) && this.query.category !== 'all'
+      ? String(this.query.category).trim()
+      : undefined;
 
-    const cleanCategoryId =
-      isPresent(this.query.categoryId) && this.query.categoryId !== 'all'
-        ? String(this.query.categoryId).trim()
-        : undefined;
+    const cleanCategoryId = isPresent(this.query.categoryId) && this.query.categoryId !== 'all'
+      ? String(this.query.categoryId).trim()
+      : undefined;
 
-    const minPrice = isPresent(this.query.minPrice) ? Number(this.query.minPrice) : undefined;
+    const minPrice = isPresent(this.query.minPrice)
+      ? Number(this.query.minPrice)
+      : undefined;
 
-    const maxPrice = isPresent(this.query.maxPrice) ? Number(this.query.maxPrice) : undefined;
+    const maxPrice = isPresent(this.query.maxPrice)
+      ? Number(this.query.maxPrice)
+      : undefined;
 
     return {
       category: cleanCategory,

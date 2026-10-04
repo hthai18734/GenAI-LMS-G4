@@ -12,6 +12,7 @@ export default function OAuthCallbackPage() {
   const executedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent double invocation in React StrictMode
     if (executedRef.current) return;
     executedRef.current = true;
 
@@ -40,18 +41,12 @@ export default function OAuthCallbackPage() {
         if (res.data) {
           login(res.data);
           addToast('Signed in with Google successfully!', 'success');
-          navigate(
-            res.data.user?.role === 'teacher'
-              ? '/teacher/dashboard'
-              : res.data.user?.role === 'admin'
-                ? '/admin/dashboard'
-                : '/dashboard',
-            { replace: true },
-          );
+          navigate(res.data.user?.role === 'teacher' ? '/teacher/dashboard' : res.data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
         } else {
           throw new Error('No user data returned.');
         }
       } catch (err) {
+        // If already authenticated by concurrent call, proceed to dashboard
         if (getToken()) {
           navigate('/dashboard', { replace: true });
           return;
@@ -65,9 +60,7 @@ export default function OAuthCallbackPage() {
   }, []);
 
   return (
-    <div
-      style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg)' }}
-    >
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center' }}>
         <div className="spinner"></div>
         <p style={{ marginTop: '16px', color: 'var(--muted)', fontSize: '15px', fontWeight: 500 }}>

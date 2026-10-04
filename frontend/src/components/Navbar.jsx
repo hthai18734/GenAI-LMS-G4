@@ -4,6 +4,7 @@ import { useAuth } from '../services/AuthContext';
 import { notificationService } from '../services/api';
 import { useToast } from './Toast';
 
+/* ── tiny helper: time-ago ─────────────────────────────────── */
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
   if (diff < 60) return 'Vừa xong';
@@ -19,6 +20,7 @@ export default function Navbar({ title }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
 
+  /* ── Notification state ──────────────────────────────────── */
   const [notiOpen, setNotiOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -31,7 +33,7 @@ export default function Navbar({ title }) {
     try {
       const res = await notificationService.getUnreadCount();
       setUnreadCount(res.data?.unreadCount || 0);
-    } catch {}
+    } catch { /* ignore */ }
   }, [isAuthenticated]);
 
   const fetchNotifications = useCallback(async () => {
@@ -39,15 +41,17 @@ export default function Navbar({ title }) {
     try {
       const res = await notificationService.getNotifications(20);
       setNotifications(res.data?.notifications || []);
-    } catch {}
+    } catch { /* ignore */ }
   }, [isAuthenticated]);
 
+  // Initial fetch + periodic polling every 30s
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);
 
+  // Fetch full list when bell panel opens
   useEffect(() => {
     if (notiOpen) fetchNotifications();
   }, [notiOpen, fetchNotifications]);
@@ -57,7 +61,7 @@ export default function Navbar({ title }) {
       await notificationService.markNotificationRead(id);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
       setUnreadCount((c) => Math.max(0, c - 1));
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   const handleMarkAllRead = async () => {
@@ -65,9 +69,10 @@ export default function Navbar({ title }) {
       await notificationService.markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch {}
+    } catch { /* ignore */ }
   };
 
+  /* ── Close dropdowns on outside click ────────────────────── */
   const roleNameMap = {
     admin: 'Quản trị viên',
     teacher: 'Giảng viên',
@@ -84,11 +89,12 @@ export default function Navbar({ title }) {
         .join('')
         .toUpperCase()
     : user?.role === 'admin'
-      ? 'AD'
-      : user?.role === 'teacher'
-        ? 'GV'
-        : 'HV';
+    ? 'AD'
+    : user?.role === 'teacher'
+    ? 'GV'
+    : 'HV';
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -121,9 +127,12 @@ export default function Navbar({ title }) {
     try {
       await logout();
       addToast('Đã đăng xuất thành công.', 'info');
-    } catch {}
+    } catch {
+      // ignore
+    }
   };
 
+  /* ── Notification type icons ─────────────────────────────── */
   const typeIcon = {
     course: '📚',
     'teacher approval': '✅',
@@ -139,31 +148,18 @@ export default function Navbar({ title }) {
       <h1 className="topbar-title">{title || 'Không gian học tập'}</h1>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* ── Notification Bell ──────────────────────────────── */}
         {isAuthenticated && (
           <div className="noti-bell-wrap" ref={notiRef}>
             <button
               type="button"
               className="noti-bell-btn"
-              onClick={() => {
-                setNotiOpen(!notiOpen);
-                setOpen(false);
-              }}
+              onClick={() => { setNotiOpen(!notiOpen); setOpen(false); }}
               aria-label="Thông báo"
               title="Thông báo"
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                width="22"
-                height="22"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
               {unreadCount > 0 && (
                 <span className="noti-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
@@ -212,13 +208,11 @@ export default function Navbar({ title }) {
           </div>
         )}
 
+        {/* User Pill & Dropdown */}
         <div className="topbar-user-wrap" ref={dropdownRef}>
           <button
             type="button"
-            onClick={() => {
-              setOpen(!open);
-              setNotiOpen(false);
-            }}
+            onClick={() => { setOpen(!open); setNotiOpen(false); }}
             className={`topbar-user-btn ${open ? 'open' : ''}`}
             aria-expanded={open}
             aria-haspopup="true"
@@ -231,9 +225,7 @@ export default function Navbar({ title }) {
               )}
             </div>
             <div className="topbar-user-info">
-              <div className="topbar-name">
-                {user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Học viên')}
-              </div>
+              <div className="topbar-name">{user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Học viên')}</div>
               <div className="topbar-role">{roleLabel}</div>
             </div>
             <svg
@@ -247,12 +239,11 @@ export default function Navbar({ title }) {
             </svg>
           </button>
 
+          {/* Dropdown Menu */}
           {open && (
             <div className="topbar-dropdown" role="menu">
               <div className="dropdown-header">
-                <div className="dropdown-name">
-                  {user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Học viên')}
-                </div>
+                <div className="dropdown-name">{user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Học viên')}</div>
                 <div className="dropdown-email">{user?.email || ''}</div>
                 <div className="dropdown-badge">Tài khoản {roleLabel.toLowerCase()}</div>
               </div>
@@ -345,11 +336,7 @@ export default function Navbar({ title }) {
                       role="menuitem"
                     >
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       <span>Hồ sơ cá nhân</span>
                     </Link>
@@ -361,11 +348,7 @@ export default function Navbar({ title }) {
                       role="menuitem"
                     >
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-                        />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                       </svg>
                       <span>Chứng chỉ của tôi</span>
                     </Link>
@@ -377,11 +360,7 @@ export default function Navbar({ title }) {
                       role="menuitem"
                     >
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                        />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                       </svg>
                       <span>Cài đặt thông báo</span>
                     </Link>
@@ -397,11 +376,7 @@ export default function Navbar({ title }) {
                   role="menuitem"
                 >
                   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                   <span>Đăng xuất</span>
                 </button>

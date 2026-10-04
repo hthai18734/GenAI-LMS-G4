@@ -61,34 +61,30 @@ export default function DashboardPage() {
   const courses = data?.courses || [];
   const recent = data?.recentActivity || [];
 
+  // Calculate total completed lessons and average progress
   const totalCompletedLessons = courses.reduce((sum, c) => sum + (c.completedLessons || 0), 0);
-  const avgProgress =
-    courses.length > 0
-      ? Math.round(courses.reduce((sum, c) => sum + (c.progressPercent || 0), 0) / courses.length)
-      : 0;
+  const avgProgress = courses.length > 0
+    ? Math.round(courses.reduce((sum, c) => sum + (c.progressPercent || 0), 0) / courses.length)
+    : 0;
 
+  // Filter courses based on tab
   const filteredCourses = courses.filter((c) => {
-    if (courseFilter === 'active')
-      return c.enrollmentStatus === 'active' && c.progressPercent < 100;
-    if (courseFilter === 'completed')
-      return c.enrollmentStatus === 'completed' || c.progressPercent === 100;
+    if (courseFilter === 'active') return c.enrollmentStatus === 'active' && c.progressPercent < 100;
+    if (courseFilter === 'completed') return c.enrollmentStatus === 'completed' || c.progressPercent === 100;
     return true;
   });
 
-  const inProgressCourses = courses.filter(
-    (c) => (c.progressPercent || 0) < 100 && c.enrollmentStatus !== 'completed',
-  );
-  const completedCoursesList = courses.filter(
-    (c) => (c.progressPercent || 0) === 100 || c.enrollmentStatus === 'completed',
-  );
+  // Separate in-progress courses (< 100%) and completed courses (100%)
+  const inProgressCourses = courses.filter((c) => (c.progressPercent || 0) < 100 && c.enrollmentStatus !== 'completed');
+  const completedCoursesList = courses.filter((c) => (c.progressPercent || 0) === 100 || c.enrollmentStatus === 'completed');
 
+  // Identify the best course to feature in Spotlight:
+  // 1. Prioritize in-progress courses so learner continues what is unfinished
   let resumeCourse = null;
   let resumeLessonTitle = '';
 
   if (recent.length > 0 && inProgressCourses.length > 0) {
-    resumeCourse = inProgressCourses.find(
-      (c) => c.title === recent[0].courseTitle || c.courseId === recent[0].courseId,
-    );
+    resumeCourse = inProgressCourses.find((c) => c.title === recent[0].courseTitle || c.courseId === recent[0].courseId);
     if (resumeCourse) {
       resumeLessonTitle = recent[0].lessonTitle;
     }
@@ -98,25 +94,27 @@ export default function DashboardPage() {
     resumeCourse = inProgressCourses[0];
   }
 
+  // 2. If ALL courses are 100% completed, show the most recent completed course in Celebration/Graduation mode
   if (!resumeCourse && completedCoursesList.length > 0) {
     resumeCourse = completedCoursesList[0];
   }
 
-  const isCourseCompleted =
-    resumeCourse &&
-    ((resumeCourse.progressPercent || 0) === 100 || resumeCourse.enrollmentStatus === 'completed');
+  const isCourseCompleted = resumeCourse && ((resumeCourse.progressPercent || 0) === 100 || resumeCourse.enrollmentStatus === 'completed');
 
+  // Filter catalog courses that the student hasn't enrolled in yet
   const enrolledCourseIds = new Set(courses.map((c) => String(c.id || c._id || c.courseId)));
   const recommendedCourses = catalog
     .filter((c) => !enrolledCourseIds.has(String(c.id || c._id || c.courseId)))
     .slice(0, 4);
 
+  // Dynamic greeting based on time of day
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
   const firstName = user?.fullName ? user.fullName.split(' ').slice(-1)[0] : 'bạn';
 
   return (
     <div>
+      {/* ─── 1. Learner Hero Banner ────────────────────────────────── */}
       <section className="learner-hero">
         <div className="learner-hero-left">
           <div className="learner-badge">
@@ -126,8 +124,7 @@ export default function DashboardPage() {
             {greeting}, {firstName}! 👋
           </h1>
           <p className="learner-hero-desc">
-            Tiếp tục bài học hôm nay để duy trì chuỗi tiến bộ và mở rộng kỹ năng chuyên môn của bạn
-            nhé!
+            Tiếp tục bài học hôm nay để duy trì chuỗi tiến bộ và mở rộng kỹ năng chuyên môn của bạn nhé!
           </p>
           <div className="learner-chips">
             <div className="learner-chip">
@@ -157,37 +154,22 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {/* ─── 2. Spotlight: Resume Learning or Graduation Card ─────── */}
       {resumeCourse ? (
         <section
           className="continue-card"
-          style={
-            isCourseCompleted
-              ? {
-                  borderLeft: '4px solid #10b981',
-                  background: 'linear-gradient(135deg, #ffffff, #f0fdf4)',
-                }
-              : {}
-          }
+          style={isCourseCompleted ? { borderLeft: '4px solid #10b981', background: 'linear-gradient(135deg, #ffffff, #f0fdf4)' } : {}}
         >
           <div className="continue-header">
             <div
               className="continue-tag"
-              style={
-                isCourseCompleted
-                  ? { color: '#059669', background: '#d1fae5', borderColor: '#a7f3d0' }
-                  : {}
-              }
+              style={isCourseCompleted ? { color: '#059669', background: '#d1fae5', borderColor: '#a7f3d0' } : {}}
             >
               <span>{isCourseCompleted ? '🏆' : '▶'}</span>
-              {isCourseCompleted
-                ? ' XUẤT SẮC · BẠN ĐÃ HOÀN THÀNH KHÓA HỌC NÀY'
-                : ' TIẾP TỤC HỌC NGAY · ĐỪNG BỎ LỠ MỤC TIÊU'}
+              {isCourseCompleted ? ' XUẤT SẮC · BẠN ĐÃ HOÀN THÀNH KHÓA HỌC NÀY' : ' TIẾP TỤC HỌC NGAY · ĐỪNG BỎ LỠ MỤC TIÊU'}
             </div>
             <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>
-              Tiến độ:{' '}
-              <strong style={{ color: isCourseCompleted ? '#10b981' : 'var(--purple)' }}>
-                {resumeCourse.progressPercent}%
-              </strong>
+              Tiến độ: <strong style={{ color: isCourseCompleted ? '#10b981' : 'var(--purple)' }}>{resumeCourse.progressPercent}%</strong>
             </span>
           </div>
           <div className="continue-body">
@@ -215,17 +197,12 @@ export default function DashboardPage() {
               {isCourseCompleted ? (
                 <div className="continue-lesson-title" style={{ color: '#047857' }}>
                   <span>🎉</span>
-                  <span>
-                    <strong>Chứng chỉ đã được cấp!</strong> Bạn đã hoàn thành tất cả bài giảng và
-                    đạt điều kiện tốt nghiệp.
-                  </span>
+                  <span><strong>Chứng chỉ đã được cấp!</strong> Bạn đã hoàn thành tất cả bài giảng và đạt điều kiện tốt nghiệp.</span>
                 </div>
               ) : resumeLessonTitle ? (
                 <div className="continue-lesson-title">
                   <span>📖</span>
-                  <span>
-                    Bài học tiếp theo: <strong>{resumeLessonTitle}</strong>
-                  </span>
+                  <span>Bài học tiếp theo: <strong>{resumeLessonTitle}</strong></span>
                 </div>
               ) : null}
 
@@ -242,10 +219,7 @@ export default function DashboardPage() {
                 {resumeCourse.completedLessons} / {resumeCourse.totalLessons} bài học hoàn thành
               </span>
             </div>
-            <div
-              className="continue-btn-wrap"
-              style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '170px' }}
-            >
+            <div className="continue-btn-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '170px' }}>
               {isCourseCompleted ? (
                 <>
                   <button
@@ -288,39 +262,22 @@ export default function DashboardPage() {
           </div>
         </section>
       ) : (
+        /* Empty Spotlight when learner has no courses yet */
         <section className="continue-card" style={{ textAlign: 'center', padding: '36px 20px' }}>
           <div style={{ fontSize: '42px', marginBottom: '12px' }}>🚀</div>
-          <h2
-            style={{
-              fontFamily: 'Space Grotesk',
-              fontSize: '20px',
-              fontWeight: 700,
-              margin: '0 0 8px',
-            }}
-          >
+          <h2 style={{ fontFamily: 'Space Grotesk', fontSize: '20px', fontWeight: 700, margin: '0 0 8px' }}>
             Bắt đầu hành trình nâng cao kỹ năng của bạn
           </h2>
-          <p
-            style={{
-              color: 'var(--muted)',
-              fontSize: '14px',
-              maxWidth: '500px',
-              margin: '0 auto 20px',
-            }}
-          >
-            Chọn ngay một khóa học hấp dẫn từ danh mục của chúng tôi để bắt đầu học tập và nhận
-            chứng chỉ nhé.
+          <p style={{ color: 'var(--muted)', fontSize: '14px', maxWidth: '500px', margin: '0 auto 20px' }}>
+            Chọn ngay một khóa học hấp dẫn từ danh mục của chúng tôi để bắt đầu học tập và nhận chứng chỉ nhé.
           </p>
-          <Link
-            to="/courses"
-            className="btn btn-primary"
-            style={{ padding: '12px 24px', fontSize: '14px' }}
-          >
+          <Link to="/courses" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: '14px' }}>
             Khám phá danh mục khóa học &rarr;
           </Link>
         </section>
       )}
 
+      {/* ─── 3. Learner Quick Metrics (Student-Oriented) ────────────── */}
       <section className="learner-stats-grid">
         <div className="learner-stat-card">
           <div className="learner-stat-icon" style={{ background: '#e0e7ff', color: '#4338ca' }}>
@@ -363,21 +320,11 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {/* ─── 4. My Courses Section with Filter Tabs ─────────────────── */}
       <section style={{ marginBottom: '38px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '18px',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h2 className="section-title" style={{ margin: '0 0 4px' }}>
-              Khóa học của tôi
-            </h2>
+            <h2 className="section-title" style={{ margin: '0 0 4px' }}>Khóa học của tôi</h2>
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
               Theo dõi và tiếp tục học tập các khóa học bạn đã đăng ký
             </p>
@@ -395,13 +342,13 @@ export default function DashboardPage() {
                 onClick={() => setCourseFilter('active')}
                 className={`pill-btn ${courseFilter === 'active' ? 'active' : ''}`}
               >
-                Đang học ({courses.filter((c) => c.progressPercent < 100).length})
+                Đang học ({courses.filter(c => c.progressPercent < 100).length})
               </button>
               <button
                 onClick={() => setCourseFilter('completed')}
                 className={`pill-btn ${courseFilter === 'completed' ? 'active' : ''}`}
               >
-                Hoàn thành ({courses.filter((c) => c.progressPercent === 100).length})
+                Hoàn thành ({courses.filter(c => c.progressPercent === 100).length})
               </button>
             </div>
 
@@ -412,55 +359,20 @@ export default function DashboardPage() {
         </div>
 
         {courses.length === 0 ? (
-          <div
-            className="empty-state"
-            style={{
-              background: 'var(--panel)',
-              borderRadius: '16px',
-              border: '1px solid #eeeef6',
-              padding: '40px 20px',
-              textAlign: 'center',
-            }}
-          >
-            <div className="empty-icon" style={{ fontSize: '48px', marginBottom: '12px' }}>
-              📚
-            </div>
-            <h3
-              style={{
-                fontFamily: 'Space Grotesk',
-                fontSize: '18px',
-                fontWeight: 700,
-                margin: '0 0 8px',
-              }}
-            >
+          <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '16px', border: '1px solid #eeeef6', padding: '40px 20px', textAlign: 'center' }}>
+            <div className="empty-icon" style={{ fontSize: '48px', marginBottom: '12px' }}>📚</div>
+            <h3 style={{ fontFamily: 'Space Grotesk', fontSize: '18px', fontWeight: 700, margin: '0 0 8px' }}>
               Bạn chưa đăng ký khóa học nào
             </h3>
-            <p
-              style={{
-                color: 'var(--muted)',
-                fontSize: '14px',
-                maxWidth: '440px',
-                margin: '0 auto 18px',
-              }}
-            >
-              Khám phá danh mục các khóa học lập trình, AI và kỹ năng số để bắt đầu lộ trình học tập
-              ngay hôm nay.
+            <p style={{ color: 'var(--muted)', fontSize: '14px', maxWidth: '440px', margin: '0 auto 18px' }}>
+              Khám phá danh mục các khóa học lập trình, AI và kỹ năng số để bắt đầu lộ trình học tập ngay hôm nay.
             </p>
             <Link to="/courses" className="btn btn-primary">
               Khám phá danh mục khóa học
             </Link>
           </div>
         ) : filteredCourses.length === 0 ? (
-          <div
-            style={{
-              background: 'var(--panel)',
-              borderRadius: '16px',
-              border: '1px solid #eeeef6',
-              padding: '32px',
-              textAlign: 'center',
-              color: 'var(--muted)',
-            }}
-          >
+          <div style={{ background: 'var(--panel)', borderRadius: '16px', border: '1px solid #eeeef6', padding: '32px', textAlign: 'center', color: 'var(--muted)' }}>
             Không có khóa học nào phù hợp với bộ lọc hiện tại.
           </div>
         ) : (
@@ -468,17 +380,14 @@ export default function DashboardPage() {
             {filteredCourses.map((c) => (
               <div key={c.courseId} className="course-card">
                 <div className="course-thumb">
-                  {c.thumbnail ? <img src={c.thumbnail} alt={c.title} /> : <span>💻</span>}
+                  {c.thumbnail ? (
+                    <img src={c.thumbnail} alt={c.title} />
+                  ) : (
+                    <span>💻</span>
+                  )}
                 </div>
                 <div className="course-body">
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '8px',
-                    }}
-                  >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span className={`badge badge-${c.enrollmentStatus}`}>
                       {c.enrollmentStatus === 'completed' ? 'Hoàn thành' : 'Đang học'}
                     </span>
@@ -487,22 +396,16 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <h3 className="course-title" style={{ minHeight: '44px' }}>
-                    {c.title}
-                  </h3>
+                  <h3 className="course-title" style={{ minHeight: '44px' }}>{c.title}</h3>
 
                   <div className="progress-wrap">
-                    <div className="progress-fill" style={{ width: `${c.progressPercent}%` }}></div>
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${c.progressPercent}%` }}
+                    ></div>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '16px',
-                    }}
-                  >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <span className="progress-text">
                       {c.completedLessons} / {c.totalLessons} bài học
                     </span>
@@ -516,12 +419,7 @@ export default function DashboardPage() {
                       <button
                         onClick={() => navigate('/certificates')}
                         className="btn btn-primary btn-sm"
-                        style={{
-                          flex: 1,
-                          fontWeight: 600,
-                          background: '#10b981',
-                          borderColor: '#10b981',
-                        }}
+                        style={{ flex: 1, fontWeight: 600, background: '#10b981', borderColor: '#10b981' }}
                       >
                         📜 Chứng chỉ
                       </button>
@@ -550,20 +448,12 @@ export default function DashboardPage() {
         )}
       </section>
 
+      {/* ─── 5. Recommended / Explore Courses (LMS Reality) ─────────── */}
       {recommendedCourses.length > 0 && (
         <section style={{ marginBottom: '38px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '18px',
-            }}
-          >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
             <div>
-              <h2 className="section-title" style={{ margin: '0 0 4px' }}>
-                Khám phá thêm khóa học gợi ý
-              </h2>
+              <h2 className="section-title" style={{ margin: '0 0 4px' }}>Khám phá thêm khóa học gợi ý</h2>
               <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
                 Các khóa học nổi bật giúp bạn mở rộng kiến thức và tích lũy chứng chỉ mới
               </p>
@@ -577,21 +467,15 @@ export default function DashboardPage() {
             {recommendedCourses.map((c) => (
               <div key={c._id || c.courseId} className="course-card">
                 <div className="course-thumb">
-                  {c.thumbnail ? <img src={c.thumbnail} alt={c.title} /> : <span>💡</span>}
+                  {c.thumbnail ? (
+                    <img src={c.thumbnail} alt={c.title} />
+                  ) : (
+                    <span>💡</span>
+                  )}
                 </div>
                 <div className="course-body">
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    <span
-                      className="badge badge-active"
-                      style={{ background: '#f3e8ff', color: '#6b21a8' }}
-                    >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="badge badge-active" style={{ background: '#f3e8ff', color: '#6b21a8' }}>
                       {c.category || 'Công nghệ'}
                     </span>
                     <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>
@@ -599,12 +483,9 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <h3 className="course-title" style={{ minHeight: '44px' }}>
-                    {c.title}
-                  </h3>
+                  <h3 className="course-title" style={{ minHeight: '44px' }}>{c.title}</h3>
                   <p className="course-desc" style={{ minHeight: '38px' }}>
-                    {c.description ||
-                      'Nâng tầm kỹ năng với nội dung bài giảng chuyên sâu và thực hành thực tế.'}
+                    {c.description || 'Nâng tầm kỹ năng với nội dung bài giảng chuyên sâu và thực hành thực tế.'}
                   </p>
 
                   <div className="course-meta">
@@ -617,15 +498,9 @@ export default function DashboardPage() {
                     onClick={() => handleEnroll(c.id || c._id || c.courseId)}
                     disabled={enrollingId === (c.id || c._id || c.courseId)}
                     className="btn btn-secondary btn-sm btn-full"
-                    style={{
-                      borderColor: 'var(--purple)',
-                      color: 'var(--purple)',
-                      fontWeight: 600,
-                    }}
+                    style={{ borderColor: 'var(--purple)', color: 'var(--purple)', fontWeight: 600 }}
                   >
-                    {enrollingId === (c.id || c._id || c.courseId)
-                      ? 'Đang đăng ký...'
-                      : '+ Đăng ký học ngay'}
+                    {enrollingId === (c.id || c._id || c.courseId) ? 'Đang đăng ký...' : '+ Đăng ký học ngay'}
                   </button>
                 </div>
               </div>
@@ -634,20 +509,12 @@ export default function DashboardPage() {
         </section>
       )}
 
+      {/* ─── 6. Recent Learning Timeline (NOT an Admin Table!) ──────── */}
       {recent.length > 0 && (
         <section style={{ marginBottom: '24px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '16px',
-            }}
-          >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
-              <h2 className="section-title" style={{ margin: '0 0 4px' }}>
-                Nhật ký hoạt động gần đây
-              </h2>
+              <h2 className="section-title" style={{ margin: '0 0 4px' }}>Nhật ký hoạt động gần đây</h2>
               <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
                 Các bài học bạn vừa tương tác gần đây
               </p>

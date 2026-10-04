@@ -1,3 +1,8 @@
+/**
+ * Author: ThienDDN - CE182101 / Team
+ * Created at: 01/10/2026
+ * Description: Teacher Instructor Dashboard & Analytics Control Center
+ */
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { teacherService } from '../services/api';
@@ -35,7 +40,7 @@ export default function TeacherDashboardPage() {
       }
     } catch (err) {
       console.warn('Teacher dashboard API failed, falling back to courses list...', err);
-
+      // Fallback: fetch teacher courses directly
       try {
         const coursesRes = await teacherService.getCourses();
         const courses = coursesRes.data?.courses || [];
@@ -100,10 +105,12 @@ export default function TeacherDashboardPage() {
   const draftCourses = metrics.draftCourses || 0;
   const totalStudents = metrics.totalStudents || 0;
 
+  // Percentage for distribution
   const calcPct = (val) => (totalCourses > 0 ? Math.round((val / totalCourses) * 100) : 0);
 
   return (
     <div className="teacher-dashboard">
+      {/* ─── 1. Hero Header Banner ─────────────────────────────────── */}
       <section className="teacher-hero-banner">
         <div className="teacher-hero-content">
           <h1>
@@ -111,8 +118,7 @@ export default function TeacherDashboardPage() {
             <span className="teacher-hero-badge">Giảng viên đối tác</span>
           </h1>
           <p>
-            Chào mừng trở lại, thầy/cô <strong>{user?.fullName || 'Giảng viên'}</strong>! Quản lý
-            khóa học, theo dõi học viên và tạo nội dung đào tạo tương tác.
+            Chào mừng trở lại, thầy/cô <strong>{user?.fullName || 'Giảng viên'}</strong>! Quản lý khóa học, theo dõi học viên và tạo nội dung đào tạo tương tác.
           </p>
         </div>
         <div className="teacher-hero-actions">
@@ -129,7 +135,9 @@ export default function TeacherDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 2. Top KPI Cards ──────────────────────────────────────── */}
       <section className="admin-kpi-grid">
+        {/* KPI 1: Total Courses */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/teacher/courses')}
@@ -144,13 +152,12 @@ export default function TeacherDashboardPage() {
             <div className="admin-kpi-label">Tổng khóa học đã tạo</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>
-              {draftCourses} Bản nháp · {publishedCourses} Đang mở
-            </span>
+            <span>{draftCourses} Bản nháp · {publishedCourses} Đang mở</span>
             <span>Xem tất cả →</span>
           </div>
         </div>
 
+        {/* KPI 2: Total Enrolled Students */}
         <div className="admin-kpi-card">
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon purple">👥</div>
@@ -166,6 +173,7 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
 
+        {/* KPI 3: Pending Review Courses */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/teacher/courses')}
@@ -187,6 +195,7 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
 
+        {/* KPI 4: Published Courses */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/teacher/courses')}
@@ -207,6 +216,7 @@ export default function TeacherDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 3. Quick Action Shortcuts ──────────────────────────────── */}
       <section className="admin-shortcuts-card">
         <div className="admin-shortcuts-title">
           <span>⚡ Lối tắt công cụ giảng dạy</span>
@@ -224,7 +234,9 @@ export default function TeacherDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 4. Main Split Grid ────────────────────────────────────── */}
       <section className="admin-split-grid">
+        {/* Panel 1: Recent Courses */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
@@ -248,24 +260,17 @@ export default function TeacherDashboardPage() {
               coursesList.map((course) => (
                 <div className="admin-panel-item" key={course._id}>
                   <div className="admin-item-info">
-                    <div
-                      className="admin-item-avatar"
-                      style={{ background: '#ecfdf5', color: '#047857' }}
-                    >
+                    <div className="admin-item-avatar" style={{ background: '#ecfdf5', color: '#047857' }}>
                       🎓
                     </div>
                     <div className="admin-item-meta">
                       <strong>{course.title}</strong>
                       <span>
-                        {course.category || 'Môn học'} · {course.duration || 0} giờ ·{' '}
-                        {course.totalStudents || 0} học viên
+                        {course.category || 'Môn học'} · {course.duration || 0} giờ · {course.totalStudents || 0} học viên
                       </span>
                     </div>
                   </div>
-                  <div
-                    className="admin-item-action"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                  >
+                  <div className="admin-item-action" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className={`status-badge status-${course.status}`}>
                       {statusLabels[course.status] || course.status}
                     </span>
@@ -282,6 +287,7 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
 
+        {/* Panel 2: Recent Student Enrollments */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
@@ -302,24 +308,18 @@ export default function TeacherDashboardPage() {
               recentEnrollments.map((enr) => (
                 <div className="admin-panel-item" key={enr._id}>
                   <div className="admin-item-info">
-                    <div
-                      className="admin-item-avatar"
-                      style={{ background: '#e0e7ff', color: '#4338ca' }}
-                    >
+                    <div className="admin-item-avatar" style={{ background: '#e0e7ff', color: '#4338ca' }}>
                       {(enr.userId?.fullName || 'H').charAt(0).toUpperCase()}
                     </div>
                     <div className="admin-item-meta">
                       <strong>{enr.userId?.fullName || 'Học viên'}</strong>
                       <span>
-                        Khóa: {enr.courseId?.title || 'Khóa học'} ·{' '}
-                        {new Date(enr.enrolledAt || enr.createdAt).toLocaleDateString('vi-VN')}
+                        Khóa: {enr.courseId?.title || 'Khóa học'} · {new Date(enr.enrolledAt || enr.createdAt).toLocaleDateString('vi-VN')}
                       </span>
                     </div>
                   </div>
                   <div className="admin-item-action">
-                    <span
-                      className={`status-badge status-${enr.status === 'completed' ? 'open' : 'pending_review'}`}
-                    >
+                    <span className={`status-badge status-${enr.status === 'completed' ? 'open' : 'pending_review'}`}>
                       {enr.status === 'completed' ? 'Đã xong' : 'Đang học'}
                     </span>
                   </div>
@@ -330,7 +330,9 @@ export default function TeacherDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 5. Course Pipeline Analytics & Tips ─────────────────────── */}
       <section className="admin-analytics-grid">
+        {/* Pipeline Chart */}
         <div className="admin-chart-card">
           <div className="admin-chart-title">
             <span>Trạng thái các khóa học của bạn</span>
@@ -342,78 +344,51 @@ export default function TeacherDashboardPage() {
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Đã xuất bản (Published)</span>
-              <span>
-                {publishedCourses} ({calcPct(publishedCourses)}%)
-              </span>
+              <span>{publishedCourses} ({calcPct(publishedCourses)}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill emerald"
-                style={{ width: `${calcPct(publishedCourses)}%` }}
-              ></div>
+              <div className="admin-stat-fill emerald" style={{ width: `${calcPct(publishedCourses)}%` }}></div>
             </div>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Đang chờ duyệt (Pending Review)</span>
-              <span>
-                {pendingCourses} ({calcPct(pendingCourses)}%)
-              </span>
+              <span>{pendingCourses} ({calcPct(pendingCourses)}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill amber"
-                style={{ width: `${calcPct(pendingCourses)}%` }}
-              ></div>
+              <div className="admin-stat-fill amber" style={{ width: `${calcPct(pendingCourses)}%` }}></div>
             </div>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Bản nháp đang biên soạn (Draft)</span>
-              <span>
-                {draftCourses} ({calcPct(draftCourses)}%)
-              </span>
+              <span>{draftCourses} ({calcPct(draftCourses)}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill purple"
-                style={{ width: `${calcPct(draftCourses)}%` }}
-              ></div>
+              <div className="admin-stat-fill purple" style={{ width: `${calcPct(draftCourses)}%` }}></div>
             </div>
           </div>
         </div>
 
+        {/* Teaching Quality & Guidelines Card */}
         <div className="admin-chart-card" style={{ background: '#f8fdfa', borderColor: '#a7f3d0' }}>
           <div className="admin-chart-title" style={{ color: '#065f46' }}>
             <span>💡 Lời khuyên duyệt khóa học nhanh</span>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              fontSize: '13px',
-              color: '#047857',
-              lineHeight: 1.6,
-            }}
-          >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', color: '#047857', lineHeight: 1.6 }}>
             <div>
-              <strong>1. Tiêu đề rõ ràng:</strong> Đặt tên khóa học súc tích, phản ánh đúng kỹ năng
-              trọng tâm.
+              <strong>1. Tiêu đề rõ ràng:</strong> Đặt tên khóa học súc tích, phản ánh đúng kỹ năng trọng tâm.
             </div>
             <div>
-              <strong>2. Mô tả chi tiết:</strong> Nêu rõ chuẩn đầu ra, kiến thức tiên quyết và đối
-              tượng phù hợp.
+              <strong>2. Mô tả chi tiết:</strong> Nêu rõ chuẩn đầu ra, kiến thức tiên quyết và đối tượng phù hợp.
             </div>
             <div>
-              <strong>3. Thời lượng hợp lý:</strong> Phân chia bài học thành các phần ngắn từ 5-15
-              phút để học viên dễ tiếp thu.
+              <strong>3. Thời lượng hợp lý:</strong> Phân chia bài học thành các phần ngắn từ 5-15 phút để học viên dễ tiếp thu.
             </div>
             <div>
-              <strong>4. Nộp duyệt kiểm duyệt:</strong> Sau khi hoàn thành bản nháp, bấm nút{' '}
-              <em>"Submit for review"</em> để ban quản trị thẩm định và mở lớp.
+              <strong>4. Nộp duyệt kiểm duyệt:</strong> Sau khi hoàn thành bản nháp, bấm nút <em>"Submit for review"</em> để ban quản trị thẩm định và mở lớp.
             </div>
           </div>
         </div>

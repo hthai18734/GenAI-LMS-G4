@@ -20,9 +20,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    try {
-      await authService.logout();
-    } catch {}
+    try { await authService.logout(); } catch {}
     clearSession();
     setToken(null);
     setUser(null);

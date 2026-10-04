@@ -73,6 +73,7 @@ export default function ProfilePage() {
       return;
     }
 
+    // Clean phone number: remove spaces, dashes, dots, and convert international code
     let cleanPhone = phone.trim().replace(/[\s.-]/g, '');
     if (cleanPhone.startsWith('+84')) {
       cleanPhone = '0' + cleanPhone.slice(3);
@@ -81,10 +82,7 @@ export default function ProfilePage() {
     }
 
     if (cleanPhone && !/^0\d{9}$/.test(cleanPhone)) {
-      addToast(
-        'Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0 (ví dụ: 0981234567).',
-        'error',
-      );
+      addToast('Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0 (ví dụ: 0981234567).', 'error');
       return;
     }
 
@@ -95,6 +93,7 @@ export default function ProfilePage() {
         phone: cleanPhone || null,
       };
 
+      // Only send avatar if a new image was uploaded (data URI) or if it changed
       if (avatar && avatar.startsWith('data:image/')) {
         payload.avatar = avatar;
       } else if (avatar === null && profile?.avatar) {
@@ -150,6 +149,7 @@ export default function ProfilePage() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Page Header */}
       <div style={{ marginBottom: '24px' }}>
         <h2 className="section-title" style={{ margin: '0 0 6px', fontSize: '22px' }}>
           Hồ sơ cá nhân & Tài khoản
@@ -159,17 +159,12 @@ export default function ProfilePage() {
         </p>
       </div>
 
+      {/* Balanced 2-Column Grid */}
       <div className="profile-grid-layout">
+        {/* Left Column: Summary & Avatar Card */}
         <div>
           <div className="profile-card-panel" style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                position: 'relative',
-                width: '100px',
-                height: '100px',
-                margin: '0 auto 16px',
-              }}
-            >
+            <div style={{ position: 'relative', width: '100px', height: '100px', margin: '0 auto 16px' }}>
               <div
                 style={{
                   width: '100px',
@@ -188,11 +183,7 @@ export default function ProfilePage() {
                 }}
               >
                 {avatar ? (
-                  <img
-                    src={avatar}
-                    alt={profile?.fullName}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+                  <img src={avatar} alt={profile?.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span>{initials}</span>
                 )}
@@ -214,70 +205,26 @@ export default function ProfilePage() {
               />
             </div>
 
-            <h3
-              style={{
-                fontFamily: 'Space Grotesk',
-                fontSize: '18px',
-                fontWeight: 700,
-                margin: '0 0 4px',
-                color: 'var(--ink)',
-              }}
-            >
+            <h3 style={{ fontFamily: 'Space Grotesk', fontSize: '18px', fontWeight: 700, margin: '0 0 4px', color: 'var(--ink)' }}>
               {profile?.fullName || 'Học viên'}
             </h3>
             <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 14px' }}>
               {profile?.email}
             </p>
 
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '8px',
-                marginBottom: '20px',
-              }}
-            >
-              <span
-                className="badge badge-active"
-                style={{
-                  background:
-                    (profile?.role || user?.role) === 'admin'
-                      ? '#f3e8ff'
-                      : (profile?.role || user?.role) === 'teacher'
-                        ? '#fef3c7'
-                        : '#dcfce7',
-                  color:
-                    (profile?.role || user?.role) === 'admin'
-                      ? '#6b21a8'
-                      : (profile?.role || user?.role) === 'teacher'
-                        ? '#92400e'
-                        : '#15803d',
-                }}
-              >
-                {(profile?.role || user?.role) === 'admin'
-                  ? 'Quản trị viên'
-                  : (profile?.role || user?.role) === 'teacher'
-                    ? 'Giảng viên'
-                    : 'Học viên'}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '20px' }}>
+              <span className="badge badge-active" style={{
+                background: (profile?.role || user?.role) === 'admin' ? '#f3e8ff' : (profile?.role || user?.role) === 'teacher' ? '#fef3c7' : '#dcfce7',
+                color: (profile?.role || user?.role) === 'admin' ? '#6b21a8' : (profile?.role || user?.role) === 'teacher' ? '#92400e' : '#15803d'
+              }}>
+                {(profile?.role || user?.role) === 'admin' ? 'Quản trị viên' : (profile?.role || user?.role) === 'teacher' ? 'Giảng viên' : 'Học viên'}
               </span>
-              <span
-                className="badge badge-completed"
-                style={{ background: '#e0e7ff', color: '#4338ca' }}
-              >
+              <span className="badge badge-completed" style={{ background: '#e0e7ff', color: '#4338ca' }}>
                 Đang hoạt động
               </span>
             </div>
 
-            <div
-              style={{
-                borderTop: '1px solid #f0eff9',
-                paddingTop: '16px',
-                textAlign: 'left',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
+            <div style={{ borderTop: '1px solid #f0eff9', paddingTop: '16px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--muted)' }}>Ngày tham gia</span>
                 <strong style={{ color: 'var(--ink)' }}>{memberSince}</strong>
@@ -289,11 +236,7 @@ export default function ProfilePage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--muted)' }}>Vai trò</span>
                 <strong style={{ color: 'var(--ink)' }}>
-                  {(profile?.role || user?.role) === 'admin'
-                    ? 'Quản trị viên (Admin)'
-                    : (profile?.role || user?.role) === 'teacher'
-                      ? 'Giảng viên (Teacher)'
-                      : 'Học viên (Student)'}
+                  {(profile?.role || user?.role) === 'admin' ? 'Quản trị viên (Admin)' : (profile?.role || user?.role) === 'teacher' ? 'Giảng viên (Teacher)' : 'Học viên (Student)'}
                 </strong>
               </div>
             </div>
@@ -304,29 +247,20 @@ export default function ProfilePage() {
               <span>🛡</span> Bảo mật tài khoản
             </h4>
             <p>
-              Tài khoản của bạn được bảo vệ qua hệ thống xác thực an toàn. Bạn có thể đăng nhập bằng
-              Email hoặc Google.
+              Tài khoản của bạn được bảo vệ qua hệ thống xác thực an toàn. Bạn có thể đăng nhập bằng Email hoặc Google.
             </p>
           </div>
         </div>
 
+        {/* Right Column: Detailed Edit Form */}
         <div>
           <div className="profile-card-panel">
             <h3 className="profile-card-title">
               <span>✏️</span> Chỉnh sửa thông tin cá nhân
             </h3>
 
-            <form
-              onSubmit={handleSubmit}
-              style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
-            >
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                  gap: '18px',
-                }}
-              >
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label htmlFor="pFullName">Họ và tên *</label>
                   <input
@@ -337,14 +271,7 @@ export default function ProfilePage() {
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Ví dụ: Nguyễn Văn An"
                   />
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--muted)',
-                      marginTop: '4px',
-                      display: 'block',
-                    }}
-                  >
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', display: 'block' }}>
                     Tên hiển thị trên hệ thống và chứng chỉ khi hoàn thành khóa học.
                   </span>
                 </div>
@@ -358,26 +285,13 @@ export default function ProfilePage() {
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Ví dụ: 0981260124"
                   />
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--muted)',
-                      marginTop: '4px',
-                      display: 'block',
-                    }}
-                  >
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', display: 'block' }}>
                     Dùng để nhận thông báo khẩn cấp hoặc xác minh tài khoản.
                   </span>
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                  gap: '18px',
-                }}
-              >
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label htmlFor="pEmail">Địa chỉ Email (Cố định)</label>
                   <input
@@ -387,14 +301,7 @@ export default function ProfilePage() {
                     value={profile?.email || ''}
                     style={{ background: '#f8f8fc', color: '#64748b', cursor: 'not-allowed' }}
                   />
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--muted)',
-                      marginTop: '4px',
-                      display: 'block',
-                    }}
-                  >
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', display: 'block' }}>
                     Email được dùng làm tên đăng nhập tài khoản AI-LMS.
                   </span>
                 </div>
@@ -407,28 +314,13 @@ export default function ProfilePage() {
                     value={memberSince}
                     style={{ background: '#f8f8fc', color: '#64748b', cursor: 'not-allowed' }}
                   />
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--muted)',
-                      marginTop: '4px',
-                      display: 'block',
-                    }}
-                  >
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', display: 'block' }}>
                     Thời điểm bạn bắt đầu học tập trên hệ thống.
                   </span>
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '12px',
-                  marginTop: '12px',
-                  paddingTop: '16px',
-                  borderTop: '1px solid #f0eff9',
-                }}
-              >
+              <div style={{ display: 'flex', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid #f0eff9' }}>
                 <button
                   type="submit"
                   disabled={saving}
@@ -437,32 +329,23 @@ export default function ProfilePage() {
                 >
                   {saving ? 'Đang lưu thay đổi...' : 'Lưu thay đổi hồ sơ'}
                 </button>
-                <button type="button" onClick={fetchProfile} className="btn btn-secondary">
+                <button
+                  type="button"
+                  onClick={fetchProfile}
+                  className="btn btn-secondary"
+                >
                   Hủy / Tải lại
                 </button>
               </div>
             </form>
           </div>
 
-          <div
-            className="profile-card-panel"
-            style={{ background: '#f8f7ff', border: '1px dashed #c7d2fe' }}
-          >
-            <h4
-              style={{
-                fontFamily: 'Space Grotesk',
-                fontSize: '15px',
-                fontWeight: 700,
-                margin: '0 0 6px',
-                color: '#4338ca',
-              }}
-            >
+          <div className="profile-card-panel" style={{ background: '#f8f7ff', border: '1px dashed #c7d2fe' }}>
+            <h4 style={{ fontFamily: 'Space Grotesk', fontSize: '15px', fontWeight: 700, margin: '0 0 6px', color: '#4338ca' }}>
               💡 Lưu ý về tên trên Chứng chỉ
             </h4>
             <p style={{ margin: 0, fontSize: '13px', color: '#4b5563', lineHeight: 1.6 }}>
-              Họ và tên của bạn sẽ được in trực tiếp lên chứng chỉ tốt nghiệp sau khi bạn hoàn thành
-              100% các bài giảng của khóa học. Hãy đảm bảo bạn nhập đúng họ tên thật có dấu để chứng
-              chỉ có giá trị cao nhất.
+              Họ và tên của bạn sẽ được in trực tiếp lên chứng chỉ tốt nghiệp sau khi bạn hoàn thành 100% các bài giảng của khóa học. Hãy đảm bảo bạn nhập đúng họ tên thật có dấu để chứng chỉ có giá trị cao nhất.
             </p>
           </div>
         </div>

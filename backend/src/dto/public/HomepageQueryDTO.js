@@ -1,3 +1,9 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Homepage Query DTO for Guest Public Courses (UC-1.1)
+ */
+
 class HomepageQueryDTO {
   constructor(query = {}) {
     this.query = query;

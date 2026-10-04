@@ -13,10 +13,7 @@ const storage = multer.diskStorage({
     callback(null, uploadDirectory);
   },
   filename(req, file, callback) {
-    callback(
-      null,
-      `${Date.now()}-${crypto.randomBytes(12).toString('hex')}${extensions[file.mimetype]}`,
-    );
+    callback(null, `${Date.now()}-${crypto.randomBytes(12).toString('hex')}${extensions[file.mimetype]}`);
   },
 });
 

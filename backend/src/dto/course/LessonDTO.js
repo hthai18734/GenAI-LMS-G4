@@ -11,8 +11,7 @@ class LessonDTO {
     const allowed = ['title', 'content', 'order', 'duration'];
     const unknown = unknownFields(this.body, allowed);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
-    if (this.partial && !Object.keys(this.body).length)
-      errors.payload = 'At least one lesson field is required.';
+    if (this.partial && !Object.keys(this.body).length) errors.payload = 'At least one lesson field is required.';
 
     if (!this.partial || hasOwn(this.body, 'title')) {
       const title = text(this.body.title);
@@ -24,13 +23,11 @@ class LessonDTO {
     }
     if (!this.partial || hasOwn(this.body, 'order')) {
       const order = Number(this.body.order);
-      if (!Number.isInteger(order) || order < 1)
-        errors.order = 'Lesson order must be an integer greater than zero.';
+      if (!Number.isInteger(order) || order < 1) errors.order = 'Lesson order must be an integer greater than zero.';
     }
     if (hasOwn(this.body, 'duration')) {
       const duration = Number(this.body.duration);
-      if (!Number.isFinite(duration) || duration < 0)
-        errors.duration = 'Lesson duration must be a non-negative number.';
+      if (!Number.isFinite(duration) || duration < 0) errors.duration = 'Lesson duration must be a non-negative number.';
     }
     return errors;
   }

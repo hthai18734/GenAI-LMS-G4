@@ -19,6 +19,7 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false }));
 
+// CORS – allow React dev server
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowed = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',');
@@ -32,11 +33,11 @@ app.use((req, res, next) => {
   return next();
 });
 
+// Serve files uploaded through the API; application pages are served by the frontend.
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-app.get('/health', (req, res) =>
-  ResponseUtil.success(res, { data: { service: 'AI-LMS Iteration 1', status: 'ok' } }),
-);
+// API routes
+app.get('/health', (req, res) => ResponseUtil.success(res, { data: { service: 'AI-LMS Iteration 1', status: 'ok' } }));
 app.use('/api/auth', authRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/student', studentRoutes);

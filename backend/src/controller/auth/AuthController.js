@@ -23,18 +23,12 @@ class AuthController {
       const error = this.validateRegistration(fullName, email, phone, password, confirmPassword);
       if (error) return ResponseUtil.error(res, { status: 400, message: error });
       if (await UserDAO.isEmailExists(email)) {
-        return ResponseUtil.error(res, {
-          status: 409,
-          message: 'This email is already in use. Please use another email address.',
-        });
+        return ResponseUtil.error(res, { status: 409, message: 'This email is already in use. Please use another email address.' });
       }
 
       const passwordHash = await PasswordUtil.hash(password);
       await this.issueOtp(email, { fullName, email, phone, passwordHash });
-      return ResponseUtil.success(res, {
-        status: 202,
-        message: 'A verification code was sent to your email.',
-      });
+      return ResponseUtil.success(res, { status: 202, message: 'A verification code was sent to your email.' });
     } catch (error) {
       return next(error);
     }
@@ -44,22 +38,15 @@ class AuthController {
     try {
       const email = this.trim(req.body.email)?.toLowerCase();
       const otp = this.trim(req.body.otp);
-      if (!email || !otp)
-        return ResponseUtil.error(res, { status: 400, message: 'Email and OTP are required.' });
+      if (!email || !otp) return ResponseUtil.error(res, { status: 400, message: 'Email and OTP are required.' });
 
       const record = await OtpVerificationDAO.find(email, 'email_verification');
       if (!record) {
-        return ResponseUtil.error(res, {
-          status: 400,
-          message: 'No active verification request was found.',
-        });
+        return ResponseUtil.error(res, { status: 400, message: 'No active verification request was found.' });
       }
       const otpExpiresAt = record.otpExpiresAt || record.expiresAt;
       if (otpExpiresAt <= new Date()) {
-        return ResponseUtil.error(res, {
-          status: 400,
-          message: 'The OTP has expired. Select "Resend Code" to receive a new one.',
-        });
+        return ResponseUtil.error(res, { status: 400, message: 'The OTP has expired. Select "Resend Code" to receive a new one.' });
       }
       if (record.wrongAttempts > OTPUtil.MAX_WRONG_ATTEMPTS) {
         return ResponseUtil.error(res, {
@@ -77,10 +64,7 @@ class AuthController {
           });
         }
         const remaining = OTPUtil.MAX_WRONG_ATTEMPTS - updated.wrongAttempts;
-        return ResponseUtil.error(res, {
-          status: 400,
-          message: `Incorrect OTP. You have ${remaining} attempts remaining.`,
-        });
+        return ResponseUtil.error(res, { status: 400, message: `Incorrect OTP. You have ${remaining} attempts remaining.` });
       }
 
       if (await UserDAO.isEmailExists(email)) {
@@ -101,8 +85,7 @@ class AuthController {
         data: { user: this.toPublicUser(user) },
       });
     } catch (error) {
-      if (error?.code === 11000)
-        return ResponseUtil.error(res, { status: 409, message: 'This email is already in use.' });
+      if (error?.code === 11000) return ResponseUtil.error(res, { status: 409, message: 'This email is already in use.' });
       return next(error);
     }
   }
@@ -113,23 +96,14 @@ class AuthController {
       if (!email) return ResponseUtil.error(res, { status: 400, message: 'Email is required.' });
 
       const existing = await OtpVerificationDAO.find(email, 'email_verification');
-      if (!existing)
-        return ResponseUtil.error(res, {
-          status: 400,
-          message: 'No active verification request was found.',
-        });
+      if (!existing) return ResponseUtil.error(res, { status: 400, message: 'No active verification request was found.' });
       if (existing.resendAvailableAt > new Date()) {
         const waitSec = Math.ceil((existing.resendAvailableAt.getTime() - Date.now()) / 1000);
-        return ResponseUtil.error(res, {
-          status: 429,
-          message: `Please wait ${waitSec} seconds before requesting another code.`,
-        });
+        return ResponseUtil.error(res, { status: 429, message: `Please wait ${waitSec} seconds before requesting another code.` });
       }
 
       await this.issueOtp(email, existing.payload);
-      return ResponseUtil.success(res, {
-        message: 'A new verification code has been sent to your email.',
-      });
+      return ResponseUtil.success(res, { message: 'A new verification code has been sent to your email.' });
     } catch (error) {
       return next(error);
     }
@@ -139,11 +113,7 @@ class AuthController {
     try {
       let email = this.trim(req.body.email)?.toLowerCase();
       const password = req.body.password;
-      if (!email || !password)
-        return ResponseUtil.error(res, {
-          status: 400,
-          message: 'Email and password are required.',
-        });
+      if (!email || !password) return ResponseUtil.error(res, { status: 400, message: 'Email and password are required.' });
 
       if (email === 'teacher') {
         email = 'teacher@ai-lms.edu';
@@ -154,13 +124,7 @@ class AuthController {
         return ResponseUtil.error(res, { status: 401, message: 'Invalid email or password.' });
       }
       if (user.status !== 'active') {
-        return ResponseUtil.error(res, {
-          status: 403,
-          message:
-            user.status === 'pending'
-              ? 'Please verify your email before logging in.'
-              : 'Your account has been deactivated.',
-        });
+        return ResponseUtil.error(res, { status: 403, message: user.status === 'pending' ? 'Please verify your email before logging in.' : 'Your account has been deactivated.' });
       }
 
       user = await UserDAO.recordLoginSuccess(user._id);
@@ -175,12 +139,11 @@ class AuthController {
 
   getGoogleLoginUrl(req, res, next) {
     try {
-      const origin =
-        req.query.origin ||
-        req.headers.origin ||
-        (req.headers.referer ? new URL(req.headers.referer).origin : null) ||
-        process.env.FRONTEND_URL ||
-        'http://localhost:5173';
+      const origin = req.query.origin
+        || req.headers.origin
+        || (req.headers.referer ? new URL(req.headers.referer).origin : null)
+        || process.env.FRONTEND_URL
+        || 'http://localhost:5173';
       const { state, url } = OAuthUtil.createAuthorizationUrl(origin);
       res.setHeader('Set-Cookie', this.buildOAuthStateCookie(state));
       return ResponseUtil.success(res, { data: { url } });
@@ -194,10 +157,8 @@ class AuthController {
 
     try {
       const { code, state, error: providerError } = req.query;
-      if (providerError)
-        return this.redirectOAuthError(res, 'Google sign-in was cancelled or denied.', baseOrigin);
-      if (!code || !state)
-        return this.redirectOAuthError(res, 'Invalid Google OAuth callback.', baseOrigin);
+      if (providerError) return this.redirectOAuthError(res, 'Google sign-in was cancelled or denied.', baseOrigin);
+      if (!code || !state) return this.redirectOAuthError(res, 'Invalid Google OAuth callback.', baseOrigin);
 
       let statePayload;
       try {
@@ -239,9 +200,7 @@ class AuthController {
       await UserDAO.recordLoginSuccess(user._id);
       const loginCode = await OAuthLoginTicketDAO.create(user._id);
 
-      const targetBase = baseOrigin
-        ? `${baseOrigin}/oauth/callback`
-        : process.env.FRONTEND_OAUTH_SUCCESS_URL || 'http://localhost:5173/oauth/callback';
+      const targetBase = baseOrigin ? `${baseOrigin}/oauth/callback` : (process.env.FRONTEND_OAUTH_SUCCESS_URL || 'http://localhost:5173/oauth/callback');
       const redirect = new URL(targetBase);
       redirect.searchParams.set('code', loginCode);
       return res.redirect(redirect.toString());
@@ -254,20 +213,11 @@ class AuthController {
   async exchangeGoogleLoginCode(req, res, next) {
     try {
       const code = this.trim(req.body.code);
-      if (!code)
-        return ResponseUtil.error(res, { status: 400, message: 'OAuth login code is required.' });
+      if (!code) return ResponseUtil.error(res, { status: 400, message: 'OAuth login code is required.' });
       const ticket = await OAuthLoginTicketDAO.consume(code);
-      if (!ticket)
-        return ResponseUtil.error(res, {
-          status: 400,
-          message: 'OAuth login code is invalid or expired.',
-        });
+      if (!ticket) return ResponseUtil.error(res, { status: 400, message: 'OAuth login code is invalid or expired.' });
       const user = await UserDAO.findById(ticket.userId);
-      if (!user || user.status !== 'active')
-        return ResponseUtil.error(res, {
-          status: 403,
-          message: 'Your account has been deactivated.',
-        });
+      if (!user || user.status !== 'active') return ResponseUtil.error(res, { status: 403, message: 'Your account has been deactivated.' });
       return ResponseUtil.success(res, {
         message: 'Google login successful.',
         data: { user: this.toPublicUser(user), accessToken: JWTUtil.createAccessToken(user) },
@@ -308,12 +258,9 @@ class AuthController {
 
   validateRegistration(fullName, email, phone, password, confirmPassword) {
     if (!fullName) return 'Full name is required.';
-    if (fullName.trim().split(/\s+/).length < 2)
-      return 'Please enter a full name with at least two words.';
-    if (!/^[\p{L}\s]+$/u.test(fullName))
-      return 'Full name cannot contain numbers or special characters.';
-    if (fullName.length < 2 || fullName.length > 50)
-      return 'Full name must be 2–50 characters long.';
+    if (fullName.trim().split(/\s+/).length < 2) return 'Please enter a full name with at least two words.';
+    if (!/^[\p{L}\s]+$/u.test(fullName)) return 'Full name cannot contain numbers or special characters.';
+    if (fullName.length < 2 || fullName.length > 50) return 'Full name must be 2–50 characters long.';
     if (!email) return 'Email is required.';
     if (!/^[\w.+-]+@[\w-]+(\.[\w-]+)*\.[a-zA-Z]{2,}$/.test(email)) return 'Invalid email format.';
     if (!phone) return 'Phone number is required.';
@@ -369,9 +316,7 @@ class AuthController {
   }
 
   redirectOAuthError(res, message, baseOrigin = null) {
-    const errorUrl = baseOrigin
-      ? `${baseOrigin}/login`
-      : process.env.FRONTEND_OAUTH_ERROR_URL || 'http://localhost:5173/login';
+    const errorUrl = baseOrigin ? `${baseOrigin}/login` : (process.env.FRONTEND_OAUTH_ERROR_URL || 'http://localhost:5173/login');
     const redirect = new URL(errorUrl);
     redirect.searchParams.set('error', message);
     return res.redirect(redirect.toString());

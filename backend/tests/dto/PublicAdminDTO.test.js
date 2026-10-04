@@ -1,3 +1,9 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Unit Tests for Public Courses and Admin Teacher Application DTOs
+ */
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -12,6 +18,7 @@ const TeacherApplicationQueryDTO = require('../../src/dto/admin/TeacherApplicati
 const ApproveTeacherApplicationDTO = require('../../src/dto/admin/ApproveTeacherApplicationDTO');
 const RejectTeacherApplicationDTO = require('../../src/dto/admin/RejectTeacherApplicationDTO');
 
+// ─── UC-1.1: HomepageQueryDTO ───────────────────────────────────────
 test('HomepageQueryDTO accepts valid limit and clamps to max', () => {
   const dto = new HomepageQueryDTO({ limit: '8' });
   assert.deepEqual(dto.validate(), {});
@@ -26,6 +33,7 @@ test('HomepageQueryDTO rejects invalid limit', () => {
   assert.equal(dto.validate().limit, 'Limit must be an integer greater than zero.');
 });
 
+// ─── UC-1.2: BrowseCoursesQueryDTO ──────────────────────────────────
 test('BrowseCoursesQueryDTO parses page and limit correctly', () => {
   const dto = new BrowseCoursesQueryDTO({ page: '2', limit: '15' });
   assert.deepEqual(dto.validate(), {});
@@ -39,6 +47,7 @@ test('BrowseCoursesQueryDTO rejects negative page or limit', () => {
   assert.ok(errors.limit);
 });
 
+// ─── UC-1.3: SearchCoursesQueryDTO ──────────────────────────────────
 test('SearchCoursesQueryDTO requires non-blank keyword with min length 2', () => {
   const emptyDto = new SearchCoursesQueryDTO({ q: '   ' });
   assert.equal(emptyDto.validate().keyword, 'Keyword required');
@@ -51,6 +60,7 @@ test('SearchCoursesQueryDTO requires non-blank keyword with min length 2', () =>
   assert.equal(validDto.toObject().keyword, 'Node.js');
 });
 
+// ─── UC-1.4: FilterCoursesQueryDTO ──────────────────────────────────
 test('FilterCoursesQueryDTO rejects minPrice > maxPrice', () => {
   const dto = new FilterCoursesQueryDTO({ minPrice: '100', maxPrice: '50' });
   assert.equal(dto.validate().priceRange, 'Invalid filter options');
@@ -76,6 +86,7 @@ test('FilterCoursesQueryDTO normalizes valid sort and prices', () => {
   assert.equal(obj.category, 'programming');
 });
 
+// ─── UC-1.5: CourseDetailQueryDTO ───────────────────────────────────
 test('CourseDetailQueryDTO validates courseId presence', () => {
   const invalidDto = new CourseDetailQueryDTO({});
   assert.equal(invalidDto.validate().courseId, 'Course ID is required.');
@@ -85,6 +96,7 @@ test('CourseDetailQueryDTO validates courseId presence', () => {
   assert.equal(validDto.toObject().courseId, 'c123');
 });
 
+// ─── UC-1.6: TeacherProfileQueryDTO ─────────────────────────────────
 test('TeacherProfileQueryDTO validates teacherId presence', () => {
   const invalidDto = new TeacherProfileQueryDTO({});
   assert.equal(invalidDto.validate().teacherId, 'Teacher ID is required.');
@@ -94,16 +106,14 @@ test('TeacherProfileQueryDTO validates teacherId presence', () => {
   assert.equal(validDto.toObject().teacherId, 't456');
 });
 
+// ─── UC-5.1: ApproveTeacherApplicationDTO & TeacherApplicationQueryDTO
 test('TeacherApplicationQueryDTO validates allowed statuses', () => {
   const validDto = new TeacherApplicationQueryDTO({ status: 'pending' });
   assert.deepEqual(validDto.validate(), {});
   assert.equal(validDto.toObject().status, 'pending');
 
   const invalidDto = new TeacherApplicationQueryDTO({ status: 'deleted' });
-  assert.equal(
-    invalidDto.validate().status,
-    'Status filter must be pending, approved, or rejected.',
-  );
+  assert.equal(invalidDto.validate().status, 'Status filter must be pending, approved, or rejected.');
 });
 
 test('ApproveTeacherApplicationDTO validates applicationId and binds adminId', () => {
@@ -115,21 +125,15 @@ test('ApproveTeacherApplicationDTO validates applicationId and binds adminId', (
   assert.deepEqual(validDto.toObject(), { applicationId: 'app100', adminId: 'admin1' });
 });
 
+// ─── UC-5.2: RejectTeacherApplicationDTO ────────────────────────────
 test('RejectTeacherApplicationDTO requires reason and whitelists payload', () => {
   const emptyReasonDto = new RejectTeacherApplicationDTO({ id: 'app1' }, { reason: '   ' });
   assert.equal(emptyReasonDto.validate().reason, 'Reason required');
 
-  const payloadDto = new RejectTeacherApplicationDTO(
-    { id: 'app1' },
-    { reason: 'No CV', extraField: 'bad' },
-  );
+  const payloadDto = new RejectTeacherApplicationDTO({ id: 'app1' }, { reason: 'No CV', extraField: 'bad' });
   assert.ok(payloadDto.validate().payload);
 
-  const validDto = new RejectTeacherApplicationDTO(
-    { id: 'app1' },
-    { reason: 'Insufficient experience' },
-    { _id: 'admin1' },
-  );
+  const validDto = new RejectTeacherApplicationDTO({ id: 'app1' }, { reason: 'Insufficient experience' }, { _id: 'admin1' });
   assert.deepEqual(validDto.validate(), {});
   assert.deepEqual(validDto.toObject(), {
     applicationId: 'app1',

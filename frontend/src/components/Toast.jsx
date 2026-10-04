@@ -36,17 +36,14 @@ export function ToastProvider({ children }) {
 
   const confirmToast = useCallback((message, options = {}) => {
     const id = Date.now() + Math.random();
-    setToasts((prev) => [
-      ...prev,
-      {
-        id,
-        message,
-        type: options.type || 'info',
-        confirmation: true,
-        confirmLabel: options.confirmLabel || 'Confirm',
-        cancelLabel: options.cancelLabel || 'Cancel',
-      },
-    ]);
+    setToasts((prev) => [...prev, {
+      id,
+      message,
+      type: options.type || 'info',
+      confirmation: true,
+      confirmLabel: options.confirmLabel || 'Confirm',
+      cancelLabel: options.cancelLabel || 'Cancel',
+    }]);
     return new Promise((resolve) => {
       confirmationResolvers.current.set(id, resolve);
     });
@@ -57,39 +54,14 @@ export function ToastProvider({ children }) {
       {children}
       <div className="toast-container" aria-live="polite">
         {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`toast ${toast.type}${toast.confirmation ? ' confirmation' : ''}`}
-            role={toast.confirmation ? 'alertdialog' : 'status'}
-            aria-modal={toast.confirmation || undefined}
-          >
+          <div key={toast.id} className={`toast ${toast.type}${toast.confirmation ? ' confirmation' : ''}`} role={toast.confirmation ? 'alertdialog' : 'status'} aria-modal={toast.confirmation || undefined}>
             <span className="toast-message">{toast.message}</span>
-            {toast.confirmation ? (
-              <div className="toast-actions">
-                <button
-                  className="ghost compact"
-                  type="button"
-                  onClick={() => resolveConfirmation(toast.id, false)}
-                >
-                  {toast.cancelLabel}
-                </button>
-                <button
-                  className={toast.type === 'error' ? 'danger-button compact' : 'primary compact'}
-                  type="button"
-                  onClick={() => resolveConfirmation(toast.id, true)}
-                >
-                  {toast.confirmLabel}
-                </button>
-              </div>
-            ) : (
-              <button
-                className="toast-close"
-                onClick={() => removeToast(toast.id)}
-                aria-label="Close notification"
-              >
-                &times;
-              </button>
-            )}
+            {toast.confirmation ? <div className="toast-actions">
+              <button className="ghost compact" type="button" onClick={() => resolveConfirmation(toast.id, false)}>{toast.cancelLabel}</button>
+              <button className={toast.type === 'error' ? 'danger-button compact' : 'primary compact'} type="button" onClick={() => resolveConfirmation(toast.id, true)}>{toast.confirmLabel}</button>
+            </div> : <button className="toast-close" onClick={() => removeToast(toast.id)} aria-label="Close notification">
+              &times;
+            </button>}
           </div>
         ))}
       </div>

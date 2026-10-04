@@ -30,18 +30,9 @@ export default function LearningHistoryPage() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 className="section-title" style={{ margin: '0 0 4px' }}>
-            Learning History
-          </h2>
+          <h2 className="section-title" style={{ margin: '0 0 4px' }}>Learning History</h2>
           <p style={{ color: 'var(--muted)', margin: 0, fontSize: '14px' }}>
             Review your activity log, completed modules, and learning milestones
           </p>
@@ -52,15 +43,10 @@ export default function LearningHistoryPage() {
       </div>
 
       {history.length === 0 ? (
-        <div
-          className="empty-state"
-          style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6' }}
-        >
+        <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6' }}>
           <div className="empty-icon">⏳</div>
           <h3>No learning history yet</h3>
-          <p>
-            Once you start viewing and completing lessons, your progress activity will appear here.
-          </p>
+          <p>Once you start viewing and completing lessons, your progress activity will appear here.</p>
           <div style={{ marginTop: '16px' }}>
             <Link to="/courses" className="btn btn-primary">
               Browse Courses

@@ -18,17 +18,11 @@ class CourseService {
 
   async getTeacherCourses(user, queryDto) {
     const result = await CourseDAO.findAllByTeacher(user._id, queryDto.toObject());
-    const courses = await Promise.all(
-      result.courses.map(async (course) => {
-        const lessonCount = await LessonDAO.countValidByCourseId(course._id);
-        const serialized = typeof course.toObject === 'function' ? course.toObject() : course;
-        return {
-          ...serialized,
-          lessonCount,
-          contentComplete: this.isMetadataComplete(course) && lessonCount > 0,
-        };
-      }),
-    );
+    const courses = await Promise.all(result.courses.map(async (course) => {
+      const lessonCount = await LessonDAO.countValidByCourseId(course._id);
+      const serialized = typeof course.toObject === 'function' ? course.toObject() : course;
+      return { ...serialized, lessonCount, contentComplete: this.isMetadataComplete(course) && lessonCount > 0 };
+    }));
     return { ...result, courses };
   }
 
@@ -45,8 +39,7 @@ class CourseService {
   }
 
   assertTeacherOwnsCourse(course, user) {
-    if (String(course.teacherId) !== String(user._id))
-      throw new ServiceError(403, 'You do not have permission to access this course.');
+    if (String(course.teacherId) !== String(user._id)) throw new ServiceError(403, 'You do not have permission to access this course.');
   }
 
   async updateCourse(courseId, user, dto) {
@@ -59,8 +52,7 @@ class CourseService {
 
   async deleteCourse(courseId, user) {
     const course = await this.getOwnedCourse(courseId, user);
-    if (course.status === COURSE_STATUS.PENDING_REVIEW)
-      throw new ServiceError(409, 'A course pending review cannot be deleted.');
+    if (course.status === COURSE_STATUS.PENDING_REVIEW) throw new ServiceError(409, 'A course pending review cannot be deleted.');
     return CourseDAO.softDelete(courseId);
   }
 
@@ -113,15 +105,8 @@ class CourseService {
   }
 
   async transitionCourse(course, targetStatus, updates = {}) {
-    const updated = await CourseDAO.transitionStatus(course._id, course.status, {
-      ...updates,
-      status: targetStatus,
-    });
-    if (!updated)
-      throw new ServiceError(
-        409,
-        'The course status changed while the request was being processed. Please try again.',
-      );
+    const updated = await CourseDAO.transitionStatus(course._id, course.status, { ...updates, status: targetStatus });
+    if (!updated) throw new ServiceError(409, 'The course status changed while the request was being processed. Please try again.');
     return updated;
   }
 
@@ -135,10 +120,7 @@ class CourseService {
     }
     const validLessonCount = await LessonDAO.countValidByCourseId(course._id);
     if (validLessonCount < 1) {
-      throw new ServiceError(
-        400,
-        'The course must contain at least one lesson with a title and content before this action.',
-      );
+      throw new ServiceError(400, 'The course must contain at least one lesson with a title and content before this action.');
     }
   }
 
@@ -158,8 +140,7 @@ class CourseService {
     this.assertContentEditable(course);
     this.assertValidId(lessonId, 'Lesson');
     const lesson = await LessonDAO.findById(lessonId);
-    if (!lesson || String(lesson.courseId) !== String(course._id))
-      throw new ServiceError(404, 'Lesson not found.');
+    if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
     return LessonDAO.update(lessonId, dto.toObject());
   }
 
@@ -168,15 +149,12 @@ class CourseService {
     this.assertContentEditable(course);
     this.assertValidId(lessonId, 'Lesson');
     const lesson = await LessonDAO.findById(lessonId);
-    if (!lesson || String(lesson.courseId) !== String(course._id))
-      throw new ServiceError(404, 'Lesson not found.');
+    if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
     return LessonDAO.remove(lessonId);
   }
 
   assertContentEditable(course) {
-    if (
-      ![COURSE_STATUS.DRAFT, COURSE_STATUS.REJECTED, COURSE_STATUS.APPROVED].includes(course.status)
-    ) {
+    if (![COURSE_STATUS.DRAFT, COURSE_STATUS.REJECTED, COURSE_STATUS.APPROVED].includes(course.status)) {
       throw new ServiceError(409, 'Course content cannot be edited in the current course status.');
     }
   }

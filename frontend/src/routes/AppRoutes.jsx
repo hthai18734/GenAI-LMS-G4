@@ -30,6 +30,7 @@ import TeacherApplicationPage from '../pages/TeacherApplicationPage';
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* Public Landing & Auth Routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/explore" element={<PublicCoursesPage />} />
       <Route path="/courses/:courseId" element={<PublicCourseDetailPage />} />
@@ -39,6 +40,7 @@ export default function AppRoutes() {
       <Route path="/verify-otp" element={<OtpPage />} />
       <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
+      {/* Protected Student Portal Routes */}
       <Route
         element={
           <ProtectedRoute roles={['student']}>
@@ -57,13 +59,7 @@ export default function AppRoutes() {
         <Route path="/account" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
-      <Route
-        element={
-          <ProtectedRoute roles={['teacher']}>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+      <Route element={<ProtectedRoute roles={['teacher']}><Layout /></ProtectedRoute>}>
         <Route path="/teacher" element={<Navigate to="/teacher/dashboard" replace />} />
         <Route path="/teacher/dashboard" element={<TeacherDashboardPage />} />
         <Route path="/teacher/courses" element={<TeacherCoursesPage />} />
@@ -71,13 +67,7 @@ export default function AppRoutes() {
         <Route path="/teacher/courses/:courseId/edit" element={<TeacherCourseFormPage />} />
       </Route>
 
-      <Route
-        element={
-          <ProtectedRoute roles={['admin']}>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+      <Route element={<ProtectedRoute roles={['admin']}><Layout /></ProtectedRoute>}>
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
         <Route path="/admin/teacher-applications" element={<AdminTeacherApplicationsPage />} />
@@ -85,6 +75,7 @@ export default function AppRoutes() {
         <Route path="/admin/categories" element={<CategoriesPage />} />
       </Route>
 
+      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

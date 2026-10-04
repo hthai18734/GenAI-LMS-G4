@@ -8,7 +8,9 @@ class LoggerUtil {
   }
 
   static error(message, error = null, meta = null) {
-    const errorMeta = error ? { name: error.name, message: error.message, ...(meta || {}) } : meta;
+    const errorMeta = error
+      ? { name: error.name, message: error.message, ...(meta || {}) }
+      : meta;
     this.#write('ERROR', message, errorMeta);
   }
 

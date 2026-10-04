@@ -1,3 +1,9 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Public Course & Guest Controller (UC-1.1 → UC-1.6)
+ */
+
 const CourseDAO = require('../../dao/content/CourseDAO');
 const CategoryDAO = require('../../dao/content/CategoryDAO');
 const UserDAO = require('../../dao/identity/UserDAO');
@@ -12,11 +18,18 @@ const CourseDetailQueryDTO = require('../../dto/public/CourseDetailQueryDTO');
 const TeacherProfileQueryDTO = require('../../dto/public/TeacherProfileQueryDTO');
 
 class PublicController {
+  /**
+   * Helper: Standardize validation errors response with first message priority
+   */
   validationError(res, errors, defaultMessage = 'Validation failed.') {
     const firstErrorMessage = Object.values(errors)[0] || defaultMessage;
     return ResponseUtil.error(res, { status: 400, message: firstErrorMessage, errors });
   }
 
+  /**
+   * UC-1.1: View Homepage
+   * Load homepage -> display featured courses and banner and active categories
+   */
   async getHomepage(req, res, next) {
     try {
       const dto = new HomepageQueryDTO(req.query);
@@ -29,15 +42,12 @@ class PublicController {
       const [featuredCourses, categories, teachers] = await Promise.all([
         CourseDAO.findFeaturedCourses(limit),
         CategoryDAO.findAllActive(),
-        typeof UserDAO.findTopTeachers === 'function'
-          ? UserDAO.findTopTeachers(4).catch(() => [])
-          : Promise.resolve([]),
+        typeof UserDAO.findTopTeachers === 'function' ? UserDAO.findTopTeachers(4).catch(() => []) : Promise.resolve([]),
       ]);
 
       const banner = {
         title: 'Master New Skills with AI-Powered Learning',
-        subtitle:
-          'Personalized courses, interactive exercises, and intelligent AI assistance designed for your success.',
+        subtitle: 'Personalized courses, interactive exercises, and intelligent AI assistance designed for your success.',
         ctaText: 'Explore Courses',
         ctaLink: '/explore',
       };
@@ -57,6 +67,10 @@ class PublicController {
     }
   }
 
+  /**
+   * UC-1.2: Browse Courses
+   * Load public course list with pagination
+   */
   async browseCourses(req, res, next) {
     try {
       const dto = new BrowseCoursesQueryDTO(req.query);
@@ -77,7 +91,7 @@ class PublicController {
         courses,
         totalRecords,
         pagination.page,
-        pagination.limit,
+        pagination.limit
       );
 
       return ResponseUtil.success(res, {
@@ -90,6 +104,10 @@ class PublicController {
     }
   }
 
+  /**
+   * UC-1.3: Search Courses
+   * Search courses by keyword with validation and ranked results
+   */
   async searchCourses(req, res, next) {
     try {
       const dto = new SearchCoursesQueryDTO(req.query);
@@ -104,22 +122,19 @@ class PublicController {
       const { courses, total } = await CourseDAO.searchByKeyword(
         keyword,
         pagination.page,
-        pagination.limit,
+        pagination.limit
       );
 
       const responsePayload = PaginationUtil.formatPaginatedResponse(
         courses,
         total,
         pagination.page,
-        pagination.limit,
+        pagination.limit
       );
 
       return ResponseUtil.success(res, {
         status: 200,
-        message:
-          courses.length > 0
-            ? 'Search results retrieved.'
-            : 'No courses found matching your query.',
+        message: courses.length > 0 ? 'Search results retrieved.' : 'No courses found matching your query.',
         data: responsePayload,
       });
     } catch (error) {
@@ -127,12 +142,19 @@ class PublicController {
     }
   }
 
+  /**
+   * Helper: Validate keyword for search (kept for backwards compatibility)
+   */
   validateKeyword(keyword) {
     const dto = new SearchCoursesQueryDTO({ q: keyword });
     const errors = dto.validate();
     return errors.keyword || null;
   }
 
+  /**
+   * UC-1.4: Filter & Sort Courses
+   * Filter by category/price and sort results
+   */
   async filterAndSortCourses(req, res, next) {
     try {
       const dto = new FilterCoursesQueryDTO(req.query);
@@ -141,7 +163,15 @@ class PublicController {
         return this.validationError(res, errors);
       }
 
-      const { category, categoryId, minPrice, maxPrice, sortBy, page, limit } = dto.toObject();
+      const {
+        category,
+        categoryId,
+        minPrice,
+        maxPrice,
+        sortBy,
+        page,
+        limit,
+      } = dto.toObject();
 
       const pagination = PaginationUtil.getPagination(page, limit);
 
@@ -159,7 +189,7 @@ class PublicController {
         courses,
         total,
         pagination.page,
-        pagination.limit,
+        pagination.limit
       );
 
       return ResponseUtil.success(res, {
@@ -172,12 +202,19 @@ class PublicController {
     }
   }
 
+  /**
+   * Helper: Validate filter and sort parameters (kept for backwards compatibility)
+   */
   validateFilterParams(params = {}) {
     const dto = new FilterCoursesQueryDTO(params);
     const errors = dto.validate();
     return Object.values(errors)[0] || null;
   }
 
+  /**
+   * UC-1.5: View Course Detail
+   * View details of a specific course + teacher summary
+   */
   async getCourseDetail(req, res, next) {
     try {
       const dto = new CourseDetailQueryDTO(req.params);
@@ -216,6 +253,9 @@ class PublicController {
     }
   }
 
+  /**
+   * UC-1.6: View Public Categories
+   */
   async getPublicCategories(req, res, next) {
     try {
       const categories = await CategoryDAO.findAllActive();
@@ -229,6 +269,10 @@ class PublicController {
     }
   }
 
+  /**
+   * UC-1.6 / UC-1.7: View Public Teacher Profile
+   * Public teacher profile + teaching courses
+   */
   async getPublicTeacherProfile(req, res, next) {
     try {
       const dto = new TeacherProfileQueryDTO(req.params);

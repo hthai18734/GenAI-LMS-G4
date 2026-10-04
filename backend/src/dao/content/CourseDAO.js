@@ -3,6 +3,9 @@ const Course = require('../../model/content/Course');
 const { COURSE_STATUS } = require('../../model/learning/CourseStatus');
 
 class CourseDAO {
+  /**
+   * UC-1.1: Find featured courses for homepage
+   */
   async findFeaturedCourses(limit = 6) {
     const numLimit = Math.max(1, parseInt(limit, 10) || 6);
     return Course.find({
@@ -16,6 +19,9 @@ class CourseDAO {
       .exec();
   }
 
+  /**
+   * UC-1.2: Find published courses with pagination
+   */
   async findPublishedWithPaging(page = 1, limit = 10) {
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
     const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
@@ -30,12 +36,18 @@ class CourseDAO {
       .exec();
   }
 
+  /**
+   * UC-1.2: Count total published courses
+   */
   async countPublished() {
     return Course.countDocuments({
       status: COURSE_STATUS.PUBLIC,
     }).exec();
   }
 
+  /**
+   * UC-1.3: Search courses by keyword with ranking
+   */
   async searchByKeyword(keyword, page = 1, limit = 10) {
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
     const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
@@ -45,7 +57,11 @@ class CourseDAO {
 
     const query = {
       status: COURSE_STATUS.PUBLIC,
-      $or: [{ title: safeRegex }, { description: safeRegex }, { category: safeRegex }],
+      $or: [
+        { title: safeRegex },
+        { description: safeRegex },
+        { category: safeRegex },
+      ],
     };
 
     const [courses, total] = await Promise.all([
@@ -60,15 +76,10 @@ class CourseDAO {
     return { courses, total };
   }
 
-  async findByFilterAndSort({
-    categoryId = null,
-    category = null,
-    minPrice = null,
-    maxPrice = null,
-    sortBy = 'newest',
-    page = 1,
-    limit = 10,
-  } = {}) {
+  /**
+   * UC-1.4: Filter & sort courses
+   */
+  async findByFilterAndSort({ categoryId = null, category = null, minPrice = null, maxPrice = null, sortBy = 'newest', page = 1, limit = 10 } = {}) {
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
     const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
     const skip = (parsedPage - 1) * parsedLimit;
@@ -93,6 +104,7 @@ class CourseDAO {
       query.price.$lte = Number(maxPrice);
     }
 
+    // Sort order
     let sortOrder = { createdAt: -1 };
     switch (sortBy) {
       case 'popular':
@@ -132,6 +144,9 @@ class CourseDAO {
     return { courses, total };
   }
 
+  /**
+   * UC-1.5: Find course by ID
+   */
   async findById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
     return Course.findOne({
@@ -140,10 +155,16 @@ class CourseDAO {
     }).exec();
   }
 
+  /**
+   * UC-1.6: Find published courses by teacher ID
+   */
   async findCoursesByTeacherId(teacherId) {
     if (!mongoose.isValidObjectId(teacherId)) return [];
     return Course.find({
-      $or: [{ teacherId }, { instructorId: teacherId }],
+      $or: [
+        { teacherId },
+        { instructorId: teacherId },
+      ],
       status: COURSE_STATUS.PUBLIC,
     })
       .sort({ createdAt: -1 })

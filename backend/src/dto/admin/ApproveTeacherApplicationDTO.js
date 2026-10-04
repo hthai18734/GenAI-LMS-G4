@@ -1,3 +1,8 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Approve Teacher Application DTO (UC-5.1 Approve Teacher Application)
+ */
 const { text } = require('../common/DTOUtil');
 
 class ApproveTeacherApplicationDTO {

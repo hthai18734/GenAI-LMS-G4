@@ -8,50 +8,19 @@ const router = express.Router();
 router.use(NoCacheFilter, AuthFilter, RoleFilter('teacher'));
 router.get('/dashboard', TeacherCourseController.getDashboard.bind(TeacherCourseController));
 router.get('/categories', TeacherCourseController.listCategories.bind(TeacherCourseController));
-router.post(
-  '/uploads/course-thumbnail',
-  uploadCourseThumbnail,
-  TeacherCourseController.uploadThumbnail.bind(TeacherCourseController),
-);
+router.post('/uploads/course-thumbnail', uploadCourseThumbnail, TeacherCourseController.uploadThumbnail.bind(TeacherCourseController));
 router.post('/courses', TeacherCourseController.create.bind(TeacherCourseController));
 router.get('/courses', TeacherCourseController.list.bind(TeacherCourseController));
 router.get('/courses/:courseId', TeacherCourseController.getById.bind(TeacherCourseController));
 router.patch('/courses/:courseId', TeacherCourseController.update.bind(TeacherCourseController));
 router.delete('/courses/:courseId', TeacherCourseController.remove.bind(TeacherCourseController));
-router.post(
-  '/courses/:courseId/submit-review',
-  TeacherCourseController.submitForReview.bind(TeacherCourseController),
-);
-router.post(
-  '/courses/:courseId/publish',
-  TeacherCourseController.publish.bind(TeacherCourseController),
-);
-router.post(
-  '/courses/:courseId/unpublish',
-  TeacherCourseController.unpublish.bind(TeacherCourseController),
-);
-router.post(
-  '/courses/:courseId/archive',
-  TeacherCourseController.archive.bind(TeacherCourseController),
-);
-router.post(
-  '/courses/:courseId/restore',
-  TeacherCourseController.restore.bind(TeacherCourseController),
-);
-router.get(
-  '/courses/:courseId/lessons',
-  TeacherCourseController.listLessons.bind(TeacherCourseController),
-);
-router.post(
-  '/courses/:courseId/lessons',
-  TeacherCourseController.createLesson.bind(TeacherCourseController),
-);
-router.patch(
-  '/courses/:courseId/lessons/:lessonId',
-  TeacherCourseController.updateLesson.bind(TeacherCourseController),
-);
-router.delete(
-  '/courses/:courseId/lessons/:lessonId',
-  TeacherCourseController.deleteLesson.bind(TeacherCourseController),
-);
+router.post('/courses/:courseId/submit-review', TeacherCourseController.submitForReview.bind(TeacherCourseController));
+router.post('/courses/:courseId/publish', TeacherCourseController.publish.bind(TeacherCourseController));
+router.post('/courses/:courseId/unpublish', TeacherCourseController.unpublish.bind(TeacherCourseController));
+router.post('/courses/:courseId/archive', TeacherCourseController.archive.bind(TeacherCourseController));
+router.post('/courses/:courseId/restore', TeacherCourseController.restore.bind(TeacherCourseController));
+router.get('/courses/:courseId/lessons', TeacherCourseController.listLessons.bind(TeacherCourseController));
+router.post('/courses/:courseId/lessons', TeacherCourseController.createLesson.bind(TeacherCourseController));
+router.patch('/courses/:courseId/lessons/:lessonId', TeacherCourseController.updateLesson.bind(TeacherCourseController));
+router.delete('/courses/:courseId/lessons/:lessonId', TeacherCourseController.deleteLesson.bind(TeacherCourseController));
 module.exports = router;

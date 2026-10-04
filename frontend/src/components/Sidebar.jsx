@@ -69,15 +69,7 @@ export default function Sidebar() {
         <NavLink to="/certificates" className={linkClass}>
           <span className="link-text">📜 Chứng chỉ của tôi</span>
         </NavLink>
-        <NavLink
-          to="/apply-teacher"
-          className={linkClass}
-          style={{
-            marginTop: '12px',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            paddingTop: '12px',
-          }}
-        >
+        <NavLink to="/apply-teacher" className={linkClass} style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
           <span className="link-text">👨‍🏫 Trở thành Giảng viên</span>
         </NavLink>
       </nav>

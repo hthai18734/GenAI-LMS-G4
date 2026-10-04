@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: Student Notification Preferences
+ */
 const { unknownFields } = require('../common/DTOUtil');
 const NotificationPreference = require('../../model/learning/NotificationPreference');
 
@@ -20,8 +25,7 @@ class UpdateNotificationPreferencesDTO {
     for (let i = 0; i < this.preferences.length; i++) {
       const pref = this.preferences[i];
       if (!pref.type || typeof pref.enabled !== 'boolean') {
-        errors[`preferences[${i}]`] =
-          'Each preference must have a type and enabled (boolean) field.';
+        errors[`preferences[${i}]`] = 'Each preference must have a type and enabled (boolean) field.';
       } else if (!NotificationPreference.NOTIFICATION_TYPES.includes(pref.type)) {
         errors[`preferences[${i}].type`] = `Unsupported notification type: ${pref.type}`;
       }

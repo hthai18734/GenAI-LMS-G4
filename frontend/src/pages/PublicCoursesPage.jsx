@@ -14,6 +14,7 @@ export default function PublicCoursesPage() {
   const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
 
+  // Filter & Search states from URL or defaults
   const keyword = searchParams.get('q') || '';
   const selectedCategory = searchParams.get('category') || '';
   const selectedSort = searchParams.get('sort') || 'newest';
@@ -23,21 +24,24 @@ export default function PublicCoursesPage() {
 
   const [searchInput, setSearchInput] = useState(keyword);
 
+  // Load categories once
   useEffect(() => {
-    publicService
-      .getCategories()
-      .then((res) => setCategories(res.data?.categories || []))
+    publicService.getCategories()
+      .then(res => setCategories(res.data?.categories || []))
       .catch(() => {});
   }, []);
 
+  // Fetch courses whenever query params change
   useEffect(() => {
     async function fetchCourses() {
       setLoading(true);
       try {
         let res;
         if (keyword.trim()) {
+          // UC-1.3 Search
           res = await publicService.searchCourses(keyword.trim(), currentPage, 12);
         } else if (selectedCategory || minPrice || maxPrice || selectedSort !== 'newest') {
+          // UC-1.4 Filter & Sort
           res = await publicService.filterAndSortCourses({
             category: selectedCategory,
             minPrice,
@@ -47,14 +51,13 @@ export default function PublicCoursesPage() {
             limit: 12,
           });
         } else {
+          // UC-1.2 Browse
           res = await publicService.browseCourses(currentPage, 12);
         }
 
         if (res.data) {
           setCourses(res.data.courses || res.data.items || []);
-          setPagination(
-            res.data.pagination || { page: currentPage, limit: 12, total: 0, totalPages: 1 },
-          );
+          setPagination(res.data.pagination || { page: currentPage, limit: 12, total: 0, totalPages: 1 });
         }
       } catch (err) {
         addToast(err.message || 'Failed to fetch courses', 'error');
@@ -110,10 +113,8 @@ export default function PublicCoursesPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <header
-        className="landing-bar"
-        style={{ borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
-      >
+      {/* Header */}
+      <header className="landing-bar" style={{ borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}>
         <Link to="/" className="brand compact" style={{ textDecoration: 'none' }}>
           <div className="brand-logo">
             <img src="/assets/images/logo.jpg" alt="AI-LMS" />
@@ -121,12 +122,8 @@ export default function PublicCoursesPage() {
           <div className="brand-name">AI-LMS</div>
         </Link>
         <nav className="landing-nav">
-          <Link to="/" style={{ color: 'var(--text-dim)' }}>
-            Home
-          </Link>
-          <Link to="/explore" style={{ fontWeight: 600 }}>
-            Explore Courses
-          </Link>
+          <Link to="/" style={{ color: 'var(--text-dim)' }}>Home</Link>
+          <Link to="/explore" style={{ fontWeight: 600 }}>Explore Courses</Link>
           {isAuthenticated ? (
             <Link to="/dashboard" className="btn btn-primary" style={{ padding: '6px 14px' }}>
               Dashboard
@@ -134,27 +131,19 @@ export default function PublicCoursesPage() {
           ) : (
             <>
               <Link to="/login">Sign in</Link>
-              <Link to="/register" className="primary">
-                Create account
-              </Link>
+              <Link to="/register" className="primary">Create account</Link>
             </>
           )}
         </nav>
       </header>
 
       <main style={{ maxWidth: '1200px', margin: '32px auto', padding: '0 20px' }}>
+        {/* Title & Search Bar */}
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '12px' }}>
             Explore Our Learning Catalog
           </h1>
-          <p
-            style={{
-              color: 'var(--text-dim)',
-              fontSize: '16px',
-              maxWidth: '600px',
-              margin: '0 auto 24px',
-            }}
-          >
+          <p style={{ color: 'var(--text-dim)', fontSize: '16px', maxWidth: '600px', margin: '0 auto 24px' }}>
             Browse through hundreds of high quality courses with integrated AI learning assistance.
           </p>
 
@@ -168,7 +157,7 @@ export default function PublicCoursesPage() {
               background: 'var(--surface)',
               padding: '6px',
               borderRadius: '12px',
-              border: '1px solid var(--line)',
+              border: '1px solid var(--line)'
             }}
           >
             <input
@@ -183,7 +172,7 @@ export default function PublicCoursesPage() {
                 padding: '10px 16px',
                 fontSize: '15px',
                 color: 'var(--text)',
-                outline: 'none',
+                outline: 'none'
               }}
             />
             <button type="submit" className="btn btn-primary" style={{ padding: '10px 20px' }}>
@@ -192,29 +181,22 @@ export default function PublicCoursesPage() {
           </form>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            marginBottom: '24px',
-            padding: '16px 20px',
-            background: 'var(--surface)',
-            borderRadius: '12px',
-            border: '1px solid var(--line)',
-          }}
-        >
+        {/* Filter & Sort Controls */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px',
+          marginBottom: '24px',
+          padding: '16px 20px',
+          background: 'var(--surface)',
+          borderRadius: '12px',
+          border: '1px solid var(--line)'
+        }}>
+          {/* Categories */}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span
-              style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-dim)',
-                marginRight: '4px',
-              }}
-            >
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-dim)', marginRight: '4px' }}>
               Categories:
             </span>
             <button
@@ -225,7 +207,7 @@ export default function PublicCoursesPage() {
                 border: 'none',
                 background: !selectedCategory ? 'var(--primary)' : 'var(--bg)',
                 color: !selectedCategory ? '#fff' : 'var(--text-dim)',
-                padding: '6px 12px',
+                padding: '6px 12px'
               }}
             >
               All
@@ -240,7 +222,7 @@ export default function PublicCoursesPage() {
                   border: 'none',
                   background: selectedCategory === cat.name ? 'var(--primary)' : 'var(--bg)',
                   color: selectedCategory === cat.name ? '#fff' : 'var(--text-dim)',
-                  padding: '6px 12px',
+                  padding: '6px 12px'
                 }}
               >
                 {cat.name}
@@ -248,6 +230,7 @@ export default function PublicCoursesPage() {
             ))}
           </div>
 
+          {/* Sort selection */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <label style={{ fontSize: '14px', color: 'var(--text-dim)' }}>Sort by:</label>
             <select
@@ -260,7 +243,7 @@ export default function PublicCoursesPage() {
                 background: 'var(--bg)',
                 color: 'var(--text)',
                 outline: 'none',
-                cursor: 'pointer',
+                cursor: 'pointer'
               }}
             >
               <option value="newest">Newest First</option>
@@ -282,20 +265,19 @@ export default function PublicCoursesPage() {
           </div>
         </div>
 
+        {/* Course Grid */}
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
             <div className="spinner"></div>
           </div>
         ) : courses.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '60px 20px',
-              background: 'var(--surface)',
-              borderRadius: '16px',
-              border: '1px solid var(--line)',
-            }}
-          >
+          <div style={{
+            textAlign: 'center',
+            padding: '60px 20px',
+            background: 'var(--surface)',
+            borderRadius: '16px',
+            border: '1px solid var(--line)'
+          }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
             <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>
               No matching courses found
@@ -309,14 +291,12 @@ export default function PublicCoursesPage() {
           </div>
         ) : (
           <>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '24px',
-                marginBottom: '40px',
-              }}
-            >
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '24px',
+              marginBottom: '40px'
+            }}>
               {courses.map((course) => (
                 <Link
                   key={course._id}
@@ -332,7 +312,7 @@ export default function PublicCoursesPage() {
                       transition: 'transform 0.2s, box-shadow 0.2s',
                       height: '100%',
                       display: 'flex',
-                      flexDirection: 'column',
+                      flexDirection: 'column'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-4px)';
@@ -343,13 +323,8 @@ export default function PublicCoursesPage() {
                       e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
-                    <div
-                      style={{
-                        height: '160px',
-                        background: 'var(--bg-subtle)',
-                        position: 'relative',
-                      }}
-                    >
+                    {/* Thumbnail */}
+                    <div style={{ height: '160px', background: 'var(--bg-subtle)', position: 'relative' }}>
                       {course.thumbnail ? (
                         <img
                           src={course.thumbnail}
@@ -357,85 +332,73 @@ export default function PublicCoursesPage() {
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       ) : (
-                        <div
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '36px',
-                            background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-                            color: '#fff',
-                          }}
-                        >
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '36px',
+                          background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                          color: '#fff'
+                        }}>
                           📚
                         </div>
                       )}
                       {course.category && (
-                        <span
-                          style={{
-                            position: 'absolute',
-                            top: '12px',
-                            left: '12px',
-                            background: 'rgba(0,0,0,0.6)',
-                            color: '#fff',
-                            backdropFilter: 'blur(4px)',
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                          }}
-                        >
+                        <span style={{
+                          position: 'absolute',
+                          top: '12px',
+                          left: '12px',
+                          background: 'rgba(0,0,0,0.6)',
+                          color: '#fff',
+                          backdropFilter: 'blur(4px)',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}>
                           {course.category}
                         </span>
                       )}
                     </div>
 
-                    <div
-                      style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}
-                    >
-                      <h4
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: '700',
-                          marginBottom: '8px',
-                          lineHeight: 1.4,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
+                    {/* Content */}
+                    <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <h4 style={{
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        marginBottom: '8px',
+                        lineHeight: 1.4,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}>
                         {course.title}
                       </h4>
 
-                      <p
-                        style={{
-                          color: 'var(--text-dim)',
-                          fontSize: '13px',
-                          lineHeight: 1.5,
-                          marginBottom: '16px',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          flex: 1,
-                        }}
-                      >
-                        {course.description ||
-                          'Learn essential knowledge and practical skills with AI-LMS.'}
+                      <p style={{
+                        color: 'var(--text-dim)',
+                        fontSize: '13px',
+                        lineHeight: 1.5,
+                        marginBottom: '16px',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        flex: 1
+                      }}>
+                        {course.description || 'Learn essential knowledge and practical skills with AI-LMS.'}
                       </p>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          paddingTop: '12px',
-                          borderTop: '1px solid var(--line)',
-                        }}
-                      >
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingTop: '12px',
+                        borderTop: '1px solid var(--line)'
+                      }}>
                         <div style={{ fontSize: '13px', color: '#f59e0b', fontWeight: '600' }}>
                           ★ {course.averageRating ? course.averageRating.toFixed(1) : '5.0'}
                         </div>
@@ -449,15 +412,9 @@ export default function PublicCoursesPage() {
               ))}
             </div>
 
+            {/* Pagination Controls */}
             {pagination.totalPages > 1 && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  marginBottom: '40px',
-                }}
-              >
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '40px' }}>
                 <button
                   disabled={!pagination.hasPrevPage}
                   onClick={() => handlePageChange(pagination.page - 1)}
@@ -466,15 +423,7 @@ export default function PublicCoursesPage() {
                 >
                   ← Previous
                 </button>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 12px',
-                    color: 'var(--text-dim)',
-                    fontSize: '14px',
-                  }}
-                >
+                <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', color: 'var(--text-dim)', fontSize: '14px' }}>
                   Page {pagination.page} of {pagination.totalPages}
                 </div>
                 <button

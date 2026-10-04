@@ -22,6 +22,7 @@ function createMockRes() {
   return res;
 }
 
+// ─── UC-5.1: Approve Teacher Application ───────────────────────────
 test('UC-5.1: approveTeacherApplication rejects 404 when application not found', async () => {
   const origFind = TeacherApplicationDAO.findById;
   TeacherApplicationDAO.findById = async () => null;
@@ -119,6 +120,7 @@ test('UC-5.1: approveTeacherApplication successfully approves, upgrades role, no
   }
 });
 
+// ─── UC-5.2: Reject Teacher Application ────────────────────────────
 test('UC-5.2: rejectTeacherApplication rejects 400 Reason required when empty', async () => {
   const req = { params: { id: 'app1' }, body: { reason: '   ' } };
   const res = createMockRes();

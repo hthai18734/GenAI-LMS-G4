@@ -52,15 +52,8 @@ export default function CoursesPage() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          gap: '12px',
-          marginBottom: '24px',
-          borderBottom: '1px solid var(--line)',
-          paddingBottom: '12px',
-        }}
-      >
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
         <button
           onClick={() => setActiveTab('enrolled')}
           className={`btn ${activeTab === 'enrolled' ? 'btn-primary' : 'btn-secondary'}`}
@@ -75,23 +68,14 @@ export default function CoursesPage() {
         </button>
       </div>
 
+      {/* Tab: Enrolled Courses */}
       {activeTab === 'enrolled' && (
         <div>
           {enrolledCourses.length === 0 ? (
-            <div
-              className="empty-state"
-              style={{
-                background: 'var(--panel)',
-                borderRadius: '14px',
-                border: '1px solid #eeeef6',
-              }}
-            >
+            <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6' }}>
               <div className="empty-icon">📖</div>
               <h3>No enrolled courses found</h3>
-              <p>
-                You haven't enrolled in any courses yet. Browse the catalog to find a course you'd
-                like to learn!
-              </p>
+              <p>You haven't enrolled in any courses yet. Browse the catalog to find a course you'd like to learn!</p>
               <div style={{ marginTop: '16px' }}>
                 <button onClick={() => setActiveTab('catalog')} className="btn btn-primary">
                   Explore Catalog
@@ -103,17 +87,14 @@ export default function CoursesPage() {
               {enrolledCourses.map((c) => (
                 <div key={c.enrollmentId || c.courseId} className="course-card">
                   <div className="course-thumb">
-                    {c.thumbnail ? <img src={c.thumbnail} alt={c.title} /> : <span>📚</span>}
+                    {c.thumbnail ? (
+                      <img src={c.thumbnail} alt={c.title} />
+                    ) : (
+                      <span>📚</span>
+                    )}
                   </div>
                   <div className="course-body">
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '8px',
-                      }}
-                    >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span className={`badge badge-${c.enrollmentStatus}`}>
                         {c.enrollmentStatus}
                       </span>
@@ -131,19 +112,9 @@ export default function CoursesPage() {
                         style={{ width: `${c.progressPercent}%` }}
                       ></div>
                     </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginBottom: '14px',
-                      }}
-                    >
-                      <span className="progress-text">
-                        {c.completedLessons} / {c.totalLessons} lessons
-                      </span>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--purple)' }}>
-                        {c.progressPercent}%
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <span className="progress-text">{c.completedLessons} / {c.totalLessons} lessons</span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--purple)' }}>{c.progressPercent}%</span>
                     </div>
                     <button
                       onClick={() => navigate(`/courses/${c.courseId}/learn`)}
@@ -159,17 +130,11 @@ export default function CoursesPage() {
         </div>
       )}
 
+      {/* Tab: Catalog Courses */}
       {activeTab === 'catalog' && (
         <div>
           {catalogCourses.length === 0 ? (
-            <div
-              className="empty-state"
-              style={{
-                background: 'var(--panel)',
-                borderRadius: '14px',
-                border: '1px solid #eeeef6',
-              }}
-            >
+            <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6' }}>
               <div className="empty-icon">🔍</div>
               <h3>No courses available in catalog</h3>
               <p>There are currently no open courses available for enrollment.</p>
@@ -179,17 +144,14 @@ export default function CoursesPage() {
               {catalogCourses.map((c) => (
                 <div key={c.id} className="course-card">
                   <div className="course-thumb">
-                    {c.thumbnail ? <img src={c.thumbnail} alt={c.title} /> : <span>💡</span>}
+                    {c.thumbnail ? (
+                      <img src={c.thumbnail} alt={c.title} />
+                    ) : (
+                      <span>💡</span>
+                    )}
                   </div>
                   <div className="course-body">
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '8px',
-                      }}
-                    >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span className="badge badge-active">{c.status}</span>
                       {c.category && (
                         <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600 }}>

@@ -69,25 +69,25 @@ export default function AdminTeacherApplicationsPage() {
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '36px 24px', color: '#0f172a' }}>
+      
+      {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '26px', fontWeight: '800', margin: '0 0 6px', color: '#0f172a' }}>
           Teacher Applications Management
         </h1>
         <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
-          Review candidate profiles, approve to upgrade role to teacher, or reject with clear
-          feedback.
+          Review candidate profiles, approve to upgrade role to teacher, or reject with clear feedback.
         </p>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          gap: '10px',
-          marginBottom: '24px',
-          borderBottom: '1px solid #e2e8f0',
-          paddingBottom: '12px',
-        }}
-      >
+      {/* Status Filter Tabs */}
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '24px',
+        borderBottom: '1px solid #e2e8f0',
+        paddingBottom: '12px'
+      }}>
         {['pending', 'approved', 'rejected'].map((status) => {
           const isActive = selectedStatus === status;
           return (
@@ -114,23 +114,20 @@ export default function AdminTeacherApplicationsPage() {
         })}
       </div>
 
+      {/* Applications List */}
       {loading ? (
-        <div
-          style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: '#64748b' }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: '#64748b' }}>
           Loading applications...
         </div>
       ) : applications.length === 0 ? (
-        <div
-          style={{
-            padding: '48px 24px',
-            textAlign: 'center',
-            background: '#ffffff',
-            borderRadius: '14px',
-            border: '1px dashed #cbd5e1',
-            color: '#64748b',
-          }}
-        >
+        <div style={{
+          padding: '48px 24px',
+          textAlign: 'center',
+          background: '#ffffff',
+          borderRadius: '14px',
+          border: '1px dashed #cbd5e1',
+          color: '#64748b'
+        }}>
           No {selectedStatus} teacher applications found.
         </div>
       ) : (
@@ -146,62 +143,39 @@ export default function AdminTeacherApplicationsPage() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '16px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                }}
-              >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   {app.userId?.avatar ? (
                     <img
                       src={app.userId.avatar}
                       alt={app.userId.fullName}
-                      style={{
-                        width: '50px',
-                        height: '50px',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                      }}
+                      style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
                     />
                   ) : (
-                    <div
-                      style={{
-                        width: '50px',
-                        height: '50px',
-                        borderRadius: '50%',
-                        background: '#e0e7ff',
-                        color: '#4f46e5',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: '700',
-                        fontSize: '18px',
-                      }}
-                    >
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '50%',
+                      background: '#e0e7ff',
+                      color: '#4f46e5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '18px'
+                    }}>
                       {app.userId?.fullName ? app.userId.fullName[0].toUpperCase() : 'U'}
                     </div>
                   )}
                   <div>
-                    <h3
-                      style={{
-                        fontSize: '18px',
-                        fontWeight: '700',
-                        margin: '0 0 4px',
-                        color: '#0f172a',
-                      }}
-                    >
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px', color: '#0f172a' }}>
                       {app.userId?.fullName || 'Candidate'}
                     </h3>
                     <div style={{ fontSize: '13px', color: '#64748b' }}>
-                      {app.userId?.email} • Applied on{' '}
-                      {new Date(app.createdAt).toLocaleDateString()}
+                      {app.userId?.email} • Applied on {new Date(app.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
@@ -218,14 +192,14 @@ export default function AdminTeacherApplicationsPage() {
                         app.status === 'approved'
                           ? '#dcfce7'
                           : app.status === 'rejected'
-                            ? '#fee2e2'
-                            : '#fef3c7',
+                          ? '#fee2e2'
+                          : '#fef3c7',
                       color:
                         app.status === 'approved'
                           ? '#16a34a'
                           : app.status === 'rejected'
-                            ? '#dc2626'
-                            : '#d97706',
+                          ? '#dc2626'
+                          : '#d97706',
                     }}
                   >
                     {app.status}
@@ -244,7 +218,7 @@ export default function AdminTeacherApplicationsPage() {
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '8px',
-                          cursor: 'pointer',
+                          cursor: 'pointer'
                         }}
                       >
                         Approve
@@ -260,7 +234,7 @@ export default function AdminTeacherApplicationsPage() {
                           color: '#dc2626',
                           border: '1px solid #fca5a5',
                           borderRadius: '8px',
-                          cursor: 'pointer',
+                          cursor: 'pointer'
                         }}
                       >
                         Reject
@@ -270,45 +244,29 @@ export default function AdminTeacherApplicationsPage() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  fontSize: '14px',
-                  lineHeight: 1.6,
-                  color: '#334155',
-                  background: '#f8fafc',
-                  padding: '16px',
-                  borderRadius: '10px',
-                  border: '1px solid #e2e8f0',
-                }}
-              >
+              {/* Bio & Details Box */}
+              <div style={{
+                fontSize: '14px',
+                lineHeight: 1.6,
+                color: '#334155',
+                background: '#f8fafc',
+                padding: '16px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0'
+              }}>
                 <div style={{ marginBottom: '6px' }}>
-                  <strong style={{ color: '#0f172a' }}>Bio / Experience:</strong>{' '}
-                  {app.bio || 'No bio submitted.'}
+                  <strong style={{ color: '#0f172a' }}>Bio / Experience:</strong> {app.bio || 'No bio submitted.'}
                 </div>
                 {app.cvUrl && (
                   <div style={{ marginBottom: '6px' }}>
                     <strong style={{ color: '#0f172a' }}>Portfolio / Document:</strong>{' '}
-                    <a
-                      href={app.cvUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: '#4f46e5', fontWeight: '600' }}
-                    >
+                    <a href={app.cvUrl} target="_blank" rel="noreferrer" style={{ color: '#4f46e5', fontWeight: '600' }}>
                       View Submitted Document ↗
                     </a>
                   </div>
                 )}
                 {app.rejectReason && (
-                  <div
-                    style={{
-                      marginTop: '8px',
-                      color: '#dc2626',
-                      background: '#fff1f2',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid #fecdd3',
-                    }}
-                  >
+                  <div style={{ marginTop: '8px', color: '#dc2626', background: '#fff1f2', padding: '8px 12px', borderRadius: '6px', border: '1px solid #fecdd3' }}>
                     <strong>Rejection Reason:</strong> {app.rejectReason}
                   </div>
                 )}
@@ -318,43 +276,34 @@ export default function AdminTeacherApplicationsPage() {
         </div>
       )}
 
+      {/* ─── REJECT MODAL (SOLID SOLID BACKGROUND) ─── */}
       {rejectingApp && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              maxWidth: '520px',
-              width: '100%',
-              padding: '28px',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
-              border: '1px solid #e2e8f0',
-              position: 'relative',
-            }}
-          >
-            <h2
-              style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px', color: '#0f172a' }}
-            >
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            maxWidth: '520px',
+            width: '100%',
+            padding: '28px',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
+            border: '1px solid #e2e8f0',
+            position: 'relative'
+          }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px', color: '#0f172a' }}>
               Reject Teacher Application
             </h2>
-            <p
-              style={{ color: '#64748b', fontSize: '14px', marginBottom: '18px', lineHeight: 1.5 }}
-            >
-              Please provide a clear reason for rejecting{' '}
-              <strong>{rejectingApp.userId?.fullName}</strong>. This feedback will be sent to the
-              candidate via email & notification.
+            <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '18px', lineHeight: 1.5 }}>
+              Please provide a clear reason for rejecting <strong>{rejectingApp.userId?.fullName}</strong>. This feedback will be sent to the candidate via email & notification.
             </p>
 
             <form onSubmit={handleConfirmReject}>
@@ -375,7 +324,7 @@ export default function AdminTeacherApplicationsPage() {
                     fontSize: '14px',
                     outline: 'none',
                     resize: 'vertical',
-                    boxSizing: 'border-box',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -393,7 +342,7 @@ export default function AdminTeacherApplicationsPage() {
                     padding: '9px 18px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    cursor: 'pointer',
+                    cursor: 'pointer'
                   }}
                 >
                   Cancel
@@ -409,7 +358,7 @@ export default function AdminTeacherApplicationsPage() {
                     padding: '9px 20px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    cursor: 'pointer',
+                    cursor: 'pointer'
                   }}
                 >
                   {actionLoading ? 'Rejecting...' : 'Confirm Reject'}
@@ -419,6 +368,7 @@ export default function AdminTeacherApplicationsPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

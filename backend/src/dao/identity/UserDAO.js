@@ -40,9 +40,7 @@ class UserDAO {
 
   async findPublicTeacherById(teacherId) {
     if (!mongoose.isValidObjectId(teacherId)) return null;
-    return User.findOne({ _id: teacherId, role: 'teacher' })
-      .select('fullName avatar bio role email createdAt')
-      .exec();
+    return User.findOne({ _id: teacherId, role: 'teacher' }).select('fullName avatar bio role email createdAt').exec();
   }
 
   async updateRole(userId, role) {
@@ -55,7 +53,7 @@ class UserDAO {
       .select('fullName avatar bio role email')
       .limit(limit)
       .exec();
-  }
+}
 }
 
 module.exports = new UserDAO();

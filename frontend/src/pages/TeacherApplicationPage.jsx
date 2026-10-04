@@ -1,3 +1,8 @@
+/**
+ * Author: ThienDDN - CE182101 / Team
+ * Created at: 01/10/2026
+ * Description: Student Teacher Application Submission Page
+ */
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { studentService } from '../services/api';
@@ -13,6 +18,7 @@ export default function TeacherApplicationPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Form states
   const [bio, setBio] = useState('');
   const [cvUrl, setCvUrl] = useState('');
   const [certificates, setCertificates] = useState('');
@@ -78,6 +84,7 @@ export default function TeacherApplicationPage() {
     );
   }
 
+  // Case 1: User is already a teacher
   if (user?.role === 'teacher') {
     return (
       <div className="management-page" style={{ maxWidth: '720px', margin: '40px auto' }}>
@@ -87,14 +94,9 @@ export default function TeacherApplicationPage() {
             Bạn đã là Giảng viên chính thức!
           </h2>
           <p style={{ color: 'var(--muted)', marginBottom: '24px' }}>
-            Tài khoản của bạn đã được kích hoạt toàn bộ quyền hạn giảng dạy. Bạn có thể soạn giáo
-            án, mở lớp và xuất bản khóa học ngay bây giờ.
+            Tài khoản của bạn đã được kích hoạt toàn bộ quyền hạn giảng dạy. Bạn có thể soạn giáo án, mở lớp và xuất bản khóa học ngay bây giờ.
           </p>
-          <Link
-            to="/teacher/dashboard"
-            className="primary"
-            style={{ display: 'inline-block', padding: '12px 24px' }}
-          >
+          <Link to="/teacher/dashboard" className="primary" style={{ display: 'inline-block', padding: '12px 24px' }}>
             Truy cập Teacher Dashboard →
           </Link>
         </div>
@@ -107,17 +109,13 @@ export default function TeacherApplicationPage() {
       <div className="management-header">
         <div>
           <h1>Đăng ký làm Giảng viên AI-LMS</h1>
-          <p>
-            Tham gia đội ngũ đào tạo chất lượng cao, chia sẻ kiến thức và nhận thu nhập từ học viên.
-          </p>
+          <p>Tham gia đội ngũ đào tạo chất lượng cao, chia sẻ kiến thức và nhận thu nhập từ học viên.</p>
         </div>
       </div>
 
+      {/* Case 2: Application is PENDING */}
       {application?.status === 'pending' && (
-        <div
-          className="management-card"
-          style={{ padding: '32px', marginBottom: '24px', borderLeft: '5px solid #d97706' }}
-        >
+        <div className="management-card" style={{ padding: '32px', marginBottom: '24px', borderLeft: '5px solid #d97706' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
             <span style={{ fontSize: '28px' }}>⏳</span>
             <div>
@@ -133,55 +131,19 @@ export default function TeacherApplicationPage() {
             </span>
           </div>
           <p style={{ color: '#475569', fontSize: '14px', lineHeight: 1.6, margin: '14px 0' }}>
-            Hồ sơ của bạn đã được ghi nhận vào hàng đợi kiểm duyệt của Ban Quản Trị. Quá trình thẩm
-            định thông thường kéo dài từ 24 - 48 giờ. Bạn có thể kiểm tra lại tại đây hoặc nhận
-            thông báo qua email.
+            Hồ sơ của bạn đã được ghi nhận vào hàng đợi kiểm duyệt của Ban Quản Trị. Quá trình thẩm định thông thường kéo dài từ 24 - 48 giờ. Bạn có thể kiểm tra lại tại đây hoặc nhận thông báo qua email.
           </p>
-          <div
-            style={{
-              background: '#f8fafc',
-              padding: '16px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              display: 'grid',
-              gap: '8px',
-            }}
-          >
-            <div>
-              <strong>Tiểu sử chuyên môn:</strong> {application.bio}
-            </div>
-            {application.cvUrl && (
-              <div>
-                <strong>Đường dẫn CV:</strong>{' '}
-                <a
-                  href={application.cvUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: '#4935db' }}
-                >
-                  {application.cvUrl}
-                </a>
-              </div>
-            )}
-            {application.certificates?.length > 0 && (
-              <div>
-                <strong>Chứng chỉ:</strong> {application.certificates.join(', ')}
-              </div>
-            )}
+          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', fontSize: '13px', display: 'grid', gap: '8px' }}>
+            <div><strong>Tiểu sử chuyên môn:</strong> {application.bio}</div>
+            {application.cvUrl && <div><strong>Đường dẫn CV:</strong> <a href={application.cvUrl} target="_blank" rel="noreferrer" style={{ color: '#4935db' }}>{application.cvUrl}</a></div>}
+            {application.certificates?.length > 0 && <div><strong>Chứng chỉ:</strong> {application.certificates.join(', ')}</div>}
           </div>
         </div>
       )}
 
+      {/* Case 3: Application was REJECTED */}
       {application?.status === 'rejected' && (
-        <div
-          className="management-card"
-          style={{
-            padding: '24px',
-            marginBottom: '24px',
-            borderLeft: '5px solid #dc2626',
-            background: '#fff5f5',
-          }}
-        >
+        <div className="management-card" style={{ padding: '24px', marginBottom: '24px', borderLeft: '5px solid #dc2626', background: '#fff5f5' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <span style={{ fontSize: '24px' }}>⚠️</span>
             <h2 style={{ fontSize: '17px', margin: 0, color: '#991b1b' }}>
@@ -189,29 +151,18 @@ export default function TeacherApplicationPage() {
             </h2>
           </div>
           <p style={{ color: '#b91c1c', fontSize: '14px', margin: '6px 0 12px' }}>
-            <strong>Lý do từ chối:</strong>{' '}
-            {application.rejectReason || 'Hồ sơ chưa cung cấp đủ bằng chứng chuyên môn.'}
+            <strong>Lý do từ chối:</strong> {application.rejectReason || 'Hồ sơ chưa cung cấp đủ bằng chứng chuyên môn.'}
           </p>
           <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>
-            Bạn có thể bổ sung thông tin chi tiết hơn và nộp lại mẫu đơn bên dưới để được Ban Quản
-            Trị thẩm định lại.
+            Bạn có thể bổ sung thông tin chi tiết hơn và nộp lại mẫu đơn bên dưới để được Ban Quản Trị thẩm định lại.
           </p>
         </div>
       )}
 
+      {/* Application Form */}
       {(!application || application.status === 'rejected') && (
-        <form
-          className="management-card course-form"
-          onSubmit={handleSubmit}
-          style={{ width: '100%', maxWidth: '100%' }}
-        >
-          <div
-            style={{
-              borderBottom: '1px solid #f0eff9',
-              paddingBottom: '16px',
-              marginBottom: '8px',
-            }}
-          >
+        <form className="management-card course-form" onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '100%' }}>
+          <div style={{ borderBottom: '1px solid #f0eff9', paddingBottom: '16px', marginBottom: '8px' }}>
             <h3 style={{ margin: '0 0 6px', fontSize: '18px' }}>Thông tin hồ sơ năng lực</h3>
             <p style={{ margin: 0, color: 'var(--muted)', fontSize: '13px' }}>
               Người ứng tuyển: <strong>{user?.fullName}</strong> ({user?.email})
@@ -250,15 +201,7 @@ export default function TeacherApplicationPage() {
             />
           </label>
 
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              cursor: 'pointer',
-              marginTop: '6px',
-            }}
-          >
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginTop: '6px' }}>
             <input
               type="checkbox"
               style={{ width: '18px', height: '18px' }}
@@ -266,13 +209,16 @@ export default function TeacherApplicationPage() {
               onChange={(e) => setAgreed(e.target.checked)}
             />
             <span style={{ fontSize: '13px', color: 'var(--ink)' }}>
-              Tôi cam kết cung cấp thông tin trung thực và tuân thủ các tiêu chuẩn chất lượng bài
-              giảng của AI-LMS.
+              Tôi cam kết cung cấp thông tin trung thực và tuân thủ các tiêu chuẩn chất lượng bài giảng của AI-LMS.
             </span>
           </label>
 
           <div className="form-actions" style={{ marginTop: '16px' }}>
-            <button type="button" className="ghost" onClick={() => navigate('/dashboard')}>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => navigate('/dashboard')}
+            >
               Hủy bỏ
             </button>
             <button
