@@ -1,5 +1,5 @@
 const ServiceError = require('../../service/common/ServiceError');
-const modes = ['wrong_answer'];
+const modes = ['wrong_answer', 'recommend'];
 function field(value, label, max, optional = false) {
   if (optional && (value === undefined || value === '')) return '';
   if (typeof value !== 'string' || !value.trim() || value.length > max) throw new ServiceError(400, `${label}: cần nhập từ 1 đến ${max} ký tự.`);
@@ -21,6 +21,9 @@ module.exports = {
       };
       return { details, text: `Giải thích câu trả lời\nĐề bài: ${details.question}\nCâu trả lời của tôi: ${details.studentAnswer}\nĐáp án tham khảo do tôi cung cấp: ${details.correctAnswer || '(chưa có)'}` };
     }
+    const details = { goal: field(value.goal, 'Mục tiêu', 500), level: value.level };
+    if (!['beginner', 'intermediate', 'advanced'].includes(details.level)) throw new ServiceError(400, 'Trình độ không hợp lệ.');
+    if (mode === 'recommend') return { details, text: `Gợi ý khóa học cho mục tiêu: ${details.goal}. Trình độ: ${details.level}.` };
     throw new ServiceError(400, 'Unsupported learning mode.');
   },
 };
