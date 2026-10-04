@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const TeacherApplication = require('../../model/governance/TeacherApplication');
 
 class TeacherApplicationDAO {
+  /**
+   * Find application by ID and populate applicant info
+   */
   async findById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
     return TeacherApplication.findById(id)
@@ -10,6 +13,9 @@ class TeacherApplicationDAO {
       .exec();
   }
 
+  /**
+   * Find pending teacher applications
+   */
   async findPending() {
     return TeacherApplication.find({ status: 'pending' })
       .populate('userId', 'fullName email avatar')
@@ -17,6 +23,9 @@ class TeacherApplicationDAO {
       .exec();
   }
 
+  /**
+   * Find all teacher applications with optional status filter
+   */
   async findAll({ status = null } = {}) {
     const filter = {};
     if (status && TeacherApplication.APPLICATION_STATUSES.includes(status)) {
@@ -29,10 +38,16 @@ class TeacherApplicationDAO {
       .exec();
   }
 
+  /**
+   * Create new teacher application
+   */
   async create(data) {
     return TeacherApplication.create(data);
   }
 
+  /**
+   * Update status (approve or reject) with reviewer & optional reason
+   */
   async updateStatus(id, status, reviewedBy, reason = null) {
     if (!mongoose.isValidObjectId(id)) return null;
     const updates = {

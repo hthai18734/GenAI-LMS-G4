@@ -26,9 +26,7 @@ class LessonDAO {
     return Lesson.findById(id).exec();
   }
 
-  async create(data) {
-    return Lesson.create(data);
-  }
+  async create(data) { return Lesson.create(data); }
 
   async update(id, updates) {
     if (!mongoose.isValidObjectId(id)) return null;

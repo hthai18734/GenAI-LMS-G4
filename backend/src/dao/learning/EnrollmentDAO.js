@@ -13,20 +13,21 @@ class EnrollmentDAO {
 
   async findByUserId(userId) {
     if (!mongoose.isValidObjectId(userId)) return [];
-    return Enrollment.find({ userId }).populate('courseId').sort({ enrolledAt: -1 }).exec();
+    return Enrollment.find({ userId })
+      .populate('courseId')
+      .sort({ enrolledAt: -1 })
+      .exec();
   }
 
   async findForResume(userId, courseId) {
     if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(courseId)) return null;
-    return Enrollment.findOne({ userId, courseId, status: 'active' }).populate('courseId').exec();
+    return Enrollment.findOne({ userId, courseId, status: 'active' })
+      .populate('courseId')
+      .exec();
   }
 
   async markCompleted(enrollmentId) {
-    return Enrollment.findByIdAndUpdate(
-      enrollmentId,
-      { status: 'completed', completedAt: new Date() },
-      { new: true },
-    );
+    return Enrollment.findByIdAndUpdate(enrollmentId, { status: 'completed', completedAt: new Date() }, { new: true });
   }
 }
 

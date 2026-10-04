@@ -22,9 +22,7 @@ function response() {
 
 async function withoutNextError(action) {
   let nextError;
-  await action((error) => {
-    nextError = error;
-  });
+  await action((error) => { nextError = error; });
   assert.equal(nextError, undefined);
 }
 
@@ -39,20 +37,15 @@ test('expired OTP remains available for resend and returns the UC message', asyn
     wrongAttempts: 0,
     payload: { email: 'minh@example.com' },
   });
-  OtpVerificationDAO.clear = async () => {
-    clearCalled = true;
-  };
+  OtpVerificationDAO.clear = async () => { clearCalled = true; };
 
   try {
     const res = response();
-    await withoutNextError((next) =>
-      AuthController.verifyOtp({ body: { email: 'minh@example.com', otp: '123456' } }, res, next),
-    );
+    await withoutNextError((next) => AuthController.verifyOtp(
+      { body: { email: 'minh@example.com', otp: '123456' } }, res, next,
+    ));
     assert.equal(res.statusCode, 400);
-    assert.equal(
-      res.body.message,
-      'The OTP has expired. Select "Resend Code" to receive a new one.',
-    );
+    assert.equal(res.body.message, 'The OTP has expired. Select "Resend Code" to receive a new one.');
     assert.equal(clearCalled, false);
   } finally {
     OtpVerificationDAO.find = originalFind;
@@ -77,24 +70,17 @@ test('incorrect OTP reports remaining attempts and locks only after more than fi
   try {
     for (let expectedRemaining = 4; expectedRemaining >= 0; expectedRemaining -= 1) {
       const res = response();
-      await withoutNextError((next) =>
-        AuthController.verifyOtp({ body: { email: 'minh@example.com', otp: '000000' } }, res, next),
-      );
+      await withoutNextError((next) => AuthController.verifyOtp(
+        { body: { email: 'minh@example.com', otp: '000000' } }, res, next,
+      ));
       assert.equal(res.statusCode, 400);
-      assert.equal(
-        res.body.message,
-        `Incorrect OTP. You have ${expectedRemaining} attempts remaining.`,
-      );
+      assert.equal(res.body.message, `Incorrect OTP. You have ${expectedRemaining} attempts remaining.`);
     }
 
     const sixthResponse = response();
-    await withoutNextError((next) =>
-      AuthController.verifyOtp(
-        { body: { email: 'minh@example.com', otp: '000000' } },
-        sixthResponse,
-        next,
-      ),
-    );
+    await withoutNextError((next) => AuthController.verifyOtp(
+      { body: { email: 'minh@example.com', otp: '000000' } }, sixthResponse, next,
+    ));
     assert.equal(sixthResponse.statusCode, 429);
     assert.equal(
       sixthResponse.body.message,
@@ -117,15 +103,13 @@ test('resend is allowed for an existing expired or attempt-locked verification r
     otpExpiresAt: new Date(Date.now() - 1000),
     resendAvailableAt: new Date(Date.now() - 1000),
   });
-  AuthController.issueOtp = async (email, savedPayload) => {
-    issued.push({ email, savedPayload });
-  };
+  AuthController.issueOtp = async (email, savedPayload) => { issued.push({ email, savedPayload }); };
 
   try {
     const res = response();
-    await withoutNextError((next) =>
-      AuthController.resendOtp({ body: { email: 'minh@example.com' } }, res, next),
-    );
+    await withoutNextError((next) => AuthController.resendOtp(
+      { body: { email: 'minh@example.com' } }, res, next,
+    ));
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.message, 'A new verification code has been sent to your email.');
     assert.deepEqual(issued, [{ email: 'minh@example.com', savedPayload: payload }]);
@@ -140,12 +124,8 @@ test('issuing an OTP retains pending registration data beyond the OTP validity w
   const originalSendOtp = EmailUtil.sendOtp;
   let saved;
   let delivered;
-  OtpVerificationDAO.save = async (record) => {
-    saved = record;
-  };
-  EmailUtil.sendOtp = async (email, otp) => {
-    delivered = { email, otp };
-  };
+  OtpVerificationDAO.save = async (record) => { saved = record; };
+  EmailUtil.sendOtp = async (email, otp) => { delivered = { email, otp }; };
 
   try {
     const before = Date.now();

@@ -1,3 +1,9 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: Student Course Catalog Query
+ */
+
 class CatalogQueryDTO {
   constructor(query = {}) {
     this.query = query;
@@ -5,16 +11,10 @@ class CatalogQueryDTO {
 
   validate() {
     const errors = {};
-    if (
-      this.query.page !== undefined &&
-      (!Number.isInteger(Number(this.query.page)) || Number(this.query.page) < 1)
-    ) {
+    if (this.query.page !== undefined && (!Number.isInteger(Number(this.query.page)) || Number(this.query.page) < 1)) {
       errors.page = 'Page must be an integer greater than zero.';
     }
-    if (
-      this.query.limit !== undefined &&
-      (!Number.isInteger(Number(this.query.limit)) || Number(this.query.limit) < 1)
-    ) {
+    if (this.query.limit !== undefined && (!Number.isInteger(Number(this.query.limit)) || Number(this.query.limit) < 1)) {
       errors.limit = 'Limit must be an integer greater than zero.';
     }
     if (this.query.sortOrder && !['asc', 'desc'].includes(this.query.sortOrder)) {

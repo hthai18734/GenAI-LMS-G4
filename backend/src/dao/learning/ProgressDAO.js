@@ -13,7 +13,10 @@ class ProgressDAO {
 
   async findByUserAndCourse(userId, courseId) {
     if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(courseId)) return [];
-    return Progress.find({ userId, courseId }).populate('lessonId').sort({ updatedAt: -1 }).exec();
+    return Progress.find({ userId, courseId })
+      .populate('lessonId')
+      .sort({ updatedAt: -1 })
+      .exec();
   }
 
   async countByUserAndCourse(userId, courseId) {
@@ -32,7 +35,7 @@ class ProgressDAO {
     return Progress.findOneAndUpdate(
       { userId, courseId, lessonId },
       { status, completedAt: status === 'completed' ? new Date() : null },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
 }

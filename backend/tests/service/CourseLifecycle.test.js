@@ -5,32 +5,18 @@ const CourseModerationService = require('../../src/service/admin/CourseModeratio
 const CourseDAO = require('../../src/dao/learning/CourseDAO');
 const LessonDAO = require('../../src/dao/learning/LessonDAO');
 const NotificationDAO = require('../../src/dao/engagement/NotificationDAO');
-const {
-  COURSE_STATUS,
-  COURSE_STATUSES,
-  canTransition,
-} = require('../../src/model/learning/CourseStatus');
+const { COURSE_STATUS, COURSE_STATUSES, canTransition } = require('../../src/model/learning/CourseStatus');
 
 const courseId = '507f1f77bcf86cd799439011';
 const teacherId = '507f1f77bcf86cd799439012';
 const adminId = '507f1f77bcf86cd799439013';
 
 function course(status, overrides = {}) {
-  return {
-    _id: courseId,
-    teacherId,
-    title: 'Lifecycle Course',
-    description: 'Complete description',
-    status,
-    ...overrides,
-  };
+  return { _id: courseId, teacherId, title: 'Lifecycle Course', description: 'Complete description', status, ...overrides };
 }
 
 test('course status definition contains exactly the required statuses and transitions', () => {
-  assert.deepEqual(
-    [...COURSE_STATUSES],
-    ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'PUBLIC', 'ARCHIVED'],
-  );
+  assert.deepEqual([...COURSE_STATUSES], ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'PUBLIC', 'ARCHIVED']);
   assert.equal(canTransition(COURSE_STATUS.DRAFT, COURSE_STATUS.PENDING_REVIEW), true);
   assert.equal(canTransition(COURSE_STATUS.REJECTED, COURSE_STATUS.PENDING_REVIEW), true);
   assert.equal(canTransition(COURSE_STATUS.PENDING_REVIEW, COURSE_STATUS.APPROVED), true);
@@ -48,12 +34,7 @@ test('teacher submission validates content and clears stale moderation data atom
     countValidByCourseId: LessonDAO.countValidByCourseId,
   };
   let transition = null;
-  CourseDAO.findById = async () =>
-    course(COURSE_STATUS.REJECTED, {
-      rejectionReason: 'Old reason',
-      moderatedBy: adminId,
-      moderatedAt: new Date(),
-    });
+  CourseDAO.findById = async () => course(COURSE_STATUS.REJECTED, { rejectionReason: 'Old reason', moderatedBy: adminId, moderatedAt: new Date() });
   LessonDAO.countValidByCourseId = async () => 1;
   CourseDAO.transitionStatus = async (id, fromStatus, updates) => {
     transition = { id, fromStatus, updates };
@@ -69,10 +50,7 @@ test('teacher submission validates content and clears stale moderation data atom
     assert.equal(transition.updates.moderatedAt, null);
     assert.ok(transition.updates.submittedForReviewAt instanceof Date);
   } finally {
-    Object.assign(CourseDAO, {
-      findById: originals.findById,
-      transitionStatus: originals.transitionStatus,
-    });
+    Object.assign(CourseDAO, { findById: originals.findById, transitionStatus: originals.transitionStatus });
     LessonDAO.countValidByCourseId = originals.countValidByCourseId;
   }
 });
@@ -85,27 +63,22 @@ test('incomplete course remains unchanged when submitted or published', async ()
   };
   let transitions = 0;
   LessonDAO.countValidByCourseId = async () => 0;
-  CourseDAO.transitionStatus = async () => {
-    transitions += 1;
-  };
+  CourseDAO.transitionStatus = async () => { transitions += 1; };
 
   try {
     CourseDAO.findById = async () => course(COURSE_STATUS.DRAFT);
     await assert.rejects(
       CourseService.submitForReview(courseId, { _id: teacherId }),
-      /at least one lesson/,
+      /at least one lesson/
     );
     CourseDAO.findById = async () => course(COURSE_STATUS.APPROVED);
     await assert.rejects(
       CourseService.publishCourse(courseId, { _id: teacherId }),
-      /at least one lesson/,
+      /at least one lesson/
     );
     assert.equal(transitions, 0);
   } finally {
-    Object.assign(CourseDAO, {
-      findById: originals.findById,
-      transitionStatus: originals.transitionStatus,
-    });
+    Object.assign(CourseDAO, { findById: originals.findById, transitionStatus: originals.transitionStatus });
     LessonDAO.countValidByCourseId = originals.countValidByCourseId;
   }
 });
@@ -131,10 +104,7 @@ test('teacher publishes APPROVED and unpublishes PUBLIC back to APPROVED', async
     const unpublished = await CourseService.unpublishCourse(courseId, { _id: teacherId });
     assert.equal(unpublished.status, COURSE_STATUS.APPROVED);
   } finally {
-    Object.assign(CourseDAO, {
-      findById: originals.findById,
-      transitionStatus: originals.transitionStatus,
-    });
+    Object.assign(CourseDAO, { findById: originals.findById, transitionStatus: originals.transitionStatus });
     LessonDAO.countValidByCourseId = originals.countValidByCourseId;
   }
 });
@@ -160,11 +130,7 @@ test('admin approval stops at APPROVED and rejection records moderation fields',
     assert.equal(approved.rejectionReason, null);
 
     current = course(COURSE_STATUS.PENDING_REVIEW);
-    const rejected = await CourseModerationService.rejectCourse(
-      courseId,
-      { _id: adminId },
-      { toObject: () => ({ reason: 'Add more examples.' }) },
-    );
+    const rejected = await CourseModerationService.rejectCourse(courseId, { _id: adminId }, { toObject: () => ({ reason: 'Add more examples.' }) });
     assert.equal(rejected.status, COURSE_STATUS.REJECTED);
     assert.equal(rejected.rejectionReason, 'Add more examples.');
     assert.equal(rejected.moderatedBy, adminId);

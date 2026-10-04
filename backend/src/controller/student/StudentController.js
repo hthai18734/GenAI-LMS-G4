@@ -1,3 +1,9 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 29/09/2026
+Updated at: 01/10/2026
+Description: Student Use Cases Controller (UC-4.1 → UC-4.6, UC-10.1, UC-10.3, UC-10.4)
+ */
 const UserDAO = require('../../dao/identity/UserDAO');
 const CourseDAO = require('../../dao/learning/CourseDAO');
 const EnrollmentDAO = require('../../dao/learning/EnrollmentDAO');
@@ -14,6 +20,7 @@ const TeacherApplication = require('../../model/governance/TeacherApplication');
 const TeacherApplicationDAO = require('../../dao/governance/TeacherApplicationDAO');
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 
+// DTOs – UC-4.x
 const ViewProfileDTO = require('../../dto/student/ViewProfileDTO');
 const UpdateProfileDTO = require('../../dto/student/UpdateProfileDTO');
 const DashboardQueryDTO = require('../../dto/student/DashboardQueryDTO');
@@ -22,6 +29,7 @@ const CertificateQueryDTO = require('../../dto/student/CertificateQueryDTO');
 const NotificationPreferencesQueryDTO = require('../../dto/student/NotificationPreferencesQueryDTO');
 const UpdateNotificationPreferencesDTO = require('../../dto/student/UpdateNotificationPreferencesDTO');
 
+// DTOs – UC-10.x
 const EnrollCourseDTO = require('../../dto/student/EnrollCourseDTO');
 const CatalogQueryDTO = require('../../dto/student/CatalogQueryDTO');
 const EnrolledCoursesQueryDTO = require('../../dto/student/EnrolledCoursesQueryDTO');
@@ -30,9 +38,13 @@ const CourseLessonsQueryDTO = require('../../dto/student/CourseLessonsQueryDTO')
 const CompleteLessonDTO = require('../../dto/student/CompleteLessonDTO');
 
 class StudentController {
+
+  // Validation helper – consistent with TeacherCourseController
   validationError(res, errors) {
     return ResponseUtil.error(res, { status: 400, message: 'Validation failed.', errors });
   }
+
+  // ─── UC-4.1 View Profile ───────────────────────────────────────────
   async getProfile(req, res, next) {
     try {
       const dto = new ViewProfileDTO({ user: req.user });
@@ -48,6 +60,7 @@ class StudentController {
     }
   }
 
+  // ─── UC-4.2 Update Profile & Upload Avatar ─────────────────────────
   async updateProfile(req, res, next) {
     try {
       const dto = new UpdateProfileDTO(req.body);
@@ -57,10 +70,7 @@ class StudentController {
       const updates = dto.toObject();
       const user = await UserDAO.updateProfile(req.user._id, updates);
       if (!user) return ResponseUtil.error(res, { status: 404, message: 'Profile not found.' });
-      return ResponseUtil.success(res, {
-        message: 'Profile updated successfully.',
-        data: { profile: this.toPublicProfile(user) },
-      });
+      return ResponseUtil.success(res, { message: 'Profile updated successfully.', data: { profile: this.toPublicProfile(user) } });
     } catch (error) {
       if (error?.code === 11000) {
         return ResponseUtil.error(res, { status: 409, message: 'This email is already in use.' });
@@ -69,6 +79,7 @@ class StudentController {
     }
   }
 
+  // ─── UC-4.3 View Dashboard ─────────────────────────────────────────
   async getDashboard(req, res, next) {
     try {
       const dto = new DashboardQueryDTO({ user: req.user });
@@ -83,6 +94,7 @@ class StudentController {
       const activeCourses = enrollments.filter((e) => e.status === 'active').length;
       const completedCourses = enrollments.filter((e) => e.status === 'completed').length;
 
+      // Build per-course progress summary
       const courseProgressMap = {};
       for (const enrollment of enrollments) {
         if (!enrollment.courseId) continue;
@@ -102,15 +114,15 @@ class StudentController {
           enrolledAt: enrollment.enrolledAt,
           totalLessons,
           completedLessons,
-          progressPercent:
-            totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
+          progressPercent: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
         };
       }
 
+      // Recently accessed – last 5 progress entries
       const recentActivity = progressRecords.slice(0, 5).map((p) => ({
-        courseId: p.courseId?._id ? String(p.courseId._id) : p.courseId ? String(p.courseId) : null,
+        courseId: p.courseId?._id ? String(p.courseId._id) : (p.courseId ? String(p.courseId) : null),
         courseTitle: p.courseId?.title || 'Unknown Course',
-        lessonId: p.lessonId?._id ? String(p.lessonId._id) : p.lessonId ? String(p.lessonId) : null,
+        lessonId: p.lessonId?._id ? String(p.lessonId._id) : (p.lessonId ? String(p.lessonId) : null),
         lessonTitle: p.lessonId?.title || 'Unknown Lesson',
         status: p.status,
         updatedAt: p.updatedAt,
@@ -132,6 +144,7 @@ class StudentController {
     }
   }
 
+  // ─── UC-4.4 View Learning History ──────────────────────────────────
   async getLearningHistory(req, res, next) {
     try {
       const dto = new LearningHistoryQueryDTO({ user: req.user });
@@ -155,6 +168,7 @@ class StudentController {
     }
   }
 
+  // ─── UC-4.5 View Certificates ──────────────────────────────────────
   async getCertificates(req, res, next) {
     try {
       const dto = new CertificateQueryDTO({ user: req.user });
@@ -164,6 +178,7 @@ class StudentController {
       const { userId } = dto.toObject();
       const certificates = await CertificateDAO.findByUserId(userId);
 
+      // Only return certificates for completed enrollments
       const validCertificates = certificates
         .filter((cert) => cert.enrollmentId && cert.enrollmentId.status === 'completed')
         .map((cert) => ({
@@ -178,6 +193,8 @@ class StudentController {
       return next(error);
     }
   }
+
+  // ─── UC-4.6 Manage Notification Preferences ────────────────────────
   async getNotificationPreferences(req, res, next) {
     try {
       const dto = new NotificationPreferencesQueryDTO({ user: req.user });
@@ -187,23 +204,17 @@ class StudentController {
       const { userId } = dto.toObject();
       const preferences = await NotificationPreferenceDAO.findByUserId(userId);
 
+      // If no preferences exist, return defaults
       if (preferences.length === 0) {
         const defaults = NotificationPreference.NOTIFICATION_TYPES.map((type) => ({
           type,
           enabled: true,
         }));
-        return ResponseUtil.success(res, {
-          data: {
-            preferences: defaults,
-            supportedTypes: NotificationPreference.NOTIFICATION_TYPES,
-          },
-        });
+        return ResponseUtil.success(res, { data: { preferences: defaults, supportedTypes: NotificationPreference.NOTIFICATION_TYPES } });
       }
 
       const mapped = preferences.map((p) => ({ type: p.type, enabled: p.enabled }));
-      return ResponseUtil.success(res, {
-        data: { preferences: mapped, supportedTypes: NotificationPreference.NOTIFICATION_TYPES },
-      });
+      return ResponseUtil.success(res, { data: { preferences: mapped, supportedTypes: NotificationPreference.NOTIFICATION_TYPES } });
     } catch (error) {
       return next(error);
     }
@@ -218,15 +229,13 @@ class StudentController {
       const { preferences } = dto.toObject();
       const updated = await NotificationPreferenceDAO.upsertMany(req.user._id, preferences);
       const mapped = updated.map((p) => ({ type: p.type, enabled: p.enabled }));
-      return ResponseUtil.success(res, {
-        message: 'Notification preferences updated.',
-        data: { preferences: mapped },
-      });
+      return ResponseUtil.success(res, { message: 'Notification preferences updated.', data: { preferences: mapped } });
     } catch (error) {
       return next(error);
     }
   }
 
+  // ─── UC-10.1 Enroll Course ─────────────────────────────────────────
   async enrollCourse(req, res, next) {
     try {
       const dto = new EnrollCourseDTO({ params: req.params, body: req.body });
@@ -236,34 +245,30 @@ class StudentController {
       const { courseId } = dto.toObject();
       const userId = req.user._id;
 
+      // Step 1: Course must exist
       const course = await CourseDAO.findById(courseId);
       if (!course) {
         return ResponseUtil.error(res, { status: 404, message: 'Course not found.' });
       }
 
+      // Step 2: Only public courses accept enrollment.
       if (course.status !== COURSE_STATUS.PUBLIC) {
-        return ResponseUtil.error(res, {
-          status: 400,
-          message: 'This course is not open for enrollment.',
-        });
+        return ResponseUtil.error(res, { status: 400, message: 'This course is not open for enrollment.' });
       }
 
+      // Step 3: Check duplicate active enrollment
       const existingEnrollment = await EnrollmentDAO.findActiveEnrollment(userId, courseId);
       if (existingEnrollment) {
-        return ResponseUtil.error(res, {
-          status: 409,
-          message: 'You are already enrolled in this course.',
-        });
+        return ResponseUtil.error(res, { status: 409, message: 'You are already enrolled in this course.' });
       }
 
+      // Step 4: All checks passed – create enrollment
       const enrollment = await EnrollmentDAO.createEnrollment(userId, courseId);
       await CourseDAO.incrementStudents(courseId);
 
+      // Step 5: Create in-app notification for the student if 'enrollment' preference is enabled
       try {
-        const isEnrollmentNotiEnabled = await NotificationPreferenceDAO.isEnabled(
-          userId,
-          'enrollment',
-        );
+        const isEnrollmentNotiEnabled = await NotificationPreferenceDAO.isEnabled(userId, 'enrollment');
         if (isEnrollmentNotiEnabled) {
           await NotificationDAO.create({
             recipientId: userId,
@@ -272,7 +277,7 @@ class StudentController {
             type: 'course',
           });
         }
-      } catch {}
+      } catch { /* ignore notification errors */ }
 
       return ResponseUtil.success(res, {
         status: 201,
@@ -291,6 +296,7 @@ class StudentController {
     }
   }
 
+  // ─── UC-10.3 View Enrolled Courses ─────────────────────────────────
   async getEnrolledCourses(req, res, next) {
     try {
       const dto = new EnrolledCoursesQueryDTO({ user: req.user });
@@ -322,8 +328,7 @@ class StudentController {
           completedAt: enrollment.completedAt,
           totalLessons,
           completedLessons,
-          progressPercent:
-            totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
+          progressPercent: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
         });
       }
 
@@ -333,6 +338,7 @@ class StudentController {
     }
   }
 
+  // ─── UC-10.4 Start/Resume Course ───────────────────────────────────
   async startResumeCourse(req, res, next) {
     try {
       const dto = new CourseResumeDTO({ params: req.params, user: req.user });
@@ -341,14 +347,13 @@ class StudentController {
 
       const { userId, courseId } = dto.toObject();
 
+      // Find active enrollment for this user + course
       const enrollment = await EnrollmentDAO.findForResume(userId, courseId);
       if (!enrollment) {
-        return ResponseUtil.error(res, {
-          status: 404,
-          message: 'No active enrollment was found for this course.',
-        });
+        return ResponseUtil.error(res, { status: 404, message: 'No active enrollment was found for this course.' });
       }
 
+      // Find saved position (last accessed lesson)
       const lastProgress = await ProgressDAO.findLastAccessedLesson(userId, courseId);
 
       if (lastProgress && lastProgress.lessonId) {
@@ -366,12 +371,10 @@ class StudentController {
         });
       }
 
+      // No progress yet – try to start from first lesson
       const firstLesson = await LessonDAO.findFirstLesson(courseId);
       if (!firstLesson) {
-        return ResponseUtil.error(res, {
-          status: 404,
-          message: 'Unable to restore your previous learning position.',
-        });
+        return ResponseUtil.error(res, { status: 404, message: 'Unable to restore your previous learning position.' });
       }
 
       return ResponseUtil.success(res, {
@@ -391,6 +394,7 @@ class StudentController {
     }
   }
 
+  // ─── Course Catalog (UC-10.1 helper) ──────────────────────────────
   async getCatalog(req, res, next) {
     try {
       const dto = new CatalogQueryDTO(req.query);
@@ -430,6 +434,7 @@ class StudentController {
     }
   }
 
+  // ─── Course Lessons (UC-10.4 study lesson) ─────────────────────────
   async getCourseLessons(req, res, next) {
     try {
       const dto = new CourseLessonsQueryDTO({ params: req.params, user: req.user });
@@ -445,10 +450,7 @@ class StudentController {
       }).exec();
 
       if (!enrollment) {
-        return ResponseUtil.error(res, {
-          status: 403,
-          message: 'You must be enrolled to view lessons.',
-        });
+        return ResponseUtil.error(res, { status: 403, message: 'You must be enrolled to view lessons.' });
       }
 
       const course = await CourseDAO.findById(courseId);
@@ -487,6 +489,7 @@ class StudentController {
     }
   }
 
+  // ─── Complete Lesson (Progress tracking) ───────────────────────────
   async completeLesson(req, res, next) {
     try {
       const dto = new CompleteLessonDTO({ params: req.params, user: req.user });
@@ -502,10 +505,7 @@ class StudentController {
       }).exec();
 
       if (!enrollment) {
-        return ResponseUtil.error(res, {
-          status: 403,
-          message: 'You must be enrolled in this course.',
-        });
+        return ResponseUtil.error(res, { status: 403, message: 'You must be enrolled in this course.' });
       }
 
       await ProgressDAO.upsertProgress(userId, courseId, lessonId, 'completed');
@@ -521,11 +521,9 @@ class StudentController {
         await EnrollmentDAO.markCompleted(enrollment._id);
         certificate = await CertificateDAO.issueCertificate(userId, courseId, enrollment._id);
 
+        // Notification: Course completed + Certificate issued
         try {
-          const isCourseUpdateEnabled = await NotificationPreferenceDAO.isEnabled(
-            userId,
-            'course_update',
-          );
+          const isCourseUpdateEnabled = await NotificationPreferenceDAO.isEnabled(userId, 'course_update');
           if (isCourseUpdateEnabled) {
             const courseDoc = await CourseDAO.findById(courseId);
             await NotificationDAO.create({
@@ -535,13 +533,11 @@ class StudentController {
               type: 'course',
             });
           }
-        } catch {}
+        } catch { /* ignore */ }
       } else {
+        // Notification: Lesson completed progress
         try {
-          const isCourseUpdateEnabled = await NotificationPreferenceDAO.isEnabled(
-            userId,
-            'course_update',
-          );
+          const isCourseUpdateEnabled = await NotificationPreferenceDAO.isEnabled(userId, 'course_update');
           if (isCourseUpdateEnabled) {
             await NotificationDAO.create({
               recipientId: userId,
@@ -550,7 +546,7 @@ class StudentController {
               type: 'course',
             });
           }
-        } catch {}
+        } catch { /* ignore */ }
       }
 
       return ResponseUtil.success(res, {
@@ -567,6 +563,7 @@ class StudentController {
     }
   }
 
+  // ─── UC-5.x Apply Teacher Application ──────────────────────────────
   async getTeacherApplicationStatus(req, res, next) {
     try {
       const userId = req.user._id;
@@ -596,6 +593,7 @@ class StudentController {
         });
       }
 
+      // Check if user is already a teacher
       if (req.user.role === 'teacher') {
         return ResponseUtil.error(res, {
           status: 400,
@@ -603,6 +601,7 @@ class StudentController {
         });
       }
 
+      // Check if user has an existing pending application
       const existingPending = await TeacherApplication.findOne({
         userId,
         status: 'pending',
@@ -618,11 +617,8 @@ class StudentController {
       const certList = Array.isArray(certificates)
         ? certificates
         : typeof certificates === 'string' && certificates.trim()
-          ? certificates
-              .split(',')
-              .map((c) => c.trim())
-              .filter(Boolean)
-          : [];
+        ? certificates.split(',').map((c) => c.trim()).filter(Boolean)
+        : [];
 
       const application = await TeacherApplication.create({
         userId,
@@ -642,6 +638,7 @@ class StudentController {
     }
   }
 
+  // ─── Notifications ─────────────────────────────────────────────────
   async getNotifications(req, res, next) {
     try {
       const userId = req.user._id;
@@ -708,6 +705,7 @@ class StudentController {
       const userId = req.user._id;
       const { type = 'system' } = req.body || {};
 
+      // Check if this type is enabled in user's preferences
       const isEnabled = await NotificationPreferenceDAO.isEnabled(userId, type);
       if (!isEnabled) {
         return ResponseUtil.error(res, {
@@ -754,8 +752,7 @@ class StudentController {
 
       return ResponseUtil.success(res, {
         status: 201,
-        message:
-          'Đã gửi thông báo thử nghiệm thành công! Hãy kiểm tra chuông thông báo trên Topbar.',
+        message: 'Đã gửi thông báo thử nghiệm thành công! Hãy kiểm tra chuông thông báo trên Topbar.',
         data: {
           notification: {
             id: String(created._id),
@@ -771,6 +768,7 @@ class StudentController {
     }
   }
 
+  // ─── Helpers ───────────────────────────────────────────────────────
   toPublicProfile(user) {
     return {
       id: String(user._id),

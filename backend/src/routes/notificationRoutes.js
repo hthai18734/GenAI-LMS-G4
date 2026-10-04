@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 02/10/2026
+Description: Notification Inbox Routes for all authenticated users
+ */
 const express = require('express');
 const NoCacheFilter = require('../filter/NoCacheFilter');
 const { AuthFilter } = require('../filter/AuthFilter');

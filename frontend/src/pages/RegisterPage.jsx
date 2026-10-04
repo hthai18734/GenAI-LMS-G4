@@ -82,10 +82,7 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} data-mode="register">
           <label>
-            Full name{' '}
-            <span className="required-mark" aria-hidden="true">
-              *
-            </span>
+            Full name <span className="required-mark" aria-hidden="true">*</span>
             <input
               name="fullName"
               autoComplete="name"
@@ -97,10 +94,7 @@ export default function RegisterPage() {
           </label>
 
           <label>
-            Phone{' '}
-            <span className="required-mark" aria-hidden="true">
-              *
-            </span>
+            Phone <span className="required-mark" aria-hidden="true">*</span>
             <input
               name="phone"
               type="tel"
@@ -113,10 +107,7 @@ export default function RegisterPage() {
           </label>
 
           <label>
-            Email{' '}
-            <span className="required-mark" aria-hidden="true">
-              *
-            </span>
+            Email <span className="required-mark" aria-hidden="true">*</span>
             <input
               name="email"
               type="email"
@@ -129,10 +120,7 @@ export default function RegisterPage() {
           </label>
 
           <label>
-            Password{' '}
-            <span className="required-mark" aria-hidden="true">
-              *
-            </span>
+            Password <span className="required-mark" aria-hidden="true">*</span>
             <input
               name="password"
               type="password"
@@ -146,10 +134,7 @@ export default function RegisterPage() {
           </label>
 
           <label>
-            Confirm password{' '}
-            <span className="required-mark" aria-hidden="true">
-              *
-            </span>
+            Confirm password <span className="required-mark" aria-hidden="true">*</span>
             <input
               name="confirmPassword"
               type="password"

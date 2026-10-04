@@ -26,26 +26,16 @@ const titles = {
 export default function Layout() {
   const location = useLocation();
   const { user } = useAuth();
-  const currentTitle =
-    titles[location.pathname] ||
-    (location.pathname.startsWith('/teacher/courses/')
-      ? 'Edit Course'
-      : user?.role === 'admin'
-        ? 'Admin Portal'
-        : user?.role === 'teacher'
-          ? 'Teacher Portal'
-          : 'Student Portal');
+  const currentTitle = titles[location.pathname] || (location.pathname.startsWith('/teacher/courses/') ? 'Edit Course' : user?.role === 'admin' ? 'Admin Portal' : user?.role === 'teacher' ? 'Teacher Portal' : 'Student Portal');
 
   return (
-    <ChatProvider>
-      <div className="student-layout">
-        <Sidebar />
-        <Navbar title={currentTitle} />
-        <main className="student-content">
-          <Outlet />
-        </main>
-        <ChatWidget />
-      </div>
-    </ChatProvider>
+    <ChatProvider><div className="student-layout">
+      <Sidebar />
+      <Navbar title={currentTitle} />
+      <main className="student-content">
+        <Outlet />
+      </main>
+      <ChatWidget />
+    </div></ChatProvider>
   );
 }

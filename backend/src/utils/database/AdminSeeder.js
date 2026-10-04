@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: Seed default admin account on startup
+ */
 const User = require('../../model/identity/User');
 const PasswordUtil = require('../auth/PasswordUtil');
 const LoggerUtil = require('../common/LoggerUtil');
@@ -26,6 +31,7 @@ async function seedAdmin() {
       LoggerUtil.info('Admin account already exists, skipping seed.');
     }
 
+    // Seed default teacher account
     const existingTeacher = await User.findOne({ email: TEACHER_EMAIL });
     if (!existingTeacher) {
       const teacherHash = await PasswordUtil.hash(TEACHER_PASSWORD);
@@ -43,6 +49,7 @@ async function seedAdmin() {
       LoggerUtil.info('Teacher account already exists, skipping seed.');
     }
 
+    // Seed sample student accounts & pending teacher applications for testing UC-5.1 & UC-5.2
     const TeacherApplication = require('../../model/governance/TeacherApplication');
     const student1Email = 'student1@ai-lms.edu';
     let student1 = await User.findOne({ email: student1Email });
@@ -78,6 +85,7 @@ async function seedAdmin() {
       LoggerUtil.info(`Default student account seeded (email: ${student2Email})`);
     }
 
+    // Seed pending teacher applications if none exist
     const pendingAppsCount = await TeacherApplication.countDocuments({ status: 'pending' });
     if (pendingAppsCount === 0) {
       if (student1) {
@@ -85,11 +93,7 @@ async function seedAdmin() {
           userId: student1._id,
           bio: '5 năm kinh nghiệm giảng dạy Web Development, chuyên gia React & Node.js với chứng chỉ AWS Certified Solutions Architect.',
           cvUrl: 'https://linkedin.com/in/mai-lan-tran',
-          certificates: [
-            'AWS Solutions Architect',
-            'Meta Certified Front-End Developer',
-            'IELTS 7.5',
-          ],
+          certificates: ['AWS Solutions Architect', 'Meta Certified Front-End Developer', 'IELTS 7.5'],
           status: 'pending',
         });
       }
@@ -105,6 +109,7 @@ async function seedAdmin() {
       LoggerUtil.info('Sample pending teacher applications seeded for Admin moderation.');
     }
 
+    // Seed default categories if none exist
     const Category = require('../../model/learning/Category');
     const Course = require('../../model/learning/Course');
     const { COURSE_STATUS } = require('../../model/learning/CourseStatus');
@@ -118,11 +123,9 @@ async function seedAdmin() {
       closed: COURSE_STATUS.ARCHIVED,
       archived: COURSE_STATUS.ARCHIVED,
     };
-    await Promise.all(
-      Object.entries(legacyCourseStatuses).map(([legacyStatus, status]) =>
-        Course.updateMany({ status: legacyStatus }, { $set: { status } }),
-      ),
-    );
+    await Promise.all(Object.entries(legacyCourseStatuses).map(([legacyStatus, status]) => (
+      Course.updateMany({ status: legacyStatus }, { $set: { status } })
+    )));
     const existingCatsCount = await Category.countDocuments({ deletedAt: null });
     if (existingCatsCount === 0) {
       await Category.create({
@@ -152,6 +155,7 @@ async function seedAdmin() {
       LoggerUtil.info('Default categories seeded for demo.');
     }
 
+    // Seed default courses if none exist
     const seededCourseIds = [];
     const existingCoursesCount = await Course.countDocuments();
     if (existingCoursesCount === 0) {
@@ -160,10 +164,8 @@ async function seedAdmin() {
       if (teacherId) {
         const firstDemoCourse = await Course.create({
           title: 'Machine Learning & Deep Learning with Python 2026',
-          description:
-            'Học máy chuyên sâu từ cơ bản đến nâng cao với Python, PyTorch và Scikit-Learn.',
-          thumbnail:
-            'https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=600&q=80',
+          description: 'Học máy chuyên sâu từ cơ bản đến nâng cao với Python, PyTorch và Scikit-Learn.',
+          thumbnail: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=600&q=80',
           teacherId,
           instructorId: teacherId,
           category: 'Artificial Intelligence',
@@ -178,10 +180,8 @@ async function seedAdmin() {
 
         const secondDemoCourse = await Course.create({
           title: 'Fullstack React & Node.js Masterclass',
-          description:
-            'Xây dựng ứng dụng web hiện đại từ giao diện người dùng đến RESTful API backend.',
-          thumbnail:
-            'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=600&q=80',
+          description: 'Xây dựng ứng dụng web hiện đại từ giao diện người dùng đến RESTful API backend.',
+          thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=600&q=80',
           teacherId,
           instructorId: teacherId,
           category: 'Web Development',
@@ -196,10 +196,8 @@ async function seedAdmin() {
 
         const reviewDemoCourse = await Course.create({
           title: 'Docker & Kubernetes Cloud Architecture',
-          description:
-            'Triển khai hạ tầng đám mây và microservices với containerization chuẩn production.',
-          thumbnail:
-            'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?auto=format&fit=crop&w=600&q=80',
+          description: 'Triển khai hạ tầng đám mây và microservices với containerization chuẩn production.',
+          thumbnail: 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?auto=format&fit=crop&w=600&q=80',
           teacherId,
           instructorId: teacherId,
           category: 'Cloud Computing',
@@ -216,6 +214,7 @@ async function seedAdmin() {
       }
     }
 
+    // Seed lessons only for demo courses created in this run. User-created drafts remain empty.
     const Lesson = require('../../model/learning/Lesson');
     const allCourses = await Course.find({ _id: { $in: seededCourseIds } });
     for (const c of allCourses) {

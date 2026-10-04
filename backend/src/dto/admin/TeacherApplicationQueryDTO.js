@@ -1,3 +1,8 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Teacher Application Query DTO (Admin View Applications)
+ */
 const { text } = require('../common/DTOUtil');
 
 const ALLOWED_STATUSES = ['pending', 'approved', 'rejected'];

@@ -1,3 +1,9 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: UC-4.1 View Profile
+ */
+
 class ViewProfileDTO {
   constructor({ params = {}, user = {} } = {}) {
     this.userId = user._id || params.userId || null;

@@ -21,6 +21,7 @@ function createMockRes() {
   return res;
 }
 
+// ─── UC-1.1: View Homepage ──────────────────────────────────────────
 test('UC-1.1: getHomepage returns featured courses and active categories', async () => {
   const origFeatured = CourseDAO.findFeaturedCourses;
   const origCategories = CategoryDAO.findAllActive;
@@ -48,6 +49,7 @@ test('UC-1.1: getHomepage returns featured courses and active categories', async
   }
 });
 
+// ─── UC-1.2: Browse Courses ─────────────────────────────────────────
 test('UC-1.2: browseCourses returns paginated course list', async () => {
   const origPaging = CourseDAO.findPublishedWithPaging;
   const origCount = CourseDAO.countPublished;
@@ -73,6 +75,7 @@ test('UC-1.2: browseCourses returns paginated course list', async () => {
   }
 });
 
+// ─── UC-1.3: Search Courses ─────────────────────────────────────────
 test('UC-1.3: searchCourses rejects empty keyword with 400 Keyword required', async () => {
   const req = { query: { q: '   ' } };
   const res = createMockRes();
@@ -105,8 +108,9 @@ test('UC-1.3: searchCourses returns ranked results for valid keyword', async () 
   }
 });
 
+// ─── UC-1.4: Filter & Sort Courses ──────────────────────────────────
 test('UC-1.4: filterAndSortCourses rejects invalid filter options', async () => {
-  const req = { query: { minPrice: '100', maxPrice: '50' } };
+  const req = { query: { minPrice: '100', maxPrice: '50' } }; // min > max
   const res = createMockRes();
   await PublicController.filterAndSortCourses(req, res, () => {});
 
@@ -136,6 +140,7 @@ test('UC-1.4: filterAndSortCourses returns filtered and sorted courses', async (
   }
 });
 
+// ─── UC-1.5: View Course Detail ─────────────────────────────────────
 test('UC-1.5: getCourseDetail returns 404 when course not found', async () => {
   const origFind = CourseDAO.findById;
   CourseDAO.findById = async () => null;
@@ -184,6 +189,7 @@ test('UC-1.5: getCourseDetail returns course and instructor summary when found',
   }
 });
 
+// ─── UC-1.6: View Public Categories & Teacher Profile ────────────────
 test('UC-1.6: getPublicCategories returns active category list', async () => {
   const origCategories = CategoryDAO.findAllActive;
   CategoryDAO.findAllActive = async () => [
@@ -227,7 +233,9 @@ test('UC-1.6: getPublicTeacherProfile returns profile and published courses', as
     fullName: 'Jane Smith',
     role: 'teacher',
   });
-  CourseDAO.findCoursesByTeacherId = async () => [{ _id: 'c1', title: 'Data Structures' }];
+  CourseDAO.findCoursesByTeacherId = async () => [
+    { _id: 'c1', title: 'Data Structures' },
+  ];
 
   try {
     const req = { params: { teacherId: 't1' } };

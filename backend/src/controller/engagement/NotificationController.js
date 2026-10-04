@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 02/10/2026
+Description: Notification Inbox Controller for all authenticated users
+ */
 const mongoose = require('mongoose');
 const NotificationDAO = require('../../dao/engagement/NotificationDAO');
 const ResponseUtil = require('../../utils/common/ResponseUtil');

@@ -8,34 +8,23 @@ function checkZip(buffer) {
       let total = 0;
       let entries = 0;
       let documentFound = false;
-      const fail = (error) => {
-        zip.close();
-        reject(error);
-      };
+      const fail = error => { zip.close(); reject(error); };
       zip.on('error', fail);
-      zip.on('entry', (entry) => {
-        if (
-          ++entries > 1000 ||
-          entry.uncompressedSize > 20 * 1024 * 1024 ||
-          entry.generalPurposeBitFlag & 1
-        )
-          return fail(new Error('Archive limit'));
+      zip.on('entry', entry => {
+        if (++entries > 1000 || entry.uncompressedSize > 20 * 1024 * 1024 || (entry.generalPurposeBitFlag & 1)) return fail(new Error('Archive limit'));
         if (entry.fileName === 'word/document.xml') documentFound = true;
         if (/\/$/.test(entry.fileName)) return zip.readEntry();
         zip.openReadStream(entry, (error, stream) => {
           if (error) return fail(error);
           stream.on('error', fail);
-          stream.on('data', (chunk) => {
+          stream.on('data', chunk => {
             total += chunk.length;
-            if (total > 20 * 1024 * 1024) {
-              stream.destroy();
-              fail(new Error('Expanded size limit'));
-            }
+            if (total > 20 * 1024 * 1024) { stream.destroy(); fail(new Error('Expanded size limit')); }
           });
           stream.on('end', () => zip.readEntry());
         });
       });
-      zip.on('end', () => (documentFound ? resolve() : reject(new Error('Not a Word document'))));
+      zip.on('end', () => documentFound ? resolve() : reject(new Error('Not a Word document')));
       zip.readEntry();
     });
   });

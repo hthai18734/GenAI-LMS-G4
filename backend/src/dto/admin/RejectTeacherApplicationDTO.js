@@ -1,3 +1,8 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Reject Teacher Application DTO (UC-5.2 Reject Teacher Application)
+ */
 const { text, unknownFields } = require('../common/DTOUtil');
 
 class RejectTeacherApplicationDTO {

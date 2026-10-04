@@ -13,14 +13,8 @@ function response() {
   return {
     statusCode: null,
     body: null,
-    status(code) {
-      this.statusCode = code;
-      return this;
-    },
-    json(body) {
-      this.body = body;
-      return this;
-    },
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
   };
 }
 
@@ -48,15 +42,16 @@ function mockReq(user, body = {}, params = {}, query = {}) {
 async function call(method, req) {
   const res = response();
   let nextError;
-  await method.call(StudentController, req, res, (err) => {
-    nextError = err;
-  });
+  await method.call(StudentController, req, res, (err) => { nextError = err; });
   if (nextError) throw nextError;
   return res;
 }
 
+// Valid MongoDB ObjectId for tests
 const VALID_COURSE_ID = '507f1f77bcf86cd799439012';
 const VALID_LESSON_ID = '507f1f77bcf86cd799439013';
+
+// ─── UC-4.1 View Profile ─────────────────────────────────────────
 
 test('UC-4.1: getProfile returns profile for authenticated user', async () => {
   const original = UserDAO.findById;
@@ -67,7 +62,7 @@ test('UC-4.1: getProfile returns profile for authenticated user', async () => {
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.data.profile.email, 'student@example.com');
     assert.equal(res.body.data.profile.id, '507f1f77bcf86cd799439011');
-
+    // Must not expose password
     assert.equal(res.body.data.profile.passwordHash, undefined);
   } finally {
     UserDAO.findById = original;
@@ -85,6 +80,8 @@ test('UC-4.1: getProfile returns 404 when profile not found', async () => {
     UserDAO.findById = original;
   }
 });
+
+// ─── UC-4.2 Update Profile ───────────────────────────────────────
 
 test('UC-4.2: updateProfile with valid data succeeds', async () => {
   const original = UserDAO.updateProfile;
@@ -173,20 +170,18 @@ test('UC-4.2: updateProfile accepts flexible name formats', async () => {
   }
 });
 
+// ─── UC-4.3 View Dashboard ───────────────────────────────────────
+
 test('UC-4.3: getDashboard returns data for authenticated user', async () => {
   const origEnroll = EnrollmentDAO.findByUserId;
   const origProgress = ProgressDAO.findByUserId;
   const origLessonCount = LessonDAO.countByCourseId;
   const origProgressCount = ProgressDAO.countByUserAndCourse;
 
-  EnrollmentDAO.findByUserId = async () => [
-    {
-      _id: 'enroll1',
-      status: 'active',
-      enrolledAt: new Date(),
-      courseId: { _id: 'course1', title: 'Node.js Basics', thumbnail: null },
-    },
-  ];
+  EnrollmentDAO.findByUserId = async () => [{
+    _id: 'enroll1', status: 'active', enrolledAt: new Date(),
+    courseId: { _id: 'course1', title: 'Node.js Basics', thumbnail: null },
+  }];
   ProgressDAO.findByUserId = async () => [];
   LessonDAO.countByCourseId = async () => 10;
   ProgressDAO.countByUserAndCourse = async () => 3;
@@ -221,17 +216,14 @@ test('UC-4.3: getDashboard returns empty when no data', async () => {
   }
 });
 
+// ─── UC-4.4 View Learning History ────────────────────────────────
+
 test('UC-4.4: getLearningHistory returns records for authenticated user', async () => {
   const original = ProgressDAO.findByUserId;
-  ProgressDAO.findByUserId = async () => [
-    {
-      courseId: { title: 'Node.js' },
-      lessonId: { title: 'Lesson 1' },
-      status: 'completed',
-      completedAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
+  ProgressDAO.findByUserId = async () => [{
+    courseId: { title: 'Node.js' }, lessonId: { title: 'Lesson 1' },
+    status: 'completed', completedAt: new Date(), updatedAt: new Date(),
+  }];
   try {
     const res = await call(StudentController.getLearningHistory, mockReq(mockUser()));
     assert.equal(res.statusCode, 200);
@@ -254,17 +246,17 @@ test('UC-4.4: getLearningHistory returns empty when no records', async () => {
   }
 });
 
+// ─── UC-4.5 View Certificates ────────────────────────────────────
+
 test('UC-4.5: getCertificates returns valid certificates for completed courses', async () => {
   const original = CertificateDAO.findByUserId;
-  CertificateDAO.findByUserId = async () => [
-    {
-      _id: 'cert1',
-      courseId: { title: 'Node.js' },
-      enrollmentId: { status: 'completed' },
-      certificateNumber: 'CERT-001',
-      issuedAt: new Date(),
-    },
-  ];
+  CertificateDAO.findByUserId = async () => [{
+    _id: 'cert1',
+    courseId: { title: 'Node.js' },
+    enrollmentId: { status: 'completed' },
+    certificateNumber: 'CERT-001',
+    issuedAt: new Date(),
+  }];
   try {
     const res = await call(StudentController.getCertificates, mockReq(mockUser()));
     assert.equal(res.statusCode, 200);
@@ -277,15 +269,13 @@ test('UC-4.5: getCertificates returns valid certificates for completed courses',
 
 test('UC-4.5: getCertificates excludes non-completed enrollment certificates', async () => {
   const original = CertificateDAO.findByUserId;
-  CertificateDAO.findByUserId = async () => [
-    {
-      _id: 'cert1',
-      courseId: { title: 'Node.js' },
-      enrollmentId: { status: 'active' },
-      certificateNumber: 'CERT-001',
-      issuedAt: new Date(),
-    },
-  ];
+  CertificateDAO.findByUserId = async () => [{
+    _id: 'cert1',
+    courseId: { title: 'Node.js' },
+    enrollmentId: { status: 'active' }, // Not completed
+    certificateNumber: 'CERT-001',
+    issuedAt: new Date(),
+  }];
   try {
     const res = await call(StudentController.getCertificates, mockReq(mockUser()));
     assert.equal(res.statusCode, 200);
@@ -306,6 +296,8 @@ test('UC-4.5: getCertificates empty state', async () => {
     CertificateDAO.findByUserId = original;
   }
 });
+
+// ─── UC-4.6 Notification Preferences ─────────────────────────────
 
 test('UC-4.6: getNotificationPreferences returns defaults when none exist', async () => {
   const original = NotificationPreferenceDAO.findByUserId;
@@ -357,14 +349,13 @@ test('UC-4.6: updateNotificationPreferences rejects non-boolean enabled', async 
 });
 
 test('UC-4.6: updateNotificationPreferences rejects unsupported fields', async () => {
-  const req = mockReq(mockUser(), {
-    preferences: [{ type: 'email', enabled: true }],
-    extraField: true,
-  });
+  const req = mockReq(mockUser(), { preferences: [{ type: 'email', enabled: true }], extraField: true });
   const res = await call(StudentController.updateNotificationPreferences, req);
   assert.equal(res.statusCode, 400);
   assert.ok(res.body.errors.payload);
 });
+
+// ─── UC-10.1 Enroll Course ───────────────────────────────────────
 
 test('UC-10.1: enrollCourse succeeds when all checks pass', async () => {
   const origCourse = CourseDAO.findById;
@@ -376,11 +367,7 @@ test('UC-10.1: enrollCourse succeeds when all checks pass', async () => {
   CourseDAO.incrementStudents = async () => true;
   EnrollmentDAO.findActiveEnrollment = async () => null;
   EnrollmentDAO.createEnrollment = async (userId, courseId) => ({
-    _id: 'enroll1',
-    userId,
-    courseId,
-    status: 'active',
-    enrolledAt: new Date(),
+    _id: 'enroll1', userId, courseId, status: 'active', enrolledAt: new Date(),
   });
 
   try {
@@ -457,22 +444,14 @@ test('UC-10.1: enrollCourse rejects invalid courseId format', async () => {
   assert.ok(res.body.errors.courseId);
 });
 
+// ─── UC-10.1 Catalog ─────────────────────────────────────────────
+
 test('UC-10.1: getCatalog returns courses with enrollment status', async () => {
   const origCourses = CourseDAO.findAllOpen;
   const origEnroll = EnrollmentDAO.findByUserId;
   const origLessonCount = LessonDAO.countByCourseId;
 
-  CourseDAO.findAllOpen = async () => [
-    {
-      _id: VALID_COURSE_ID,
-      title: 'Node.js',
-      description: 'Learn Node',
-      thumbnail: null,
-      category: 'Programming',
-      duration: 60,
-      status: 'PUBLIC',
-    },
-  ];
+  CourseDAO.findAllOpen = async () => [{ _id: VALID_COURSE_ID, title: 'Node.js', description: 'Learn Node', thumbnail: null, category: 'Programming', duration: 60, status: 'PUBLIC' }];
   EnrollmentDAO.findByUserId = async () => [];
   LessonDAO.countByCourseId = async () => 10;
 
@@ -497,26 +476,17 @@ test('UC-10.1: getCatalog rejects invalid page param', async () => {
   assert.ok(res.body.errors.page);
 });
 
+// ─── UC-10.3 View Enrolled Courses ───────────────────────────────
+
 test('UC-10.3: getEnrolledCourses returns courses with progress', async () => {
   const origEnroll = EnrollmentDAO.findByUserId;
   const origLessonCount = LessonDAO.countByCourseId;
   const origProgressCount = ProgressDAO.countByUserAndCourse;
 
-  EnrollmentDAO.findByUserId = async () => [
-    {
-      _id: 'enroll1',
-      status: 'active',
-      enrolledAt: new Date(),
-      completedAt: null,
-      courseId: {
-        _id: 'course1',
-        title: 'Node.js',
-        description: 'Learn Node',
-        thumbnail: null,
-        category: 'Programming',
-      },
-    },
-  ];
+  EnrollmentDAO.findByUserId = async () => [{
+    _id: 'enroll1', status: 'active', enrolledAt: new Date(), completedAt: null,
+    courseId: { _id: 'course1', title: 'Node.js', description: 'Learn Node', thumbnail: null, category: 'Programming' },
+  }];
   LessonDAO.countByCourseId = async () => 5;
   ProgressDAO.countByUserAndCourse = async () => 2;
 
@@ -544,13 +514,14 @@ test('UC-10.3: getEnrolledCourses returns empty list', async () => {
   }
 });
 
+// ─── UC-10.4 Start/Resume Course ─────────────────────────────────
+
 test('UC-10.4: startResumeCourse returns current lesson when progress exists', async () => {
   const origEnroll = EnrollmentDAO.findForResume;
   const origProgress = ProgressDAO.findLastAccessedLesson;
 
   EnrollmentDAO.findForResume = async () => ({
-    _id: 'enroll1',
-    status: 'active',
+    _id: 'enroll1', status: 'active',
     courseId: { _id: VALID_COURSE_ID, title: 'Node.js' },
   });
   ProgressDAO.findLastAccessedLesson = async () => ({
@@ -576,8 +547,7 @@ test('UC-10.4: startResumeCourse returns first lesson when no progress', async (
   const origFirst = LessonDAO.findFirstLesson;
 
   EnrollmentDAO.findForResume = async () => ({
-    _id: 'enroll1',
-    status: 'active',
+    _id: 'enroll1', status: 'active',
     courseId: { _id: VALID_COURSE_ID, title: 'Node.js' },
   });
   ProgressDAO.findLastAccessedLesson = async () => null;
@@ -615,8 +585,7 @@ test('UC-10.4: startResumeCourse handles missing lessons gracefully', async () =
   const origFirst = LessonDAO.findFirstLesson;
 
   EnrollmentDAO.findForResume = async () => ({
-    _id: 'enroll1',
-    status: 'active',
+    _id: 'enroll1', status: 'active',
     courseId: { _id: VALID_COURSE_ID, title: 'Node.js' },
   });
   ProgressDAO.findLastAccessedLesson = async () => null;

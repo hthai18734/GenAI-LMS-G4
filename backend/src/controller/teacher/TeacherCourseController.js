@@ -9,9 +9,7 @@ const Course = require('../../model/learning/Course');
 const Enrollment = require('../../model/learning/Enrollment');
 
 class TeacherCourseController {
-  validationError(res, errors) {
-    return ResponseUtil.error(res, { status: 400, message: 'Validation failed.', errors });
-  }
+  validationError(res, errors) { return ResponseUtil.error(res, { status: 400, message: 'Validation failed.', errors }); }
 
   async create(req, res, next) {
     try {
@@ -19,14 +17,8 @@ class TeacherCourseController {
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
       const course = await CourseService.createCourse(req.user, dto);
-      return ResponseUtil.success(res, {
-        status: 201,
-        message: 'Course created successfully.',
-        data: { course },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      return ResponseUtil.success(res, { status: 201, message: 'Course created successfully.', data: { course } });
+    } catch (error) { return next(error); }
   }
 
   async list(req, res, next) {
@@ -36,27 +28,21 @@ class TeacherCourseController {
       if (Object.keys(errors).length) return this.validationError(res, errors);
       const result = await CourseService.getTeacherCourses(req.user, dto);
       return ResponseUtil.success(res, { data: result });
-    } catch (error) {
-      return next(error);
-    }
+    } catch (error) { return next(error); }
   }
 
   async listCategories(req, res, next) {
     try {
       const categories = await CategoryService.getActiveCategories();
       return ResponseUtil.success(res, { data: { categories } });
-    } catch (error) {
-      return next(error);
-    }
+    } catch (error) { return next(error); }
   }
 
   async getById(req, res, next) {
     try {
       const course = await CourseService.getTeacherCourse(req.params.courseId, req.user);
       return ResponseUtil.success(res, { data: { course } });
-    } catch (error) {
-      return next(error);
-    }
+    } catch (error) { return next(error); }
   }
 
   async update(req, res, next) {
@@ -65,88 +51,57 @@ class TeacherCourseController {
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
       const course = await CourseService.updateCourse(req.params.courseId, req.user, dto);
-      return ResponseUtil.success(res, {
-        message: 'Course updated successfully.',
-        data: { course },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      return ResponseUtil.success(res, { message: 'Course updated successfully.', data: { course } });
+    } catch (error) { return next(error); }
   }
 
   async remove(req, res, next) {
     try {
       await CourseService.deleteCourse(req.params.courseId, req.user);
       return ResponseUtil.success(res, { message: 'Course deleted successfully.' });
-    } catch (error) {
-      return next(error);
-    }
+    } catch (error) { return next(error); }
   }
 
   async submitForReview(req, res, next) {
     try {
       const course = await CourseService.submitForReview(req.params.courseId, req.user);
-      return ResponseUtil.success(res, {
-        message: 'Course submitted for review.',
-        data: { course },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      return ResponseUtil.success(res, { message: 'Course submitted for review.', data: { course } });
+    } catch (error) { return next(error); }
   }
 
   async publish(req, res, next) {
     try {
       const course = await CourseService.publishCourse(req.params.courseId, req.user);
-      return ResponseUtil.success(res, {
-        message: 'Course published successfully.',
-        data: { course },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      return ResponseUtil.success(res, { message: 'Course published successfully.', data: { course } });
+    } catch (error) { return next(error); }
   }
 
   async unpublish(req, res, next) {
     try {
       const course = await CourseService.unpublishCourse(req.params.courseId, req.user);
-      return ResponseUtil.success(res, {
-        message: 'Course unpublished successfully.',
-        data: { course },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      return ResponseUtil.success(res, { message: 'Course unpublished successfully.', data: { course } });
+    } catch (error) { return next(error); }
   }
 
   async archive(req, res, next) {
     try {
       const course = await CourseService.archiveCourse(req.params.courseId, req.user);
-      return ResponseUtil.success(res, {
-        message: 'Course archived successfully.',
-        data: { course },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      return ResponseUtil.success(res, { message: 'Course archived successfully.', data: { course } });
+    } catch (error) { return next(error); }
   }
 
   async restore(req, res, next) {
     try {
       const course = await CourseService.restoreCourse(req.params.courseId, req.user);
       return ResponseUtil.success(res, { message: 'Course restored to Draft.', data: { course } });
-    } catch (error) {
-      return next(error);
-    }
+    } catch (error) { return next(error); }
   }
 
   async listLessons(req, res, next) {
     try {
       const lessons = await CourseService.listLessons(req.params.courseId, req.user);
       return ResponseUtil.success(res, { data: { lessons } });
-    } catch (error) {
-      return next(error);
-    }
+    } catch (error) { return next(error); }
   }
 
   async createLesson(req, res, next) {
@@ -155,14 +110,8 @@ class TeacherCourseController {
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
       const lesson = await CourseService.createLesson(req.params.courseId, req.user, dto);
-      return ResponseUtil.success(res, {
-        status: 201,
-        message: 'Lesson created successfully.',
-        data: { lesson },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      return ResponseUtil.success(res, { status: 201, message: 'Lesson created successfully.', data: { lesson } });
+    } catch (error) { return next(error); }
   }
 
   async updateLesson(req, res, next) {
@@ -170,36 +119,20 @@ class TeacherCourseController {
       const dto = new LessonDTO(req.body, { partial: true });
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const lesson = await CourseService.updateLesson(
-        req.params.courseId,
-        req.params.lessonId,
-        req.user,
-        dto,
-      );
-      return ResponseUtil.success(res, {
-        message: 'Lesson updated successfully.',
-        data: { lesson },
-      });
-    } catch (error) {
-      return next(error);
-    }
+      const lesson = await CourseService.updateLesson(req.params.courseId, req.params.lessonId, req.user, dto);
+      return ResponseUtil.success(res, { message: 'Lesson updated successfully.', data: { lesson } });
+    } catch (error) { return next(error); }
   }
 
   async deleteLesson(req, res, next) {
     try {
       await CourseService.deleteLesson(req.params.courseId, req.params.lessonId, req.user);
       return ResponseUtil.success(res, { message: 'Lesson deleted successfully.' });
-    } catch (error) {
-      return next(error);
-    }
+    } catch (error) { return next(error); }
   }
 
   async uploadThumbnail(req, res) {
-    if (!req.file)
-      return ResponseUtil.error(res, {
-        status: 400,
-        message: 'A course thumbnail image is required.',
-      });
+    if (!req.file) return ResponseUtil.error(res, { status: 400, message: 'A course thumbnail image is required.' });
     return ResponseUtil.success(res, {
       status: 201,
       message: 'Course thumbnail uploaded successfully.',
@@ -211,6 +144,7 @@ class TeacherCourseController {
     try {
       const teacherId = req.user._id;
 
+      // 1. Get courses of this teacher
       const courses = await Course.find({
         $or: [{ teacherId }, { instructorId: teacherId }],
         deletedAt: null,
@@ -233,20 +167,20 @@ class TeacherCourseController {
         if (c.status) {
           courseCounts[c.status] = (courseCounts[c.status] || 0) + 1;
         }
-        totalStudentsEnrolled += c.totalStudents || 0;
+        totalStudentsEnrolled += (c.totalStudents || 0);
         courseIds.push(c._id);
       });
 
-      const [recentEnrollments, activeEnrollmentsCount, completedEnrollmentsCount] =
-        await Promise.all([
-          Enrollment.find({ courseId: { $in: courseIds } })
-            .sort({ createdAt: -1 })
-            .limit(6)
-            .populate('userId', 'fullName email avatar')
-            .populate('courseId', 'title category'),
-          Enrollment.countDocuments({ courseId: { $in: courseIds }, status: 'active' }),
-          Enrollment.countDocuments({ courseId: { $in: courseIds }, status: 'completed' }),
-        ]);
+      // 2. Query enrollments in courses taught by this teacher
+      const [recentEnrollments, activeEnrollmentsCount, completedEnrollmentsCount] = await Promise.all([
+        Enrollment.find({ courseId: { $in: courseIds } })
+          .sort({ createdAt: -1 })
+          .limit(6)
+          .populate('userId', 'fullName email avatar')
+          .populate('courseId', 'title category'),
+        Enrollment.countDocuments({ courseId: { $in: courseIds }, status: 'active' }),
+        Enrollment.countDocuments({ courseId: { $in: courseIds }, status: 'completed' }),
+      ]);
 
       return ResponseUtil.success(res, {
         status: 200,
@@ -260,8 +194,7 @@ class TeacherCourseController {
             draftCourses: courseCounts.DRAFT || 0,
             rejectedCourses: courseCounts.REJECTED || 0,
             archivedCourses: courseCounts.ARCHIVED || 0,
-            totalStudents:
-              totalStudentsEnrolled || activeEnrollmentsCount + completedEnrollmentsCount,
+            totalStudents: totalStudentsEnrolled || (activeEnrollmentsCount + completedEnrollmentsCount),
             activeStudents: activeEnrollmentsCount,
             completedStudents: completedEnrollmentsCount,
           },

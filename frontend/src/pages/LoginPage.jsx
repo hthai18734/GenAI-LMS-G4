@@ -15,14 +15,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(
-        user?.role === 'teacher'
-          ? '/teacher/dashboard'
-          : user?.role === 'admin'
-            ? '/admin/dashboard'
-            : '/dashboard',
-        { replace: true },
-      );
+      navigate(user?.role === 'teacher' ? '/teacher/dashboard' : user?.role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
     }
   }, [isAuthenticated, navigate, user]);
 
@@ -52,14 +45,7 @@ export default function LoginPage() {
       if (res.data) {
         login(res.data);
         addToast('Đăng nhập thành công! Chào mừng bạn trở lại.', 'success');
-        navigate(
-          res.data.user?.role === 'teacher'
-            ? '/teacher/dashboard'
-            : res.data.user?.role === 'admin'
-              ? '/admin/dashboard'
-              : '/dashboard',
-          { replace: true },
-        );
+        navigate(res.data.user?.role === 'teacher' ? '/teacher/dashboard' : res.data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
       }
     } catch (err) {
       addToast(err.message || 'Email hoặc mật khẩu không chính xác.', 'error');
@@ -96,10 +82,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} data-mode="login">
           <label>
-            Email{' '}
-            <span className="required-mark" aria-hidden="true">
-              *
-            </span>
+            Email <span className="required-mark" aria-hidden="true">*</span>
             <input
               name="email"
               type="text"
@@ -112,10 +95,7 @@ export default function LoginPage() {
           </label>
 
           <label>
-            Password{' '}
-            <span className="required-mark" aria-hidden="true">
-              *
-            </span>
+            Password <span className="required-mark" aria-hidden="true">*</span>
             <input
               name="password"
               type="password"

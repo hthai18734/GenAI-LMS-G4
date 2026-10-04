@@ -92,10 +92,7 @@ export default function OtpPage() {
     try {
       const res = await authService.verifyOtp({ email: email.trim().toLowerCase(), otp });
       sessionStorage.removeItem('ai_lms_pending_email');
-      sessionStorage.setItem(
-        'ai_lms_auth_notice',
-        res.message || 'Email verified successfully. Please sign in.',
-      );
+      sessionStorage.setItem('ai_lms_auth_notice', res.message || 'Email verified successfully. Please sign in.');
       addToast('Email verified successfully! Please sign in.', 'success');
       navigate('/login');
     } catch (err) {
@@ -160,12 +157,7 @@ export default function OtpPage() {
         <form onSubmit={handleVerify} data-mode="verify">
           <fieldset className="otp-field">
             <legend className="sr-only">6-digit verification code</legend>
-            <div
-              className="otp-inputs"
-              role="group"
-              aria-label="6-digit verification code"
-              onPaste={handlePaste}
-            >
+            <div className="otp-inputs" role="group" aria-label="6-digit verification code" onPaste={handlePaste}>
               {[0, 1, 2].map((idx) => (
                 <input
                   key={idx}

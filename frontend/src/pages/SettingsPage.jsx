@@ -6,20 +6,17 @@ const PREF_INFO_MAP = {
   email: {
     icon: '📧',
     label: 'Thông báo tổng hợp qua Email',
-    description:
-      'Nhận tóm tắt tiến độ học tập và bản tin kiến thức quan trọng qua hòm thư cá nhân.',
+    description: 'Nhận tóm tắt tiến độ học tập và bản tin kiến thức quan trọng qua hòm thư cá nhân.',
   },
   course_update: {
     icon: '📚',
     label: 'Cập nhật Khóa học & Bài giảng mới',
-    description:
-      'Nhận thông báo ngay khi có bài giảng, tài liệu bổ trợ hoặc bài tập mới được đăng tải.',
+    description: 'Nhận thông báo ngay khi có bài giảng, tài liệu bổ trợ hoặc bài tập mới được đăng tải.',
   },
   'Course & Lesson Updates': {
     icon: '📚',
     label: 'Cập nhật Khóa học & Bài giảng mới',
-    description:
-      'Nhận thông báo ngay khi có bài giảng, tài liệu bổ trợ hoặc bài tập mới được đăng tải.',
+    description: 'Nhận thông báo ngay khi có bài giảng, tài liệu bổ trợ hoặc bài tập mới được đăng tải.',
   },
   enrollment: {
     icon: '🎓',
@@ -34,8 +31,7 @@ const PREF_INFO_MAP = {
   system: {
     icon: '⚙️',
     label: 'Thông báo Hệ thống & Bảo mật',
-    description:
-      'Cảnh báo đăng nhập lạ, thông báo bảo trì định kỳ và các cập nhật nền tảng quan trọng.',
+    description: 'Cảnh báo đăng nhập lạ, thông báo bảo trì định kỳ và các cập nhật nền tảng quan trọng.',
   },
   system_announcement: {
     icon: '📢',
@@ -91,7 +87,7 @@ export default function SettingsPage() {
 
   const handleToggle = (type) => {
     setPreferences((prev) =>
-      prev.map((item) => (item.type === type ? { ...item, enabled: !item.enabled } : item)),
+      prev.map((item) => (item.type === type ? { ...item, enabled: !item.enabled } : item))
     );
   };
 
@@ -118,17 +114,19 @@ export default function SettingsPage() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h2 className="section-title" style={{ margin: '0 0 6px', fontSize: '22px' }}>
           Cài đặt thông báo & Tùy chọn học tập
         </h2>
         <p style={{ color: 'var(--muted)', margin: 0, fontSize: '14px' }}>
-          Tùy chỉnh các kênh thông báo và tần suất nhận tin để tối ưu hóa trải nghiệm học tập của
-          bạn
+          Tùy chỉnh các kênh thông báo và tần suất nhận tin để tối ưu hóa trải nghiệm học tập của bạn
         </p>
       </div>
 
+      {/* Balanced 2-Column Grid */}
       <div className="settings-grid-layout">
+        {/* Left Column: Notification Toggles Form */}
         <div>
           <form onSubmit={handleSave}>
             <div className="profile-card-panel">
@@ -174,34 +172,16 @@ export default function SettingsPage() {
                           {info.icon}
                         </div>
                         <div>
-                          <div
-                            className="pref-label"
-                            style={{ fontSize: '15px', color: 'var(--ink)' }}
-                          >
+                          <div className="pref-label" style={{ fontSize: '15px', color: 'var(--ink)' }}>
                             {info.label}
                           </div>
-                          <div
-                            className="pref-desc"
-                            style={{
-                              fontSize: '13px',
-                              color: 'var(--muted)',
-                              marginTop: '4px',
-                              lineHeight: 1.5,
-                            }}
-                          >
+                          <div className="pref-desc" style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px', lineHeight: 1.5 }}>
                             {info.description}
                           </div>
                         </div>
                       </div>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          flexShrink: 0,
-                        }}
-                      >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                         <button
                           type="button"
                           className="btn-test-noti"
@@ -225,15 +205,7 @@ export default function SettingsPage() {
                 })}
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                  paddingTop: '16px',
-                  borderTop: '1px solid #f0eff9',
-                }}
-              >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f0eff9' }}>
                 <button
                   type="submit"
                   disabled={saving}
@@ -242,7 +214,11 @@ export default function SettingsPage() {
                 >
                   {saving ? 'Đang lưu cài đặt...' : 'Lưu cài đặt thông báo'}
                 </button>
-                <button type="button" onClick={fetchPreferences} className="btn btn-secondary">
+                <button
+                  type="button"
+                  onClick={fetchPreferences}
+                  className="btn btn-secondary"
+                >
                   Đặt lại
                 </button>
               </div>
@@ -250,42 +226,27 @@ export default function SettingsPage() {
           </form>
         </div>
 
+        {/* Right Column: Tips & Channels Cards */}
         <div>
           <div className="side-info-card">
             <h4>
               <span>📬</span> Kênh nhận thông báo
             </h4>
-            <p style={{ marginBottom: '12px' }}>Hệ thống AI-LMS gửi thông báo qua 2 kênh chính:</p>
-            <ul
-              style={{
-                paddingLeft: '18px',
-                margin: 0,
-                fontSize: '13px',
-                color: 'var(--muted)',
-                lineHeight: 1.7,
-              }}
-            >
-              <li>
-                <strong>Hòm thư cá nhân:</strong> Nhận email tự động khi có bài học hoặc chứng chỉ
-                mới.
-              </li>
-              <li>
-                <strong>Thông báo trực tiếp trên web:</strong> Hiển thị chuông thông báo ở góc phải
-                khi đang học.
-              </li>
+            <p style={{ marginBottom: '12px' }}>
+              Hệ thống AI-LMS gửi thông báo qua 2 kênh chính:
+            </p>
+            <ul style={{ paddingLeft: '18px', margin: 0, fontSize: '13px', color: 'var(--muted)', lineHeight: 1.7 }}>
+              <li><strong>Hòm thư cá nhân:</strong> Nhận email tự động khi có bài học hoặc chứng chỉ mới.</li>
+              <li><strong>Thông báo trực tiếp trên web:</strong> Hiển thị chuông thông báo ở góc phải khi đang học.</li>
             </ul>
           </div>
 
-          <div
-            className="side-info-card"
-            style={{ background: '#f8f7ff', border: '1px dashed #c7d2fe' }}
-          >
+          <div className="side-info-card" style={{ background: '#f8f7ff', border: '1px dashed #c7d2fe' }}>
             <h4 style={{ color: '#4338ca' }}>
               <span>💡</span> Lời khuyên cho học viên
             </h4>
             <p>
-              Giữ bật <strong>Cập nhật Khóa học & Bài giảng mới</strong> giúp bạn không bỏ lỡ các
-              tài liệu quan trọng và giữ vững chuỗi ngày học tập liên tục để sớm nhận chứng chỉ.
+              Giữ bật <strong>Cập nhật Khóa học & Bài giảng mới</strong> giúp bạn không bỏ lỡ các tài liệu quan trọng và giữ vững chuỗi ngày học tập liên tục để sớm nhận chứng chỉ.
             </p>
           </div>
         </div>

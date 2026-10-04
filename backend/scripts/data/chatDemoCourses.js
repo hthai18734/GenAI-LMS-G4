@@ -1,12 +1,10 @@
 module.exports = [
   {
-    slug: 'chat-demo-javascript',
-    title: '[Chat Demo] JavaScript căn bản',
+    slug: 'chat-demo-javascript', title: '[Chat Demo] JavaScript căn bản',
     description: 'Dữ liệu học tập mẫu để kiểm tra chat AI: biến, mảng và lập trình bất đồng bộ.',
     lessons: [
       {
-        title: 'Biến, kiểu dữ liệu và phép so sánh',
-        duration: 15,
+        title: 'Biến, kiểu dữ liệu và phép so sánh', duration: 15,
         content: `MỤC TIÊU
 Phân biệt let và const; nhận biết kiểu dữ liệu; dùng phép so sánh nghiêm ngặt.
 
@@ -25,8 +23,7 @@ CÂU HỎI ÔN TẬP
 Vì sao thay đổi student.name không vi phạm const? Sau khi lớp thêm 2 người, tổng học phí là bao nhiêu?`,
       },
       {
-        title: 'Xử lý danh sách bằng map, filter và reduce',
-        duration: 20,
+        title: 'Xử lý danh sách bằng map, filter và reduce', duration: 20,
         content: `MỤC TIÊU
 Chọn đúng phương thức xử lý mảng và tính kết quả từ dữ liệu mẫu.
 
@@ -46,8 +43,7 @@ Quên giá trị khởi tạo của reduce có thể gây lỗi khi mảng rỗn
 So sánh map với filter. Tính số học viên đạt nếu ngưỡng đổi thành 9.`,
       },
       {
-        title: 'Promise, async/await và xử lý lỗi API',
-        duration: 20,
+        title: 'Promise, async/await và xử lý lỗi API', duration: 20,
         content: `MỤC TIÊU
 Hiểu tác vụ bất đồng bộ và xử lý lỗi khi gọi API.
 
@@ -68,13 +64,11 @@ Vì sao fetch trả 404 không nhất thiết chạy vào catch? finally nên c�
     ],
   },
   {
-    slug: 'chat-demo-database',
-    title: '[Chat Demo] Cơ sở dữ liệu và phân quyền',
+    slug: 'chat-demo-database', title: '[Chat Demo] Cơ sở dữ liệu và phân quyền',
     description: 'Dữ liệu mẫu về MongoDB, enrollment và quyền truy cập lịch sử chat.',
     lessons: [
       {
-        title: 'Document, collection và quan hệ dữ liệu',
-        duration: 15,
+        title: 'Document, collection và quan hệ dữ liệu', duration: 15,
         content: `MỤC TIÊU
 Nhận biết cách tổ chức khóa học và bài học trong MongoDB.
 
@@ -93,8 +87,7 @@ Tên course không phải định danh đáng tin cậy; dùng _id để liên k
 Vì sao không nên nối dữ liệu chỉ dựa vào title? Trình bày thứ tự bài học của C01.`,
       },
       {
-        title: 'Xác thực, phân quyền và enrollment',
-        duration: 20,
+        title: 'Xác thực, phân quyền và enrollment', duration: 20,
         content: `MỤC TIÊU
 Phân biệt authentication, authorization và quyền sở hữu tài nguyên.
 
@@ -113,8 +106,7 @@ Kiểm tra quyền ở từng request vì quyền có thể thay đổi. Biết 
 Vì sao Hà vẫn được đọc? Nếu Nam sửa role thành admin trong request, backend phải làm gì?`,
       },
       {
-        title: 'Bảo vệ lịch sử chat và thiết kế index',
-        duration: 20,
+        title: 'Bảo vệ lịch sử chat và thiết kế index', duration: 20,
         content: `MỤC TIÊU
 Thiết kế truy vấn để mỗi người chỉ đọc lịch sử của mình.
 

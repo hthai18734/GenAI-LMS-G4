@@ -11,18 +11,7 @@ export default function ProtectedRoute({ children, roles }) {
   }
 
   if (roles && !roles.includes(user?.role)) {
-    return (
-      <Navigate
-        to={
-          user?.role === 'teacher'
-            ? '/teacher/dashboard'
-            : user?.role === 'admin'
-              ? '/admin/dashboard'
-              : '/dashboard'
-        }
-        replace
-      />
-    );
+    return <Navigate to={user?.role === 'teacher' ? '/teacher/dashboard' : user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />;
   }
   return children;
 }

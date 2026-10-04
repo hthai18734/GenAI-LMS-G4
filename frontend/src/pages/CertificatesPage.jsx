@@ -37,18 +37,9 @@ export default function CertificatesPage() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 className="section-title" style={{ margin: '0 0 4px' }}>
-            My Certificates
-          </h2>
+          <h2 className="section-title" style={{ margin: '0 0 4px' }}>My Certificates</h2>
           <p style={{ color: 'var(--muted)', margin: 0, fontSize: '14px' }}>
             Earn certificates upon 100% completion of enrolled courses
           </p>
@@ -59,16 +50,10 @@ export default function CertificatesPage() {
       </div>
 
       {certificates.length === 0 ? (
-        <div
-          className="empty-state"
-          style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6' }}
-        >
+        <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6' }}>
           <div className="empty-icon">🏆</div>
           <h3>No certificates yet</h3>
-          <p>
-            Complete all lessons in a course to earn and view your official verified completion
-            certificate.
-          </p>
+          <p>Complete all lessons in a course to earn and view your official verified completion certificate.</p>
           <div style={{ marginTop: '16px' }}>
             <Link to="/courses" className="btn btn-primary">
               Continue Learning
@@ -100,6 +85,7 @@ export default function CertificatesPage() {
         </div>
       )}
 
+      {/* Certificate Modal */}
       {selectedCert && (
         <div
           style={{
@@ -127,90 +113,36 @@ export default function CertificatesPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ textAlign: 'center' }}>
-              <div
-                style={{
-                  fontSize: '13px',
-                  letterSpacing: '4px',
-                  textTransform: 'uppercase',
-                  color: '#b45309',
-                  fontWeight: 700,
-                  marginBottom: '8px',
-                }}
-              >
+              <div style={{ fontSize: '13px', letterSpacing: '4px', textTransform: 'uppercase', color: '#b45309', fontWeight: 700, marginBottom: '8px' }}>
                 AI-LMS Certificate of Completion
               </div>
-              <h2
-                style={{
-                  fontFamily: 'Space Grotesk',
-                  fontSize: '26px',
-                  margin: '0 0 16px',
-                  color: '#1e1b4b',
-                }}
-              >
+              <h2 style={{ fontFamily: 'Space Grotesk', fontSize: '26px', margin: '0 0 16px', color: '#1e1b4b' }}>
                 Certificate of Achievement
               </h2>
               <p style={{ color: 'var(--muted)', fontSize: '14px', margin: '0 0 8px' }}>
                 This is proudly presented to
               </p>
-              <h3
-                style={{
-                  fontFamily: 'Space Grotesk',
-                  fontSize: '24px',
-                  color: 'var(--purple)',
-                  margin: '0 0 16px',
-                  borderBottom: '2px solid #e0dcff',
-                  display: 'inline-block',
-                  paddingBottom: '4px',
-                }}
-              >
+              <h3 style={{ fontFamily: 'Space Grotesk', fontSize: '24px', color: 'var(--purple)', margin: '0 0 16px', borderBottom: '2px solid #e0dcff', display: 'inline-block', paddingBottom: '4px' }}>
                 {user?.fullName || 'Student'}
               </h3>
-              <p
-                style={{
-                  color: '#475569',
-                  fontSize: '14px',
-                  lineHeight: 1.6,
-                  maxWidth: '480px',
-                  margin: '0 auto 24px',
-                }}
-              >
-                for successfully completing all required modules and practical coursework in the
-                course:
+              <p style={{ color: '#475569', fontSize: '14px', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto 24px' }}>
+                for successfully completing all required modules and practical coursework in the course:
               </p>
-              <h4
-                style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: '0 0 24px' }}
-              >
+              <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: '0 0 24px' }}>
                 {selectedCert.courseTitle}
               </h4>
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  borderTop: '1px solid #e2e8f0',
-                  paddingTop: '18px',
-                  fontSize: '12px',
-                  color: '#64748b',
-                }}
-              >
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '18px', fontSize: '12px', color: '#64748b' }}>
                 <div>
                   <strong>Certificate ID:</strong> {selectedCert.certificateNumber}
                 </div>
                 <div>
-                  <strong>Date Issued:</strong>{' '}
-                  {new Date(selectedCert.issuedAt).toLocaleDateString()}
+                  <strong>Date Issued:</strong> {new Date(selectedCert.issuedAt).toLocaleDateString()}
                 </div>
               </div>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '10px',
-                marginTop: '24px',
-              }}
-            >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
               <button onClick={handlePrint} className="btn btn-primary btn-sm">
                 🖨 Print / Save PDF
               </button>

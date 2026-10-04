@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: Student Profile Management
+ */
 const { text, hasOwn, unknownFields } = require('../common/DTOUtil');
 
 class UpdateProfileDTO {
@@ -10,9 +15,9 @@ class UpdateProfileDTO {
     const allowed = ['fullName', 'phone', 'avatar'];
     const unknown = unknownFields(this.body, allowed);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
-    if (!Object.keys(this.body).some((k) => allowed.includes(k)))
-      errors.payload = 'At least one editable field is required.';
+    if (!Object.keys(this.body).some((k) => allowed.includes(k))) errors.payload = 'At least one editable field is required.';
 
+    // fullName validation (tên ghi gì cũng được, miễn không để trống)
     if (hasOwn(this.body, 'fullName')) {
       const name = text(this.body.fullName);
       if (!name) {
@@ -22,13 +27,13 @@ class UpdateProfileDTO {
       }
     }
 
+    // phone validation (10 số bắt đầu bằng số 0)
     if (hasOwn(this.body, 'phone')) {
       const rawPhone = text(this.body.phone);
       if (rawPhone) {
         let cleanPhone = rawPhone.replace(/[\s.-]/g, '');
         if (cleanPhone.startsWith('+84')) cleanPhone = '0' + cleanPhone.slice(3);
-        else if (cleanPhone.startsWith('84') && cleanPhone.length === 11)
-          cleanPhone = '0' + cleanPhone.slice(2);
+        else if (cleanPhone.startsWith('84') && cleanPhone.length === 11) cleanPhone = '0' + cleanPhone.slice(2);
 
         if (!/^0\d{9}$/.test(cleanPhone)) {
           errors.phone = 'Phone number must be exactly 10 digits starting with 0.';
@@ -36,6 +41,7 @@ class UpdateProfileDTO {
       }
     }
 
+    // avatar validation
     if (hasOwn(this.body, 'avatar') && this.body.avatar) {
       const avatar = this.body.avatar;
       const isDataUri = typeof avatar === 'string' && avatar.startsWith('data:image/');

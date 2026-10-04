@@ -1,27 +1,14 @@
 const { COURSE_STATUSES } = require('../../model/learning/CourseStatus');
 
 class CourseQueryDTO {
-  constructor(query = {}) {
-    this.query = query;
-  }
+  constructor(query = {}) { this.query = query; }
   validate() {
     const errors = {};
-    if (
-      this.query.page !== undefined &&
-      (!Number.isInteger(Number(this.query.page)) || Number(this.query.page) < 1)
-    )
-      errors.page = 'Page must be an integer greater than zero.';
-    if (
-      this.query.limit !== undefined &&
-      (!Number.isInteger(Number(this.query.limit)) || Number(this.query.limit) < 1)
-    )
-      errors.limit = 'Limit must be an integer greater than zero.';
-    if (this.query.status && !COURSE_STATUSES.includes(this.query.status))
-      errors.status = 'Course status is invalid.';
-    if (this.query.sortOrder && !['asc', 'desc'].includes(this.query.sortOrder))
-      errors.sortOrder = 'Sort order must be asc or desc.';
-    if (this.query.sortBy && !['createdAt', 'updatedAt', 'title', 'status'])
-      errors.sortBy = 'Sort field is invalid.';
+    if (this.query.page !== undefined && (!Number.isInteger(Number(this.query.page)) || Number(this.query.page) < 1)) errors.page = 'Page must be an integer greater than zero.';
+    if (this.query.limit !== undefined && (!Number.isInteger(Number(this.query.limit)) || Number(this.query.limit) < 1)) errors.limit = 'Limit must be an integer greater than zero.';
+    if (this.query.status && !COURSE_STATUSES.includes(this.query.status)) errors.status = 'Course status is invalid.';
+    if (this.query.sortOrder && !['asc', 'desc'].includes(this.query.sortOrder)) errors.sortOrder = 'Sort order must be asc or desc.';
+    if (this.query.sortBy && !['createdAt', 'updatedAt', 'title', 'status']) errors.sortBy = 'Sort field is invalid.';
     return errors;
   }
   toObject() {

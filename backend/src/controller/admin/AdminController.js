@@ -1,3 +1,9 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Admin Controller - Teacher Application & Dashboard Stats (UC-5.1, UC-5.2)
+ */
+
 const TeacherApplicationDAO = require('../../dao/governance/TeacherApplicationDAO');
 const UserDAO = require('../../dao/identity/UserDAO');
 const NotificationDAO = require('../../dao/engagement/NotificationDAO');
@@ -14,11 +20,17 @@ const ApproveTeacherApplicationDTO = require('../../dto/admin/ApproveTeacherAppl
 const RejectTeacherApplicationDTO = require('../../dto/admin/RejectTeacherApplicationDTO');
 
 class AdminController {
+  /**
+   * Helper: Standardize validation errors response with first message priority
+   */
   validationError(res, errors, defaultMessage = 'Validation failed.') {
     const firstErrorMessage = Object.values(errors)[0] || defaultMessage;
     return ResponseUtil.error(res, { status: 400, message: firstErrorMessage, errors });
   }
 
+  /**
+   * View all or pending teacher applications
+   */
   async getTeacherApplications(req, res, next) {
     try {
       const dto = new TeacherApplicationQueryDTO(req.query);
@@ -40,6 +52,10 @@ class AdminController {
     }
   }
 
+  /**
+   * UC-5.1: Approve Teacher Application
+   * Admin views profile -> approve -> change role to Teacher -> send notification & email
+   */
   async approveTeacherApplication(req, res, next) {
     try {
       const dto = new ApproveTeacherApplicationDTO(req.params, req.user);
@@ -65,14 +81,13 @@ class AdminController {
       const applicantUserId = application.userId?._id || application.userId;
       const applicantEmail = application.userId?.email;
 
-      const updatedApplication = await TeacherApplicationDAO.updateStatus(
-        applicationId,
-        'approved',
-        adminId,
-      );
+      // 1. Update application status to approved
+      const updatedApplication = await TeacherApplicationDAO.updateStatus(applicationId, 'approved', adminId);
 
+      // 2. Change role in User record to 'teacher'
       await UserDAO.updateRole(applicantUserId, 'teacher');
 
+      // 3. Create in-app notification
       await NotificationDAO.create({
         recipientId: applicantUserId,
         title: 'Teacher Application Approved',
@@ -80,6 +95,7 @@ class AdminController {
         type: 'teacher approval',
       });
 
+      // 4. Send email notification (if email is known)
       if (applicantEmail) {
         await EmailUtil.sendApplicationNotification(applicantEmail, 'approved', null);
       }
@@ -94,6 +110,10 @@ class AdminController {
     }
   }
 
+  /**
+   * UC-5.2: Reject Teacher Application
+   * Admin views profile -> reject -> provide reason -> send notification & email
+   */
   async rejectTeacherApplication(req, res, next) {
     try {
       const dto = new RejectTeacherApplicationDTO(req.params, req.body, req.user);
@@ -119,13 +139,15 @@ class AdminController {
       const applicantUserId = application.userId?._id || application.userId;
       const applicantEmail = application.userId?.email;
 
+      // 1. Update application status to rejected with reason
       const updatedApplication = await TeacherApplicationDAO.updateStatus(
         applicationId,
         'rejected',
         adminId,
-        reason,
+        reason
       );
 
+      // 2. Create in-app notification
       await NotificationDAO.create({
         recipientId: applicantUserId,
         title: 'Teacher Application Not Approved',
@@ -133,6 +155,7 @@ class AdminController {
         type: 'teacher rejection',
       });
 
+      // 3. Send email notification
       if (applicantEmail) {
         await EmailUtil.sendApplicationNotification(applicantEmail, 'rejected', reason);
       }
@@ -147,12 +170,18 @@ class AdminController {
     }
   }
 
+  /**
+   * Helper: Validate rejection reason (kept for backwards compatibility)
+   */
   validateRejectReason(reason) {
     const dto = new RejectTeacherApplicationDTO({ id: 'dummy' }, { reason });
     const errors = dto.validate();
     return errors.reason || null;
   }
 
+  /**
+   * UC-Admin: Dashboard Statistics & Overview
+   */
   async getDashboardStats(req, res, next) {
     try {
       const [
@@ -167,7 +196,7 @@ class AdminController {
         totalCategories,
         recentApplications,
         recentPendingCourses,
-        recentUsers,
+        recentUsers
       ] = await Promise.all([
         User.countDocuments(),
         User.countDocuments({ role: 'student' }),
@@ -176,7 +205,9 @@ class AdminController {
         TeacherApplication.countDocuments({ status: 'pending' }),
         TeacherApplication.countDocuments({ status: 'approved' }),
         TeacherApplication.countDocuments({ status: 'rejected' }),
-        Course.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+        Course.aggregate([
+          { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]),
         Category.countDocuments({ deletedAt: null }),
         TeacherApplication.find()
           .sort({ createdAt: -1 })
@@ -186,7 +217,10 @@ class AdminController {
           .sort({ updatedAt: -1 })
           .limit(5)
           .populate('teacherId', 'fullName email avatar'),
-        User.find().sort({ createdAt: -1 }).limit(6).select('fullName email role status createdAt'),
+        User.find()
+          .sort({ createdAt: -1 })
+          .limit(6)
+          .select('fullName email role status createdAt')
       ]);
 
       const courseCounts = {
@@ -196,7 +230,7 @@ class AdminController {
         REJECTED: 0,
         PUBLIC: 0,
         ARCHIVED: 0,
-        total: 0,
+        total: 0
       };
       courseAgg.forEach((item) => {
         if (item._id) {
@@ -214,23 +248,23 @@ class AdminController {
               total: totalUsers,
               students: totalStudents,
               teachers: totalTeachers,
-              admins: totalAdmins,
+              admins: totalAdmins
             },
             applications: {
               pending: pendingApps,
               approved: approvedApps,
               rejected: rejectedApps,
-              total: pendingApps + approvedApps + rejectedApps,
+              total: pendingApps + approvedApps + rejectedApps
             },
             courses: courseCounts,
             categories: {
-              total: totalCategories,
-            },
+              total: totalCategories
+            }
           },
           recentApplications,
           recentPendingCourses,
-          recentUsers,
-        },
+          recentUsers
+        }
       });
     } catch (error) {
       return next(error);

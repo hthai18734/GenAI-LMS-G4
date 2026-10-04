@@ -63,9 +63,10 @@ class CourseModerationService {
   async notifyTeacher(course, notification) {
     try {
       const recipientId = course.teacherId?._id || course.teacherId;
-      if (recipientId)
-        await NotificationDAO.create({ recipientId, ...notification, type: 'course' });
-    } catch {}
+      if (recipientId) await NotificationDAO.create({ recipientId, ...notification, type: 'course' });
+    } catch {
+      // Course moderation remains successful if a best-effort notification fails.
+    }
   }
 }
 

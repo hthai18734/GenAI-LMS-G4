@@ -1,3 +1,8 @@
+/**
+ * Author: ThienDDN - CE182101 / Team
+ * Created at: 01/10/2026
+ * Description: Unified Admin Dashboard & Analytics Control Center
+ */
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminService } from '../services/api';
@@ -26,13 +31,11 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.warn('Dashboard API failed, attempting fallback aggregations...', err);
-
+      // Fallback: try querying available endpoints concurrently
       try {
         const [appsRes, coursesRes, catRes] = await Promise.all([
           adminService.getTeacherApplications().catch(() => ({ data: { applications: [] } })),
-          adminService
-            .getModerationCourses('status=PENDING_REVIEW')
-            .catch(() => ({ data: { courses: [] } })),
+          adminService.getModerationCourses('status=PENDING_REVIEW').catch(() => ({ data: { courses: [] } })),
           adminService.getCategories().catch(() => ({ data: { categories: [] } })),
         ]);
 
@@ -97,21 +100,14 @@ export default function AdminDashboardPage() {
   const metrics = data?.metrics || {};
   const users = metrics.users || { total: 0, students: 0, teachers: 0, admins: 0 };
   const applications = metrics.applications || { pending: 0, approved: 0, rejected: 0, total: 0 };
-  const courses = metrics.courses || {
-    PENDING_REVIEW: 0,
-    APPROVED: 0,
-    PUBLIC: 0,
-    DRAFT: 0,
-    REJECTED: 0,
-    ARCHIVED: 0,
-    total: 0,
-  };
+  const courses = metrics.courses || { PENDING_REVIEW: 0, APPROVED: 0, PUBLIC: 0, DRAFT: 0, REJECTED: 0, ARCHIVED: 0, total: 0 };
   const categories = metrics.categories || { total: 0 };
 
   const recentApps = data?.recentApplications || [];
   const recentCourses = data?.recentPendingCourses || [];
   const recentUsers = data?.recentUsers || [];
 
+  // Compute percentages for distribution bars
   const totalUsersCount = users.total || 1;
   const studentPct = Math.round((users.students / totalUsersCount) * 100);
   const teacherPct = Math.round((users.teachers / totalUsersCount) * 100);
@@ -124,6 +120,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="admin-dashboard">
+      {/* ─── 1. Hero Header Banner ─────────────────────────────────── */}
       <section className="admin-hero-banner">
         <div className="admin-hero-content">
           <h1>
@@ -131,8 +128,7 @@ export default function AdminDashboardPage() {
             <span className="admin-hero-badge">Hệ thống sẵn sàng</span>
           </h1>
           <p>
-            Xin chào <strong>{user?.fullName || 'Admin'}</strong>! Theo dõi trạng thái hoạt động,
-            phê duyệt giảng viên và kiểm duyệt khóa học theo thời gian thực.
+            Xin chào <strong>{user?.fullName || 'Admin'}</strong>! Theo dõi trạng thái hoạt động, phê duyệt giảng viên và kiểm duyệt khóa học theo thời gian thực.
           </p>
         </div>
         <div className="admin-hero-actions">
@@ -146,12 +142,10 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 2. Top KPI Cards ──────────────────────────────────────── */}
       <section className="admin-kpi-grid">
-        <div
-          className="admin-kpi-card"
-          onClick={() => navigate('/admin/categories')}
-          style={{ cursor: 'pointer' }}
-        >
+        {/* KPI 1: Users */}
+        <div className="admin-kpi-card" onClick={() => navigate('/admin/categories')} style={{ cursor: 'pointer' }}>
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon purple">👥</div>
             <span className="admin-kpi-badge info">{users.students} Học viên</span>
@@ -161,13 +155,12 @@ export default function AdminDashboardPage() {
             <div className="admin-kpi-label">Tổng người dùng hệ thống</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>
-              {users.teachers} Giảng viên · {users.admins} Admin
-            </span>
+            <span>{users.teachers} Giảng viên · {users.admins} Admin</span>
             <span>→</span>
           </div>
         </div>
 
+        {/* KPI 2: Teacher Applications */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/admin/teacher-applications')}
@@ -184,13 +177,12 @@ export default function AdminDashboardPage() {
             <div className="admin-kpi-label">Đơn ứng tuyển giảng viên</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>
-              {applications.approved} Đã duyệt · {applications.rejected} Từ chối
-            </span>
+            <span>{applications.approved} Đã duyệt · {applications.rejected} Từ chối</span>
             <span>Xét duyệt →</span>
           </div>
         </div>
 
+        {/* KPI 3: Course Moderation */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/admin/moderation')}
@@ -212,6 +204,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* KPI 4: Categories */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/admin/categories')}
@@ -232,6 +225,7 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 3. Quick Action Shortcuts ──────────────────────────────── */}
       <section className="admin-shortcuts-card">
         <div className="admin-shortcuts-title">
           <span>⚡ Phím tắt tác vụ nhanh</span>
@@ -249,7 +243,9 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 4. Main Split Grid: Pending Queues ────────────────────── */}
       <section className="admin-split-grid">
+        {/* Panel 1: Pending Teacher Applications */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
@@ -277,10 +273,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <div className="admin-item-meta">
                       <strong>{app.userId?.fullName || 'Ứng viên'}</strong>
-                      <span>
-                        {app.userId?.email || 'Chưa có email'} ·{' '}
-                        {app.bio ? app.bio.slice(0, 38) + '…' : 'Chưa có tiểu sử'}
-                      </span>
+                      <span>{app.userId?.email || 'Chưa có email'} · {app.bio ? app.bio.slice(0, 38) + '…' : 'Chưa có tiểu sử'}</span>
                     </div>
                   </div>
                   <div className="admin-item-action">
@@ -294,6 +287,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Panel 2: Courses Pending Moderation */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
@@ -316,17 +310,13 @@ export default function AdminDashboardPage() {
               recentCourses.map((course) => (
                 <div className="admin-panel-item" key={course._id}>
                   <div className="admin-item-info">
-                    <div
-                      className="admin-item-avatar"
-                      style={{ background: '#d1fae5', color: '#059669' }}
-                    >
+                    <div className="admin-item-avatar" style={{ background: '#d1fae5', color: '#059669' }}>
                       📚
                     </div>
                     <div className="admin-item-meta">
                       <strong>{course.title}</strong>
                       <span>
-                        GV: {course.teacherId?.fullName || 'Chưa rõ'} ·{' '}
-                        {course.category || 'Môn học'}
+                        GV: {course.teacherId?.fullName || 'Chưa rõ'} · {course.category || 'Môn học'}
                       </span>
                     </div>
                   </div>
@@ -342,7 +332,9 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 5. Analytics & Distribution ───────────────────────────── */}
       <section className="admin-analytics-grid">
+        {/* Distribution Card 1: Users */}
         <div className="admin-chart-card">
           <div className="admin-chart-title">
             <span>Cơ cấu người dùng nền tảng</span>
@@ -354,9 +346,7 @@ export default function AdminDashboardPage() {
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Học viên (Students)</span>
-              <span>
-                {users.students} ({studentPct}%)
-              </span>
+              <span>{users.students} ({studentPct}%)</span>
             </div>
             <div className="admin-stat-bar">
               <div className="admin-stat-fill purple" style={{ width: `${studentPct}%` }}></div>
@@ -366,9 +356,7 @@ export default function AdminDashboardPage() {
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Giảng viên (Teachers)</span>
-              <span>
-                {users.teachers} ({teacherPct}%)
-              </span>
+              <span>{users.teachers} ({teacherPct}%)</span>
             </div>
             <div className="admin-stat-bar">
               <div className="admin-stat-fill emerald" style={{ width: `${teacherPct}%` }}></div>
@@ -378,9 +366,7 @@ export default function AdminDashboardPage() {
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Quản trị viên (Admins)</span>
-              <span>
-                {users.admins} ({adminPct}%)
-              </span>
+              <span>{users.admins} ({adminPct}%)</span>
             </div>
             <div className="admin-stat-bar">
               <div className="admin-stat-fill blue" style={{ width: `${adminPct}%` }}></div>
@@ -388,6 +374,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Distribution Card 2: Course Lifecycle Status */}
         <div className="admin-chart-card">
           <div className="admin-chart-title">
             <span>Vòng đời khóa học trên AI-LMS</span>
@@ -399,50 +386,36 @@ export default function AdminDashboardPage() {
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Đã phát hành công khai</span>
-              <span>
-                {courses.PUBLIC || 0} ({publishedCoursesPct}%)
-              </span>
+              <span>{courses.PUBLIC || 0} ({publishedCoursesPct}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill emerald"
-                style={{ width: `${publishedCoursesPct}%` }}
-              ></div>
+              <div className="admin-stat-fill emerald" style={{ width: `${publishedCoursesPct}%` }}></div>
             </div>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Đang chờ duyệt (Pending)</span>
-              <span>
-                {courses.PENDING_REVIEW || 0} ({pendingCoursesPct}%)
-              </span>
+              <span>{courses.PENDING_REVIEW || 0} ({pendingCoursesPct}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill amber"
-                style={{ width: `${pendingCoursesPct}%` }}
-              ></div>
+              <div className="admin-stat-fill amber" style={{ width: `${pendingCoursesPct}%` }}></div>
             </div>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
               <span>Bản nháp của giảng viên (Draft)</span>
-              <span>
-                {courses.DRAFT || 0} ({draftCoursesPct}%)
-              </span>
+              <span>{courses.DRAFT || 0} ({draftCoursesPct}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill purple"
-                style={{ width: `${draftCoursesPct}%` }}
-              ></div>
+              <div className="admin-stat-fill purple" style={{ width: `${draftCoursesPct}%` }}></div>
             </div>
           </div>
         </div>
       </section>
 
+      {/* ─── 6. Recent Registered Users Table ─────────────────────── */}
       {recentUsers.length > 0 && (
         <section className="admin-panel-card">
           <div className="admin-panel-header">
@@ -472,9 +445,7 @@ export default function AdminDashboardPage() {
                       <span className={`role-pill ${u.role}`}>{u.role}</span>
                     </td>
                     <td>
-                      <span
-                        className={`status-badge status-${u.status === 'active' ? 'open' : 'draft'}`}
-                      >
+                      <span className={`status-badge status-${u.status === 'active' ? 'open' : 'draft'}`}>
                         {u.status}
                       </span>
                     </td>

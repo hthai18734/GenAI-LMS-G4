@@ -1,3 +1,8 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Search Courses Query DTO for Guest Public Courses (UC-1.3)
+ */
 const { text } = require('../common/DTOUtil');
 
 class SearchCoursesQueryDTO {

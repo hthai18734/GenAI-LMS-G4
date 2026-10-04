@@ -5,12 +5,9 @@ const { app } = require('../../src/index');
 test('authentication routes serve separate view files', async (t) => {
   const server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
-  t.after(
-    () =>
-      new Promise((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-      }),
-  );
+  t.after(() => new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  }));
 
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;

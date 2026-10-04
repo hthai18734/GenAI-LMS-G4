@@ -8,21 +8,12 @@ const CreateCategoryDTO = require('../../src/dto/category/CreateCategoryDTO');
 
 test('create course DTO whitelists protected fields', () => {
   const dto = new CreateCourseDTO({
-    title: '  Secure Course ',
-    description: '  Course body ',
-    duration: '2',
-    teacherId: 'other-user',
-    status: 'PUBLIC',
-    moderatedBy: 'admin',
+    title: '  Secure Course ', description: '  Course body ', duration: '2',
+    teacherId: 'other-user', status: 'PUBLIC', moderatedBy: 'admin',
   });
   assert.ok(dto.validate().payload);
   assert.deepEqual(dto.toObject(), {
-    title: 'Secure Course',
-    description: 'Course body',
-    thumbnail: null,
-    category: null,
-    categoryId: null,
-    duration: 2,
+    title: 'Secure Course', description: 'Course body', thumbnail: null, category: null, categoryId: null, duration: 2,
   });
 });
 

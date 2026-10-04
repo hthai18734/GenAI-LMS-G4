@@ -46,13 +46,7 @@ export default function TeacherCourseFormPage() {
           ]);
           const course = courseRes.data?.course;
           setCourseStatus(course.status);
-          setForm({
-            title: course.title || '',
-            description: course.description || '',
-            categoryId: course.categoryId || '',
-            thumbnail: course.thumbnail || '',
-            duration: course.duration ?? '',
-          });
+          setForm({ title: course.title || '', description: course.description || '', categoryId: course.categoryId || '', thumbnail: course.thumbnail || '', duration: course.duration ?? '' });
           setLessons(lessonRes.data?.lessons || []);
         }
       } catch (err) {
@@ -63,8 +57,7 @@ export default function TeacherCourseFormPage() {
     })();
   }, [courseId, isEdit]);
 
-  const change = (event) =>
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+  const change = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
 
   const selectImage = (event) => {
     const file = event.target.files?.[0] || null;
@@ -91,22 +84,14 @@ export default function TeacherCourseFormPage() {
         const upload = await teacherService.uploadThumbnail(imageFile);
         thumbnail = upload.data?.thumbnail;
       }
-      const payload = {
-        ...form,
-        thumbnail,
-        categoryId: form.categoryId || null,
-        duration: form.duration === '' ? 0 : Number(form.duration),
-      };
+      const payload = { ...form, thumbnail, categoryId: form.categoryId || null, duration: form.duration === '' ? 0 : Number(form.duration) };
       if (isEdit) {
         await teacherService.updateCourse(courseId, payload);
         addToast('Course updated successfully.', 'success');
       } else {
         const result = await teacherService.createCourse(payload);
         const createdId = result.data?.course?._id;
-        addToast(
-          'Course created as Draft. Add at least one lesson before submitting it for review.',
-          'success',
-        );
+        addToast('Course created as Draft. Add at least one lesson before submitting it for review.', 'success');
         navigate(createdId ? `/teacher/courses/${createdId}/edit#lessons` : '/teacher/courses');
       }
     } catch (err) {
@@ -119,12 +104,7 @@ export default function TeacherCourseFormPage() {
 
   const editLesson = (lesson) => {
     setEditingLessonId(lesson._id);
-    setLessonForm({
-      title: lesson.title,
-      content: lesson.content,
-      order: lesson.order,
-      duration: lesson.duration || 0,
-    });
+    setLessonForm({ title: lesson.title, content: lesson.content, order: lesson.order, duration: lesson.duration || 0 });
     setLessonErrors({});
   };
 
@@ -139,17 +119,10 @@ export default function TeacherCourseFormPage() {
     setSavingLesson(true);
     setLessonErrors({});
     try {
-      const payload = {
-        ...lessonForm,
-        order: Number(lessonForm.order),
-        duration: Number(lessonForm.duration),
-      };
+      const payload = { ...lessonForm, order: Number(lessonForm.order), duration: Number(lessonForm.duration) };
       if (editingLessonId) await teacherService.updateLesson(courseId, editingLessonId, payload);
       else await teacherService.createLesson(courseId, payload);
-      addToast(
-        editingLessonId ? 'Lesson updated successfully.' : 'Lesson added successfully.',
-        'success',
-      );
+      addToast(editingLessonId ? 'Lesson updated successfully.' : 'Lesson added successfully.', 'success');
       await loadLessons();
       resetLesson();
     } catch (err) {
@@ -173,223 +146,38 @@ export default function TeacherCourseFormPage() {
 
   if (loading) return <div className="spinner" />;
 
-  return (
-    <section className="management-page">
-      <div className="management-header">
-        <div>
-          <h1>{isEdit ? (canEdit ? 'Edit Course' : 'View Course') : 'Create Course'}</h1>
-          <p>
-            {isEdit
-              ? `Current status: ${courseStatus}`
-              : 'Create a Draft course, then add lessons before submitting it for review.'}
-          </p>
-        </div>
+  return <section className="management-page">
+    <div className="management-header"><div><h1>{isEdit ? (canEdit ? 'Edit Course' : 'View Course') : 'Create Course'}</h1><p>{isEdit ? `Current status: ${courseStatus}` : 'Create a Draft course, then add lessons before submitting it for review.'}</p></div></div>
+    {error && <div className="page-error">{error}</div>}
+    <form className="management-card course-form" onSubmit={submit} noValidate>
+      <label>Course title *<input disabled={!canEdit} name="title" value={form.title} onChange={change} maxLength="200" />{fieldErrors.title && <small>{fieldErrors.title}</small>}</label>
+      <label>Description *<textarea disabled={!canEdit} name="description" value={form.description} onChange={change} rows="6" maxLength="5000" />{fieldErrors.description && <small>{fieldErrors.description}</small>}</label>
+      <div className="form-grid">
+        <label>Category<select disabled={!canEdit} name="categoryId" value={form.categoryId} onChange={change}><option value="">No category</option>{categories.map((category) => <option value={category._id} key={category._id}>{category.name}</option>)}</select>{fieldErrors.categoryId && <small>{fieldErrors.categoryId}</small>}</label>
+        <label>Duration (hours)<input disabled={!canEdit} name="duration" value={form.duration} onChange={change} type="number" min="0" step="0.25" />{fieldErrors.duration && <small>{fieldErrors.duration}</small>}</label>
       </div>
-      {error && <div className="page-error">{error}</div>}
-      <form className="management-card course-form" onSubmit={submit} noValidate>
-        <label>
-          Course title *
-          <input
-            disabled={!canEdit}
-            name="title"
-            value={form.title}
-            onChange={change}
-            maxLength="200"
-          />
-          {fieldErrors.title && <small>{fieldErrors.title}</small>}
-        </label>
-        <label>
-          Description *
-          <textarea
-            disabled={!canEdit}
-            name="description"
-            value={form.description}
-            onChange={change}
-            rows="6"
-            maxLength="5000"
-          />
-          {fieldErrors.description && <small>{fieldErrors.description}</small>}
-        </label>
-        <div className="form-grid">
-          <label>
-            Category
-            <select disabled={!canEdit} name="categoryId" value={form.categoryId} onChange={change}>
-              <option value="">No category</option>
-              {categories.map((category) => (
-                <option value={category._id} key={category._id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-            {fieldErrors.categoryId && <small>{fieldErrors.categoryId}</small>}
-          </label>
-          <label>
-            Duration (hours)
-            <input
-              disabled={!canEdit}
-              name="duration"
-              value={form.duration}
-              onChange={change}
-              type="number"
-              min="0"
-              step="0.25"
-            />
-            {fieldErrors.duration && <small>{fieldErrors.duration}</small>}
-          </label>
-        </div>
-        {canEdit && (
-          <label>
-            Course thumbnail
-            <input
-              name="thumbnail"
-              onChange={selectImage}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-            />
-            <small className="image-help">JPEG, PNG, or WebP — maximum 5 MB.</small>
-            {fieldErrors.thumbnail && <small>{fieldErrors.thumbnail}</small>}
-          </label>
-        )}
-        {form.thumbnail && (
-          <div className="thumbnail-preview">
-            <img src={form.thumbnail} alt="Course thumbnail preview" />
-            {canEdit && (
-              <button
-                className="ghost compact"
-                type="button"
-                onClick={() => {
-                  setImageFile(null);
-                  setForm((current) => ({ ...current, thumbnail: null }));
-                }}
-              >
-                Remove image
-              </button>
-            )}
-          </div>
-        )}
-        <div className="form-actions">
-          <button type="button" className="ghost" onClick={() => navigate('/teacher/courses')}>
-            Back
-          </button>
-          {canEdit && (
-            <button className="primary" disabled={saving}>
-              {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Course'}
-            </button>
-          )}
-        </div>
-      </form>
+      {canEdit && <label>Course thumbnail<input name="thumbnail" onChange={selectImage} type="file" accept="image/jpeg,image/png,image/webp" /><small className="image-help">JPEG, PNG, or WebP — maximum 5 MB.</small>{fieldErrors.thumbnail && <small>{fieldErrors.thumbnail}</small>}</label>}
+      {form.thumbnail && <div className="thumbnail-preview"><img src={form.thumbnail} alt="Course thumbnail preview" />{canEdit && <button className="ghost compact" type="button" onClick={() => { setImageFile(null); setForm((current) => ({ ...current, thumbnail: null })); }}>Remove image</button>}</div>}
+      <div className="form-actions"><button type="button" className="ghost" onClick={() => navigate('/teacher/courses')}>Back</button>{canEdit && <button className="primary" disabled={saving}>{saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Course'}</button>}</div>
+    </form>
 
-      {isEdit && (
-        <section id="lessons" className="management-card course-form">
-          <div className="management-header">
-            <div>
-              <h2>Lessons</h2>
-              <p>
-                A course needs at least one lesson with a title and content before review or
-                publication.
-              </p>
-            </div>
-          </div>
-          {lessons.length === 0 ? (
-            <p>No lessons have been added.</p>
-          ) : (
-            <div className="management-list">
-              {lessons.map((lesson) => (
-                <article className="management-card moderation-row" key={lesson._id}>
-                  <div>
-                    <h3>
-                      {lesson.order}. {lesson.title}
-                    </h3>
-                    <p>{lesson.content}</p>
-                    <small>{lesson.duration || 0} minutes</small>
-                  </div>
-                  {canEdit && (
-                    <div className="management-actions">
-                      <button
-                        className="ghost compact"
-                        type="button"
-                        onClick={() => editLesson(lesson)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="danger-button compact"
-                        type="button"
-                        onClick={() => deleteLesson(lesson)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
-          {canEdit && (
-            <form onSubmit={saveLesson} noValidate>
-              <h3>{editingLessonId ? 'Edit Lesson' : 'Add Lesson'}</h3>
-              {lessonErrors.payload && <div className="page-error">{lessonErrors.payload}</div>}
-              <label>
-                Lesson title *
-                <input
-                  value={lessonForm.title}
-                  onChange={(event) => setLessonForm({ ...lessonForm, title: event.target.value })}
-                  maxLength="200"
-                />
-                {lessonErrors.title && <small>{lessonErrors.title}</small>}
-              </label>
-              <label>
-                Lesson content *
-                <textarea
-                  value={lessonForm.content}
-                  onChange={(event) =>
-                    setLessonForm({ ...lessonForm, content: event.target.value })
-                  }
-                  rows="6"
-                />
-                {lessonErrors.content && <small>{lessonErrors.content}</small>}
-              </label>
-              <div className="form-grid">
-                <label>
-                  Order *
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={lessonForm.order}
-                    onChange={(event) =>
-                      setLessonForm({ ...lessonForm, order: event.target.value })
-                    }
-                  />
-                  {lessonErrors.order && <small>{lessonErrors.order}</small>}
-                </label>
-                <label>
-                  Duration (minutes)
-                  <input
-                    type="number"
-                    min="0"
-                    value={lessonForm.duration}
-                    onChange={(event) =>
-                      setLessonForm({ ...lessonForm, duration: event.target.value })
-                    }
-                  />
-                  {lessonErrors.duration && <small>{lessonErrors.duration}</small>}
-                </label>
-              </div>
-              <div className="form-actions">
-                {editingLessonId && (
-                  <button className="ghost" type="button" onClick={resetLesson}>
-                    Cancel Edit
-                  </button>
-                )}
-                <button className="primary" disabled={savingLesson}>
-                  {savingLesson ? 'Saving…' : editingLessonId ? 'Update Lesson' : 'Add Lesson'}
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
-      )}
-    </section>
-  );
+    {isEdit && <section id="lessons" className="management-card course-form">
+      <div className="management-header"><div><h2>Lessons</h2><p>A course needs at least one lesson with a title and content before review or publication.</p></div></div>
+      {lessons.length === 0 ? <p>No lessons have been added.</p> : <div className="management-list">{lessons.map((lesson) => <article className="management-card moderation-row" key={lesson._id}>
+        <div><h3>{lesson.order}. {lesson.title}</h3><p>{lesson.content}</p><small>{lesson.duration || 0} minutes</small></div>
+        {canEdit && <div className="management-actions"><button className="ghost compact" type="button" onClick={() => editLesson(lesson)}>Edit</button><button className="danger-button compact" type="button" onClick={() => deleteLesson(lesson)}>Delete</button></div>}
+      </article>)}</div>}
+      {canEdit && <form onSubmit={saveLesson} noValidate>
+        <h3>{editingLessonId ? 'Edit Lesson' : 'Add Lesson'}</h3>
+        {lessonErrors.payload && <div className="page-error">{lessonErrors.payload}</div>}
+        <label>Lesson title *<input value={lessonForm.title} onChange={(event) => setLessonForm({ ...lessonForm, title: event.target.value })} maxLength="200" />{lessonErrors.title && <small>{lessonErrors.title}</small>}</label>
+        <label>Lesson content *<textarea value={lessonForm.content} onChange={(event) => setLessonForm({ ...lessonForm, content: event.target.value })} rows="6" />{lessonErrors.content && <small>{lessonErrors.content}</small>}</label>
+        <div className="form-grid">
+          <label>Order *<input type="number" min="1" step="1" value={lessonForm.order} onChange={(event) => setLessonForm({ ...lessonForm, order: event.target.value })} />{lessonErrors.order && <small>{lessonErrors.order}</small>}</label>
+          <label>Duration (minutes)<input type="number" min="0" value={lessonForm.duration} onChange={(event) => setLessonForm({ ...lessonForm, duration: event.target.value })} />{lessonErrors.duration && <small>{lessonErrors.duration}</small>}</label>
+        </div>
+        <div className="form-actions">{editingLessonId && <button className="ghost" type="button" onClick={resetLesson}>Cancel Edit</button>}<button className="primary" disabled={savingLesson}>{savingLesson ? 'Saving…' : editingLessonId ? 'Update Lesson' : 'Add Lesson'}</button></div>
+      </form>}
+    </section>}
+  </section>;
 }
