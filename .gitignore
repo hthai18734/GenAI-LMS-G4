@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+*.log
+/backend/uploads/
+*.DS_Store
+README.md
+.idea/
+.vscode/
