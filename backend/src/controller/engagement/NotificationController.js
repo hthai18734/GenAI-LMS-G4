@@ -40,6 +40,31 @@ class NotificationController {
     }
   }
 
+  async markAsRead(req, res, next) {
+    try {
+      const { notificationId } = req.params;
+      if (!mongoose.isValidObjectId(notificationId)) {
+        return ResponseUtil.error(res, { status: 400, message: 'Invalid notification ID.' });
+      }
+      const updated = await NotificationDAO.markAsRead(notificationId);
+      if (!updated) {
+        return ResponseUtil.error(res, { status: 404, message: 'Notification not found.' });
+      }
+      return ResponseUtil.success(res, { message: 'Notification marked as read.' });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async markAllAsRead(req, res, next) {
+    try {
+      const userId = req.user._id;
+      await NotificationDAO.markAllAsRead(userId);
+      return ResponseUtil.success(res, { message: 'All notifications marked as read.' });
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
 
 module.exports = new NotificationController();

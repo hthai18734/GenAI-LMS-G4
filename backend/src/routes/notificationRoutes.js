@@ -14,5 +14,7 @@ router.use(AuthFilter);
 
 router.get('/', NotificationController.getNotifications.bind(NotificationController));
 router.get('/unread-count', NotificationController.getUnreadCount.bind(NotificationController));
+router.put('/read-all', NotificationController.markAllAsRead.bind(NotificationController));
+router.put('/:notificationId/read', NotificationController.markAsRead.bind(NotificationController));
 
 module.exports = router;
