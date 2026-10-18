@@ -24,6 +24,9 @@ export default function Sidebar() {
           <NavLink to="/teacher/courses/new" className={linkClass}>
             <span className="link-text">➕ Tạo khóa học mới</span>
           </NavLink>
+          <NavLink to="/teacher/ai-content" className={linkClass}>
+            <span className="link-text">AI Content Studio</span>
+          </NavLink>
         </nav>
       </aside>
     );

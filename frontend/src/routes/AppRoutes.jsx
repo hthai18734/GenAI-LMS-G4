@@ -18,6 +18,10 @@ import SettingsPage from '../pages/SettingsPage';
 import TeacherCoursesPage from '../pages/TeacherCoursesPage';
 import TeacherCourseFormPage from '../pages/TeacherCourseFormPage';
 import TeacherDashboardPage from '../pages/TeacherDashboardPage';
+import TeacherQuizFormPage from '../pages/TeacherQuizFormPage';
+import TeacherQuizWorkspacePage from '../pages/TeacherQuizWorkspacePage';
+import TeacherAssignmentFormPage from '../pages/TeacherAssignmentFormPage';
+import TeacherAIContentPage from '../pages/TeacherAIContentPage';
 import AdminModerationPage from '../pages/AdminModerationPage';
 import CategoriesPage from '../pages/CategoriesPage';
 import PublicCoursesPage from '../pages/PublicCoursesPage';
@@ -65,6 +69,10 @@ export default function AppRoutes() {
         <Route path="/teacher/courses" element={<TeacherCoursesPage />} />
         <Route path="/teacher/courses/new" element={<TeacherCourseFormPage />} />
         <Route path="/teacher/courses/:courseId/edit" element={<TeacherCourseFormPage />} />
+        <Route path="/teacher/quizzes/new" element={<TeacherQuizFormPage />} />
+        <Route path="/teacher/quizzes/:quizId" element={<TeacherQuizWorkspacePage />} />
+        <Route path="/teacher/assignments/new" element={<TeacherAssignmentFormPage />} />
+        <Route path="/teacher/ai-content" element={<TeacherAIContentPage />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={['admin']}><Layout /></ProtectedRoute>}>
