@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
-
-const NOTIFICATION_TYPES = ['email', 'course_update', 'enrollment', 'promotion', 'system'];
+const { NOTIFICATION_TYPES } = require('../../domain/learning/NotificationPolicy');
 
 const notificationPreferenceSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
