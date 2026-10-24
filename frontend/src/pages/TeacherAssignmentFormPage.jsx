@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { teacherService } from '../services/api';
+import { teacherService } from '../features/teacher/api.js';
 import { useToast } from '../components/Toast';
 
 const initialForm = { courseId: '', lessonId: '', title: '', content: '' };

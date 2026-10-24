@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const Quiz = require('../../model/learning/Quiz');
+const Quiz = require('../../../../../model/learning/Quiz');
 
-class QuizDAO {
+class QuizRepository {
   async create(data) { return Quiz.create(data); }
 
   async findById(id) {
@@ -9,9 +9,11 @@ class QuizDAO {
     return Quiz.findOne({ _id: id, deletedAt: null }).exec();
   }
 
-  async findByCourseId(courseId) {
+  async findByCourseId(courseId, { publishedOnly = false } = {}) {
     if (!mongoose.isValidObjectId(courseId)) return [];
-    return Quiz.find({ courseId, deletedAt: null }).sort({ createdAt: -1, _id: -1 }).exec();
+    const filter = { courseId, deletedAt: null };
+    if (publishedOnly) filter.isPublished = true;
+    return Quiz.find(filter).sort({ createdAt: -1, _id: -1 }).exec();
   }
 
   async update(id, updates) {
@@ -25,4 +27,4 @@ class QuizDAO {
   }
 }
 
-module.exports = new QuizDAO();
+module.exports = new QuizRepository();

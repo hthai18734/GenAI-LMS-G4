@@ -1,5 +1,5 @@
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const AssignmentService = require('../../service/learning/AssignmentService');
+const { assignmentService: AssignmentService } = require('../../composition/services');
 const CreateAssignmentDTO = require('../../dto/assignment/CreateAssignmentDTO');
 
 class TeacherAssignmentController {
@@ -25,6 +25,14 @@ class TeacherAssignmentController {
     try {
       const assignments = await AssignmentService.listAssignments(req.params.courseId, req.user);
       return ResponseUtil.success(res, { data: { assignments } });
+    } catch (error) { return next(error); }
+  }
+
+  async grade(req, res, next) {
+    try {
+      if (typeof req.body?.passed !== 'boolean') return ResponseUtil.error(res, { status: 400, message: 'passed must be a boolean.' });
+      const submission = await AssignmentService.gradeSubmission(req.params.submissionId, req.user, req.body.passed, req.body.feedback || '');
+      return ResponseUtil.success(res, { message: 'Assignment submission graded successfully.', data: { submission } });
     } catch (error) { return next(error); }
   }
 }

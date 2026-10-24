@@ -1,9 +1,14 @@
+/**
+Author: HuyTG - CE182405
+Created at: 01/10/2026
+Description: Category Management
+ */
 const mongoose = require('mongoose');
-const Category = require('../../model/learning/Category');
-const Course = require('../../model/learning/Course');
-const { COURSE_STATUS } = require('../../model/learning/CourseStatus');
+const Category = require('../../../../../model/learning/Category');
+const Course = require('../../../../../model/learning/Course');
+const { COURSE_STATUS } = require('../../../../../domain/learning/CourseStatus');
 
-class CategoryDAO {
+class CategoryRepository {
   async create(data) { return Category.create(data); }
   async findById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
@@ -16,6 +21,7 @@ class CategoryDAO {
   }
   async findAll() { return Category.find({ deletedAt: null }).sort({ name: 1 }).exec(); }
   async findAllActive() { return Category.find({ deletedAt: null, isActive: true }).sort({ name: 1 }).exec(); }
+  async countActiveRecords() { return Category.countDocuments({ deletedAt: null }).exec(); }
   async findActiveById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
     return Category.findOne({ _id: id, deletedAt: null, isActive: true }).exec();
@@ -37,4 +43,4 @@ class CategoryDAO {
     }));
   }
 }
-module.exports = new CategoryDAO();
+module.exports = new CategoryRepository();

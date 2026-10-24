@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const Course = require('../../model/content/Course');
-const { COURSE_STATUS } = require('../../model/learning/CourseStatus');
+const Course = require('../../../../../model/learning/Course');
+const { COURSE_STATUS } = require('../../../../../domain/learning/CourseStatus');
 
-class CourseDAO {
+class CourseRepository {
   /**
    * UC-1.1: Find featured courses for homepage
    */
@@ -10,7 +10,8 @@ class CourseDAO {
     const numLimit = Math.max(1, parseInt(limit, 10) || 6);
     return Course.find({
       isFeatured: true,
-      status: COURSE_STATUS.PUBLIC,
+      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      deletedAt: null,
     })
       .populate('teacherId', 'fullName email avatar')
       .populate('instructorId', 'fullName email avatar')
@@ -28,7 +29,8 @@ class CourseDAO {
     const skip = (parsedPage - 1) * parsedLimit;
 
     return Course.find({
-      status: COURSE_STATUS.PUBLIC,
+      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      deletedAt: null,
     })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -41,7 +43,8 @@ class CourseDAO {
    */
   async countPublished() {
     return Course.countDocuments({
-      status: COURSE_STATUS.PUBLIC,
+      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      deletedAt: null,
     }).exec();
   }
 
@@ -56,7 +59,8 @@ class CourseDAO {
     const safeRegex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
     const query = {
-      status: COURSE_STATUS.PUBLIC,
+      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      deletedAt: null,
       $or: [
         { title: safeRegex },
         { description: safeRegex },
@@ -85,7 +89,8 @@ class CourseDAO {
     const skip = (parsedPage - 1) * parsedLimit;
 
     const query = {
-      status: COURSE_STATUS.PUBLIC,
+      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      deletedAt: null,
     };
 
     if (categoryId && mongoose.isValidObjectId(categoryId)) {
@@ -151,7 +156,8 @@ class CourseDAO {
     if (!mongoose.isValidObjectId(id)) return null;
     return Course.findOne({
       _id: id,
-      status: COURSE_STATUS.PUBLIC,
+      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      deletedAt: null,
     }).exec();
   }
 
@@ -165,11 +171,12 @@ class CourseDAO {
         { teacherId },
         { instructorId: teacherId },
       ],
-      status: COURSE_STATUS.PUBLIC,
+      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      deletedAt: null,
     })
       .sort({ createdAt: -1 })
       .exec();
   }
 }
 
-module.exports = new CourseDAO();
+module.exports = new CourseRepository();

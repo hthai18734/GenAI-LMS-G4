@@ -1,8 +1,14 @@
+/**
+Author: HuyTG - CE182405
+Created at: 29/09/2026
+Description: Course Management
+ */
 const mongoose = require('mongoose');
-const Course = require('../../model/learning/Course');
-const { COURSE_STATUS } = require('../../model/learning/CourseStatus');
+require('../../../../../model/identity/User');
+const Course = require('../../../../../model/learning/Course');
+const { COURSE_STATUS } = require('../../../../../domain/learning/CourseStatus');
 
-class CourseDAO {
+class CourseRepository {
   async findById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
     return Course.findOne({ _id: id, deletedAt: null }).exec();
@@ -10,11 +16,16 @@ class CourseDAO {
 
   async findOpenById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
-    return Course.findOne({ _id: id, status: COURSE_STATUS.PUBLIC, deletedAt: null }).exec();
+    return Course.findOne({ _id: id, status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] }, deletedAt: null }).exec();
+  }
+
+  findPublicForCheckout(id, session = null) {
+    if (!mongoose.isValidObjectId(id)) return null;
+    return Course.findOne({ _id: id, status: COURSE_STATUS.PUBLIC, deletedAt: null }).session(session).lean().exec();
   }
 
   async findAllOpen() {
-    return Course.find({ status: COURSE_STATUS.PUBLIC, deletedAt: null }).sort({ createdAt: -1 }).exec();
+    return Course.find({ status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] }, deletedAt: null }).sort({ createdAt: -1 }).exec();
   }
 
   async create(data) { return Course.create(data); }
@@ -22,6 +33,54 @@ class CourseDAO {
   async findTeacherCourseById(id, teacherId) {
     if (!mongoose.isValidObjectId(id)) return null;
     return Course.findOne({ _id: id, teacherId, deletedAt: null }).exec();
+  }
+
+  async findByTeacherId(teacherId) {
+    if (!mongoose.isValidObjectId(teacherId)) return [];
+    return Course.find({
+      $or: [
+        { teacherId },
+        { instructorId: teacherId },
+      ],
+      deletedAt: null,
+    }).exec();
+  }
+
+  async findDashboardCourses(teacherId) {
+    if (!mongoose.isValidObjectId(teacherId)) return [];
+    return Course.find({
+      $or: [{ teacherId }, { instructorId: teacherId }],
+      deletedAt: null,
+    }).sort({ updatedAt: -1 }).exec();
+  }
+
+  async countByStatus() {
+    return Course.aggregate([
+      { $match: { deletedAt: null } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]).exec();
+  }
+
+  async findRecentByStatus(status, limit = 5) {
+    return Course.find({ status, deletedAt: null })
+      .sort({ updatedAt: -1 })
+      .limit(limit)
+      .populate('teacherId', 'fullName email avatar')
+      .exec();
+  }
+
+  async findCoursesByTeacherId(teacherId) {
+    return this.findByTeacherId(teacherId);
+  }
+
+  async findIdsByTeacher(teacherId) {
+    return Course.find({
+      $or: [
+        { teacherId },
+        { instructorId: teacherId },
+      ],
+      deletedAt: null,
+    }).select('_id').lean().exec();
   }
 
   async findAllByTeacher(teacherId, query) {
@@ -84,4 +143,4 @@ class CourseDAO {
   }
 }
 
-module.exports = new CourseDAO();
+module.exports = new CourseRepository();

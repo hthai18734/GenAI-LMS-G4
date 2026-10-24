@@ -1,5 +1,5 @@
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const QuizService = require('../../service/learning/QuizService');
+const { quizService: QuizService } = require('../../composition/services');
 const CreateQuizDTO = require('../../dto/quiz/CreateQuizDTO');
 const UpdateQuizDTO = require('../../dto/quiz/UpdateQuizDTO');
 
@@ -32,6 +32,20 @@ class TeacherQuizController {
     try {
       const { quiz, questions } = await QuizService.getQuizDetails(req.params.quizId, req.user);
       return ResponseUtil.success(res, { data: { quiz, questions } });
+    } catch (error) { return next(error); }
+  }
+
+  async listByCourse(req, res, next) {
+    try {
+      const quizzes = await QuizService.listOwnedQuizzes(req.params.courseId, req.user);
+      return ResponseUtil.success(res, { data: { quizzes } });
+    } catch (error) { return next(error); }
+  }
+
+  async listQuestions(req, res, next) {
+    try {
+      const questions = await QuizService.listQuestions(req.params.quizId, req.user);
+      return ResponseUtil.success(res, { data: { questions } });
     } catch (error) { return next(error); }
   }
 
