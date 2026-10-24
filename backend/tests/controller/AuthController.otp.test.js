@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const AuthController = require('../../src/controller/auth/AuthController');
-const OtpVerificationRepository = require('../../src/infrastructure/persistence/mongoose/repositories/identity/OtpVerificationRepository');
+const OtpVerificationDAO = require('../../src/dao/identity/OtpVerificationDAO');
 const OTPUtil = require('../../src/utils/auth/OTPUtil');
 const EmailUtil = require('../../src/utils/email/EmailUtil');
 
@@ -27,17 +27,17 @@ async function withoutNextError(action) {
 }
 
 test('expired OTP remains available for resend and returns the UC message', async () => {
-  const originalFind = OtpVerificationRepository.find;
-  const originalClear = OtpVerificationRepository.clear;
+  const originalFind = OtpVerificationDAO.find;
+  const originalClear = OtpVerificationDAO.clear;
   let clearCalled = false;
-  OtpVerificationRepository.find = async () => ({
+  OtpVerificationDAO.find = async () => ({
     _id: 'otp-id',
     otpExpiresAt: new Date(Date.now() - 1000),
     expiresAt: new Date(Date.now() + 60_000),
     wrongAttempts: 0,
     payload: { email: 'minh@example.com' },
   });
-  OtpVerificationRepository.clear = async () => { clearCalled = true; };
+  OtpVerificationDAO.clear = async () => { clearCalled = true; };
 
   try {
     const res = response();
@@ -48,24 +48,24 @@ test('expired OTP remains available for resend and returns the UC message', asyn
     assert.equal(res.body.message, 'The OTP has expired. Select "Resend Code" to receive a new one.');
     assert.equal(clearCalled, false);
   } finally {
-    OtpVerificationRepository.find = originalFind;
-    OtpVerificationRepository.clear = originalClear;
+    OtpVerificationDAO.find = originalFind;
+    OtpVerificationDAO.clear = originalClear;
   }
 });
 
 test('incorrect OTP reports remaining attempts and locks only after more than five failures', async () => {
-  const originalFind = OtpVerificationRepository.find;
-  const originalIncrement = OtpVerificationRepository.incrementWrongAttempts;
+  const originalFind = OtpVerificationDAO.find;
+  const originalIncrement = OtpVerificationDAO.incrementWrongAttempts;
   const otpHash = OTPUtil.hash('123456');
   let attempts = 0;
-  OtpVerificationRepository.find = async () => ({
+  OtpVerificationDAO.find = async () => ({
     _id: 'otp-id',
     otpHash,
     otpExpiresAt: new Date(Date.now() + 60_000),
     expiresAt: new Date(Date.now() + 120_000),
     wrongAttempts: attempts,
   });
-  OtpVerificationRepository.incrementWrongAttempts = async () => ({ wrongAttempts: ++attempts });
+  OtpVerificationDAO.incrementWrongAttempts = async () => ({ wrongAttempts: ++attempts });
 
   try {
     for (let expectedRemaining = 4; expectedRemaining >= 0; expectedRemaining -= 1) {
@@ -87,17 +87,17 @@ test('incorrect OTP reports remaining attempts and locks only after more than fi
       'You entered an incorrect OTP more than 5 times. Select "Resend Code" to receive a new one.',
     );
   } finally {
-    OtpVerificationRepository.find = originalFind;
-    OtpVerificationRepository.incrementWrongAttempts = originalIncrement;
+    OtpVerificationDAO.find = originalFind;
+    OtpVerificationDAO.incrementWrongAttempts = originalIncrement;
   }
 });
 
 test('resend is allowed for an existing expired or attempt-locked verification request', async () => {
-  const originalFind = OtpVerificationRepository.find;
+  const originalFind = OtpVerificationDAO.find;
   const originalIssueOtp = AuthController.issueOtp;
   const payload = { fullName: 'Duy Minh', email: 'minh@example.com' };
   const issued = [];
-  OtpVerificationRepository.find = async () => ({
+  OtpVerificationDAO.find = async () => ({
     payload,
     wrongAttempts: 6,
     otpExpiresAt: new Date(Date.now() - 1000),
@@ -114,17 +114,17 @@ test('resend is allowed for an existing expired or attempt-locked verification r
     assert.equal(res.body.message, 'A new verification code has been sent to your email.');
     assert.deepEqual(issued, [{ email: 'minh@example.com', savedPayload: payload }]);
   } finally {
-    OtpVerificationRepository.find = originalFind;
+    OtpVerificationDAO.find = originalFind;
     AuthController.issueOtp = originalIssueOtp;
   }
 });
 
 test('issuing an OTP retains pending registration data beyond the OTP validity window', async () => {
-  const originalSave = OtpVerificationRepository.save;
+  const originalSave = OtpVerificationDAO.save;
   const originalSendOtp = EmailUtil.sendOtp;
   let saved;
   let delivered;
-  OtpVerificationRepository.save = async (record) => { saved = record; };
+  OtpVerificationDAO.save = async (record) => { saved = record; };
   EmailUtil.sendOtp = async (email, otp) => { delivered = { email, otp }; };
 
   try {
@@ -141,7 +141,7 @@ test('issuing an OTP retains pending registration data beyond the OTP validity w
     assert.ok(saved.expiresAt.getTime() <= after + OTPUtil.PENDING_EXPIRE_MS);
     assert.ok(saved.expiresAt > saved.otpExpiresAt);
   } finally {
-    OtpVerificationRepository.save = originalSave;
+    OtpVerificationDAO.save = originalSave;
     EmailUtil.sendOtp = originalSendOtp;
   }
 });

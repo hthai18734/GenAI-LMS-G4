@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { teacherService } from '../services/api';
+import { teacherService } from '../features/teacher/api.js';
 import { useToast } from '../components/Toast';
 import { buildLessonQuizPlans, buildLessonQuizSource } from '../utils/quizSource';
 import { buildLessonAssignmentPlans, buildLessonAssignmentSource } from '../utils/assignmentSource';

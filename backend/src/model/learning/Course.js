@@ -1,10 +1,5 @@
-/**
-Author: HuyTG - CE182405
-Created at: 29/09/2026
-Description: Course Management
- */
 const mongoose = require('mongoose');
-const { COURSE_STATUS, COURSE_STATUSES } = require('../../domain/learning/CourseStatus');
+const { COURSE_STATUS, COURSE_STATUSES } = require('./CourseStatus');
 
 const courseSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true, maxlength: 200 },
@@ -20,8 +15,6 @@ const courseSchema = new mongoose.Schema({
   price: { type: Number, default: 0, min: 0 },
   discountPrice: { type: Number, default: null, min: 0 },
   averageRating: { type: Number, default: 0, min: 0, max: 5 },
-  reviewRevision: { type: Number, default: 0, select: false },
-  ratingDirty: { type: Boolean, default: false, select: false },
   totalStudents: { type: Number, default: 0, min: 0 },
   isFeatured: { type: Boolean, default: false, index: true },
   submittedForReviewAt: { type: Date, default: null },

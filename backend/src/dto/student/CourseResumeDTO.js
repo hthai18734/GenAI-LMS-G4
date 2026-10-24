@@ -1,8 +1,3 @@
-/**
-Author: ThienDDN - CE182101
-Created at: 01/10/2026
-Description: UC-10.4 Start/Resume Course
- */
 const { objectId } = require('../common/DTOUtil');
 
 class CourseResumeDTO {

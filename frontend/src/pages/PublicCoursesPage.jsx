@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { publicService } from '../features/public/api.js';
-import { useAuth } from '../features/auth/useAuth.js';
+import { publicService } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 import { useToast } from '../components/Toast';
 
 export default function PublicCoursesPage() {

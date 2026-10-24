@@ -1,9 +1,4 @@
-/**
-Author: HuyTG - CE182405
-Created at: 29/09/2026
-Description: Course Management
- */
-const { COURSE_STATUSES } = require('../../domain/learning/CourseStatus');
+const { COURSE_STATUSES } = require('../../model/learning/CourseStatus');
 
 class CourseQueryDTO {
   constructor(query = {}) { this.query = query; }

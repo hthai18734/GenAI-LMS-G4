@@ -14,8 +14,8 @@ class GeminiClient {
       this.env.GEMINI_MODEL,
       ...(this.env.GEMINI_FALLBACK_MODELS || '').split(','),
     ].map(value => value?.trim()).filter(Boolean))];
-    if (!key || !models.length) throw new ServiceError(503, 'AI is not configured.');
-    if (!Array.isArray(contents) || !contents.length) throw new ServiceError(400, 'Your question must not be empty.');
+    if (!key || !models.length) throw new ServiceError(503, 'AI chưa được cấu hình.');
+    if (!Array.isArray(contents) || !contents.length) throw new ServiceError(400, 'Nội dung câu hỏi không được để trống.');
 
     const body = JSON.stringify({ contents, systemInstruction, generationConfig });
     const hasPdf = contents.some(content => content.parts?.some(part => part.inlineData?.mimeType === 'application/pdf'));
@@ -38,27 +38,24 @@ class GeminiClient {
         data = await response.json();
       } catch {
         // Network errors/timeouts can be ambiguous; do not multiply requests.
-        throw new ServiceError(502, 'Unable to connect to AI. Please try again later.');
+        throw new ServiceError(502, 'Không thể kết nối AI. Vui lòng thử lại sau.');
       }
 
       if (!response.ok) {
         if ([429, 404, 500, 502, 503, 504].includes(response.status)) continue;
-        if ([401, 403].includes(response.status)) {
-          throw new ServiceError(503, 'AI credentials are invalid or disabled. Contact the system administrator.');
-        }
         // Bad input, invalid key and permission errors are not quota exhaustion.
-        throw new ServiceError(502, 'AI rejected the request. Please check the configuration and document format.');
+        throw new ServiceError(502, 'AI từ chối yêu cầu. Vui lòng kiểm tra cấu hình và định dạng tài liệu.');
       }
 
       const candidate = data.candidates?.[0];
       if (data.promptFeedback?.blockReason || (candidate?.finishReason && !['STOP', 'MAX_TOKENS'].includes(candidate.finishReason))) {
-        throw new ServiceError(422, 'AI cannot answer this request. Please adjust your question.');
+        throw new ServiceError(422, 'AI không thể trả lời nội dung này. Vui lòng điều chỉnh câu hỏi.');
       }
       const text = candidate?.content?.parts?.filter(part => !part.thought).map(part => part.text || '').join('').trim();
-      if (!text) throw new ServiceError(502, 'AI returned no answer. Please try again.');
+      if (!text) throw new ServiceError(502, 'AI chưa trả về câu trả lời. Vui lòng thử lại.');
       return { text, model };
     }
-    throw new ServiceError(503, 'AI models are unavailable or their quota has been exceeded. Please try again later.');
+    throw new ServiceError(503, 'Các model AI hiện đã hết lượt hoặc không khả dụng. Vui lòng thử lại sau.');
   }
 }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { studentService } from '../features/student/api.js';
-import { useAuth } from '../features/auth/useAuth.js';
+import { studentService } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 import { useToast } from '../components/Toast';
 
 export default function CertificatesPage() {
@@ -70,7 +70,7 @@ export default function CertificatesPage() {
                 <strong>ID:</strong> {cert.certificateNumber}
               </div>
               <div className="cert-date">
-                <strong>Issued:</strong> {new Date(cert.issuedAt).toLocaleDateString('en-US')}
+                <strong>Issued:</strong> {new Date(cert.issuedAt).toLocaleDateString()}
               </div>
               <div style={{ marginTop: '18px' }}>
                 <button
@@ -137,7 +137,7 @@ export default function CertificatesPage() {
                   <strong>Certificate ID:</strong> {selectedCert.certificateNumber}
                 </div>
                 <div>
-                  <strong>Date Issued:</strong> {new Date(selectedCert.issuedAt).toLocaleDateString('en-US')}
+                  <strong>Date Issued:</strong> {new Date(selectedCert.issuedAt).toLocaleDateString()}
                 </div>
               </div>
             </div>

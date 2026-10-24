@@ -1,11 +1,11 @@
-const ServiceError = require('../../service/common/ServiceError');
+const DTOValidationError = require('../common/DTOValidationError');
 
 const types = ['course_outline', 'lesson_content', 'quiz_questions', 'supporting_content', 'material_summary'];
 
 function text(value, label, max, optional = false) {
   if (optional && (value === undefined || value === null || value === '')) return '';
   if (typeof value !== 'string' || !value.trim() || value.length > max) {
-    throw new ServiceError(400, `${label} must contain 1 to ${max} characters.`);
+    throw new DTOValidationError(`${label} must contain 1 to ${max} characters.`);
   }
   return value.trim();
 }
@@ -14,7 +14,7 @@ module.exports = {
   types,
   parse(body = {}) {
     if (!body || typeof body !== 'object' || Array.isArray(body) || !types.includes(body.type)) {
-      throw new ServiceError(400, 'Invalid AI content generation type.');
+      throw new DTOValidationError('Invalid AI content generation type.');
     }
     const result = {
       type: body.type,
@@ -25,7 +25,7 @@ module.exports = {
     };
     if (body.type === 'quiz_questions') {
       const count = Number(body.count ?? 5);
-      if (!Number.isInteger(count) || count < 1 || count > 20) throw new ServiceError(400, 'Question count must be between 1 and 20.');
+      if (!Number.isInteger(count) || count < 1 || count > 20) throw new DTOValidationError('Question count must be between 1 and 20.');
       result.count = count;
       result.difficulty = text(body.difficulty || 'medium', 'Difficulty', 30);
     }

@@ -1,47 +1,52 @@
 import React, { useEffect, useState } from 'react';
-import { studentService } from '../features/student/api.js';
+import { studentService } from '../services/api';
 import { useToast } from '../components/Toast';
 
 const PREF_INFO_MAP = {
   email: {
     icon: '📧',
-    label: 'Email Digests',
-    description: 'Receive learning progress summaries and important updates by email.',
+    label: 'Thông báo tổng hợp qua Email',
+    description: 'Nhận tóm tắt tiến độ học tập và bản tin kiến thức quan trọng qua hòm thư cá nhân.',
   },
   course_update: {
     icon: '📚',
-    label: 'Course & Lesson Updates',
-    description: 'Get notified when new lessons, resources, or assignments are published.',
+    label: 'Cập nhật Khóa học & Bài giảng mới',
+    description: 'Nhận thông báo ngay khi có bài giảng, tài liệu bổ trợ hoặc bài tập mới được đăng tải.',
   },
   'Course & Lesson Updates': {
     icon: '📚',
-    label: 'Course & Lesson Updates',
-    description: 'Get notified when new lessons, resources, or assignments are published.',
+    label: 'Cập nhật Khóa học & Bài giảng mới',
+    description: 'Nhận thông báo ngay khi có bài giảng, tài liệu bổ trợ hoặc bài tập mới được đăng tải.',
   },
   enrollment: {
     icon: '🎓',
-    label: 'Enrollment Confirmation',
-    description: 'Receive confirmation when you enroll in or complete a course.',
+    label: 'Xác nhận Đăng ký khóa học',
+    description: 'Thông báo xác nhận khi bạn ghi danh vào khóa học mới hoặc hoàn thành khóa học.',
+  },
+  promotion: {
+    icon: '🎁',
+    label: 'Khóa học miễn phí & Sự kiện học tập',
+    description: 'Nhận gợi ý các khóa học công nghệ mới, sự kiện chia sẻ và ưu đãi học viên.',
   },
   system: {
     icon: '⚙️',
-    label: 'System & Security Notifications',
-    description: 'Receive unusual sign-in alerts, maintenance notices, and important platform updates.',
+    label: 'Thông báo Hệ thống & Bảo mật',
+    description: 'Cảnh báo đăng nhập lạ, thông báo bảo trì định kỳ và các cập nhật nền tảng quan trọng.',
   },
   system_announcement: {
     icon: '📢',
-    label: 'System & Platform Notifications',
-    description: 'Get updates about new features, maintenance, and learning policies.',
+    label: 'Thông báo Hệ thống & Nền tảng',
+    description: 'Cập nhật tính năng mới, lịch bảo trì hệ thống và các chính sách học tập.',
   },
   assignment_reminder: {
     icon: '⏰',
-    label: 'Task & Assignment Reminders',
-    description: 'Receive reminders about assignment deadlines and lesson milestones.',
+    label: 'Nhắc nhở Nhiệm vụ & Bài tập',
+    description: 'Cảnh báo trước hạn nộp bài tập và các mốc thời gian hoàn thành bài học.',
   },
   discussion_reply: {
     icon: '💬',
-    label: 'Discussion Replies',
-    description: 'Get notified when a teacher or classmate replies to your question.',
+    label: 'Phản hồi Thảo luận & Diễn đàn',
+    description: 'Thông báo khi giảng viên hoặc bạn cùng lớp phản hồi câu hỏi của bạn.',
   },
 };
 
@@ -52,28 +57,13 @@ export default function SettingsPage() {
   const [testingType, setTestingType] = useState(null);
   const { addToast } = useToast();
 
-  const PREF_ORDER = ['course_update', 'email', 'enrollment', 'system'];
-
   const handleTestNotification = async (type) => {
-    const current = preferences.find((p) => p.type === type);
-    const label = PREF_INFO_MAP[type]?.label || type;
-    if (!current?.enabled) {
-      addToast(
-        `⚠️ Cannot send test: "${label}" is currently DISABLED. Turn ON the switch first to receive notifications.`,
-        'warning'
-      );
-      return;
-    }
     setTestingType(type);
     try {
       const res = await studentService.sendTestNotification(type);
-      addToast(
-        res.message || `Test notification sent for "${label}"! Check the bell icon in top bar.`,
-        'success'
-      );
-      window.dispatchEvent(new Event('notification-updated'));
+      addToast(res.message || 'Đã gửi thông báo thử nghiệm! Hãy kiểm tra chuông 🔔', 'success');
     } catch (err) {
-      addToast(err.message || 'Unable to send test notification.', 'error');
+      addToast(err.message || 'Không thể gửi thông báo thử nghiệm.', 'error');
     } finally {
       setTestingType(null);
     }
@@ -83,15 +73,9 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       const res = await studentService.getNotificationPreferences();
-      const raw = res.data?.preferences || [];
-      const sorted = [...raw].sort((a, b) => {
-        const idxA = PREF_ORDER.indexOf(a.type);
-        const idxB = PREF_ORDER.indexOf(b.type);
-        return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
-      });
-      setPreferences(sorted);
+      setPreferences(res.data?.preferences || []);
     } catch (err) {
-      addToast(err.message || 'Unable to load notification settings.', 'error');
+      addToast(err.message || 'Không thể tải cài đặt thông báo.', 'error');
     } finally {
       setLoading(false);
     }
@@ -101,28 +85,10 @@ export default function SettingsPage() {
     fetchPreferences();
   }, []);
 
-  const handleToggle = async (type) => {
-    const prevPreferences = [...preferences];
-    const updated = preferences.map((item) =>
-      item.type === type ? { ...item, enabled: !item.enabled } : item
+  const handleToggle = (type) => {
+    setPreferences((prev) =>
+      prev.map((item) => (item.type === type ? { ...item, enabled: !item.enabled } : item))
     );
-    setPreferences(updated);
-    const target = updated.find((p) => p.type === type);
-    const isNowEnabled = target?.enabled;
-    const label = PREF_INFO_MAP[type]?.label || type;
-
-    try {
-      await studentService.updateNotificationPreferences(updated);
-      addToast(
-        isNowEnabled
-          ? `✓ Active: Notifications for "${label}" are now ENABLED.`
-          : `✕ Inactive: Notifications for "${label}" are now DISABLED.`,
-        isNowEnabled ? 'success' : 'info'
-      );
-    } catch (err) {
-      addToast(err.message || 'Unable to update setting.', 'error');
-      setPreferences(prevPreferences);
-    }
   };
 
   const handleSave = async (e) => {
@@ -130,9 +96,9 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await studentService.updateNotificationPreferences(preferences);
-      addToast('All notification preferences saved and active!', 'success');
+      addToast('Đã lưu tùy chọn thông báo thành công!', 'success');
     } catch (err) {
-      addToast(err.message || 'Unable to update settings.', 'error');
+      addToast(err.message || 'Cập nhật cài đặt thất bại.', 'error');
     } finally {
       setSaving(false);
     }
@@ -151,10 +117,10 @@ export default function SettingsPage() {
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h2 className="section-title" style={{ margin: '0 0 6px', fontSize: '22px' }}>
-          Notification Settings & Learning Preferences
+          Cài đặt thông báo & Tùy chọn học tập
         </h2>
         <p style={{ color: 'var(--muted)', margin: 0, fontSize: '14px' }}>
-          Choose your notification channels and preferences for a better learning experience
+          Tùy chỉnh các kênh thông báo và tần suất nhận tin để tối ưu hóa trải nghiệm học tập của bạn
         </p>
       </div>
 
@@ -165,7 +131,7 @@ export default function SettingsPage() {
           <form onSubmit={handleSave}>
             <div className="profile-card-panel">
               <h3 className="profile-card-title">
-                <span>🔔</span> Event Notification Preferences
+                <span>🔔</span> Tùy chọn thông báo sự kiện
               </h3>
 
               <div className="pref-list" style={{ marginBottom: '24px' }}>
@@ -173,7 +139,7 @@ export default function SettingsPage() {
                   const info = PREF_INFO_MAP[pref.type] || {
                     icon: '📌',
                     label: pref.type,
-                    description: 'System notification preference',
+                    description: 'Tùy chọn thông báo hệ thống',
                   };
 
                   return (
@@ -183,13 +149,11 @@ export default function SettingsPage() {
                       style={{
                         padding: '18px 20px',
                         borderRadius: '14px',
-                        border: pref.enabled ? '1px solid #eeeef6' : '1px dashed #e2e1ec',
-                        background: pref.enabled ? '#ffffff' : '#fafafc',
+                        border: '1px solid #eeeef6',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: '16px',
-                        transition: 'all .2s ease',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
@@ -198,59 +162,18 @@ export default function SettingsPage() {
                             width: '40px',
                             height: '40px',
                             borderRadius: '12px',
-                            background: pref.enabled ? '#f4f3ff' : '#f3f4f6',
+                            background: '#f4f3ff',
                             display: 'grid',
                             placeItems: 'center',
                             fontSize: '20px',
                             flexShrink: 0,
-                            filter: pref.enabled ? 'none' : 'grayscale(1)',
-                            opacity: pref.enabled ? 1 : 0.7,
                           }}
                         >
                           {info.icon}
                         </div>
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span className="pref-label" style={{ fontSize: '15px', color: pref.enabled ? 'var(--ink)' : '#6b7280', fontWeight: 600 }}>
-                              {info.label}
-                            </span>
-                            {pref.enabled ? (
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  color: '#15803d',
-                                  background: '#ecfdf5',
-                                  border: '1px solid #bbf7d0',
-                                  padding: '2px 8px',
-                                  borderRadius: '999px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                              >
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }}></span>
-                                Active
-                              </span>
-                            ) : (
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  color: '#b91c1c',
-                                  background: '#fef2f2',
-                                  border: '1px solid #fecaca',
-                                  padding: '2px 8px',
-                                  borderRadius: '999px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                              >
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
-                                Disabled
-                              </span>
-                            )}
+                          <div className="pref-label" style={{ fontSize: '15px', color: 'var(--ink)' }}>
+                            {info.label}
                           </div>
                           <div className="pref-desc" style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px', lineHeight: 1.5 }}>
                             {info.description}
@@ -264,27 +187,9 @@ export default function SettingsPage() {
                           className="btn-test-noti"
                           onClick={() => handleTestNotification(pref.type)}
                           disabled={testingType === pref.type}
-                          style={
-                            pref.enabled
-                              ? {}
-                              : {
-                                  background: '#f3f4f6',
-                                  borderColor: '#e5e7eb',
-                                  color: '#9ca3af',
-                                  cursor: 'not-allowed',
-                                }
-                          }
-                          title={
-                            pref.enabled
-                              ? `Send test notification: "${info.label}"`
-                              : `"${info.label}" is turned OFF. Turn ON switch to enable test notifications.`
-                          }
+                          title={`Gửi thử thông báo loại "${info.label}"`}
                         >
-                          {testingType === pref.type
-                            ? 'Sending...'
-                            : pref.enabled
-                            ? '🔔 Send Test'
-                            : '🔕 Send Test (Disabled)'}
+                          {testingType === pref.type ? 'Đang gửi...' : '🔔 Gửi thử'}
                         </button>
                         <label className="toggle" style={{ flexShrink: 0 }}>
                           <input
@@ -307,14 +212,14 @@ export default function SettingsPage() {
                   className="btn btn-primary"
                   style={{ minWidth: '180px' }}
                 >
-                  {saving ? 'Saving settings...' : 'Save Notification Settings'}
+                  {saving ? 'Đang lưu cài đặt...' : 'Lưu cài đặt thông báo'}
                 </button>
                 <button
                   type="button"
                   onClick={fetchPreferences}
                   className="btn btn-secondary"
                 >
-                  Reset
+                  Đặt lại
                 </button>
               </div>
             </div>
@@ -325,23 +230,23 @@ export default function SettingsPage() {
         <div>
           <div className="side-info-card">
             <h4>
-              <span>📬</span> Notification Channels
+              <span>📬</span> Kênh nhận thông báo
             </h4>
             <p style={{ marginBottom: '12px' }}>
-              AI-LMS sends notifications through two main channels:
+              Hệ thống AI-LMS gửi thông báo qua 2 kênh chính:
             </p>
             <ul style={{ paddingLeft: '18px', margin: 0, fontSize: '13px', color: 'var(--muted)', lineHeight: 1.7 }}>
-              <li><strong>Email:</strong> Receive automated emails for new lessons or certificates.</li>
-              <li><strong>In-app notifications:</strong> Check the notification bell in the top-right corner while learning.</li>
+              <li><strong>Hòm thư cá nhân:</strong> Nhận email tự động khi có bài học hoặc chứng chỉ mới.</li>
+              <li><strong>Thông báo trực tiếp trên web:</strong> Hiển thị chuông thông báo ở góc phải khi đang học.</li>
             </ul>
           </div>
 
           <div className="side-info-card" style={{ background: '#f8f7ff', border: '1px dashed #c7d2fe' }}>
             <h4 style={{ color: '#4338ca' }}>
-              <span>💡</span> Learning Tips
+              <span>💡</span> Lời khuyên cho học viên
             </h4>
             <p>
-              Enable <strong>Course & Lesson Updates</strong> to keep up with important resources and maintain your learning progress toward a certificate.
+              Giữ bật <strong>Cập nhật Khóa học & Bài giảng mới</strong> giúp bạn không bỏ lỡ các tài liệu quan trọng và giữ vững chuỗi ngày học tập liên tục để sớm nhận chứng chỉ.
             </p>
           </div>
         </div>

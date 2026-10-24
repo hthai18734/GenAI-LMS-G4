@@ -1,16 +1,12 @@
-/**
-Author: HuyTG - CE182405
-Created at: 29/09/2026
-Description: Course Management
- */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { courseService: CourseService } = require('../../composition/services');
+const CourseService = require('../../service/learning/CourseService');
 const CreateCourseDTO = require('../../dto/course/CreateCourseDTO');
 const UpdateCourseDTO = require('../../dto/course/UpdateCourseDTO');
 const CourseQueryDTO = require('../../dto/course/CourseQueryDTO');
 const LessonDTO = require('../../dto/course/LessonDTO');
-const { categoryService: CategoryService } = require('../../composition/services');
-const { teacherDashboardService: TeacherDashboardService } = require('../../composition/services');
+const CategoryService = require('../../service/learning/CategoryService');
+const Course = require('../../model/learning/Course');
+const Enrollment = require('../../model/learning/Enrollment');
 
 class TeacherCourseController {
   validationError(res, errors) { return ResponseUtil.error(res, { status: 400, message: 'Validation failed.', errors }); }
@@ -144,26 +140,67 @@ class TeacherCourseController {
     });
   }
 
-  async uploadVideo(req, res) {
-    if (!req.file) return ResponseUtil.error(res, { status: 400, message: 'Please select a video file to upload.' });
-    return ResponseUtil.success(res, {
-      status: 201,
-      message: 'Lesson video uploaded successfully.',
-      data: {
-        videoUrl: `/uploads/lesson-videos/${req.file.filename}`,
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        sizeBytes: req.file.size,
-      },
-    });
-  }
-
   async getDashboard(req, res, next) {
     try {
+      const teacherId = req.user._id;
+
+      // 1. Get courses of this teacher
+      const courses = await Course.find({
+        $or: [{ teacherId }, { instructorId: teacherId }],
+        deletedAt: null,
+      }).sort({ updatedAt: -1 });
+
+      const courseCounts = {
+        total: courses.length,
+        DRAFT: 0,
+        PENDING_REVIEW: 0,
+        APPROVED: 0,
+        REJECTED: 0,
+        PUBLIC: 0,
+        ARCHIVED: 0,
+      };
+
+      let totalStudentsEnrolled = 0;
+      const courseIds = [];
+
+      courses.forEach((c) => {
+        if (c.status) {
+          courseCounts[c.status] = (courseCounts[c.status] || 0) + 1;
+        }
+        totalStudentsEnrolled += (c.totalStudents || 0);
+        courseIds.push(c._id);
+      });
+
+      // 2. Query enrollments in courses taught by this teacher
+      const [recentEnrollments, activeEnrollmentsCount, completedEnrollmentsCount] = await Promise.all([
+        Enrollment.find({ courseId: { $in: courseIds } })
+          .sort({ createdAt: -1 })
+          .limit(6)
+          .populate('userId', 'fullName email avatar')
+          .populate('courseId', 'title category'),
+        Enrollment.countDocuments({ courseId: { $in: courseIds }, status: 'active' }),
+        Enrollment.countDocuments({ courseId: { $in: courseIds }, status: 'completed' }),
+      ]);
+
       return ResponseUtil.success(res, {
         status: 200,
         message: 'Teacher dashboard retrieved successfully.',
-        data: await TeacherDashboardService.getDashboard(req.user._id),
+        data: {
+          metrics: {
+            totalCourses: courses.length,
+            publishedCourses: courseCounts.PUBLIC || 0,
+            pendingCourses: courseCounts.PENDING_REVIEW || 0,
+            approvedCourses: courseCounts.APPROVED || 0,
+            draftCourses: courseCounts.DRAFT || 0,
+            rejectedCourses: courseCounts.REJECTED || 0,
+            archivedCourses: courseCounts.ARCHIVED || 0,
+            totalStudents: totalStudentsEnrolled || (activeEnrollmentsCount + completedEnrollmentsCount),
+            activeStudents: activeEnrollmentsCount,
+            completedStudents: completedEnrollmentsCount,
+          },
+          courses: courses.slice(0, 5),
+          recentEnrollments,
+        },
       });
     } catch (error) {
       return next(error);

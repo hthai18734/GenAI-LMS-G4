@@ -1,10 +1,5 @@
-/**
-Author: HuyTG - CE182405
-Created at: 29/09/2026
-Description: Course Management
- */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { courseModerationService: CourseModerationService } = require('../../composition/services');
+const CourseModerationService = require('../../service/admin/CourseModerationService');
 const CourseQueryDTO = require('../../dto/course/CourseQueryDTO');
 const RejectCourseDTO = require('../../dto/course/RejectCourseDTO');
 

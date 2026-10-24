@@ -12,8 +12,6 @@ const payload = (mode, data = details) => DTO.message({ mode, details: data, req
 const source = {
   catalog: async () => [{ _id: c1, title: 'JavaScript', description: 'JS cơ bản', price: 0 }, { _id: c2, title: 'React', description: 'React cơ bản', price: 20 }],
   enrollments: async id => { assert.equal(id, user._id); return [{ courseId: c2, status: 'completed' }]; },
-  quizPerformance: async id => { assert.equal(id, user._id); return [{ courseId: c2, averageScore: 72.5, latestScore: 75, attempts: 2 }]; },
-  lessons: async ids => ids.length ? [{ _id: '507f1f77bcf86cd799439014', courseId: ids[0], title: 'Async JavaScript', content: 'Promises and async await', order: 2 }] : [],
 };
 
 test('wrong-answer form generates a bounded prompt without requiring generic text', () => {
@@ -32,7 +30,6 @@ test('recommendations use authenticated enrollment, remove completed courses, ex
   const feature = await new Learning(source).prepare(user, payload('recommend'));
   assert.deepEqual(feature.data.courses.map(c => c.id), [c1]);
   assert.equal(feature.data.profile.completedCourses, 1);
-  assert.equal(feature.data.profile.quizPerformance[0].averageScore, 72.5);
   assert.ok(!JSON.stringify(feature.data).includes('private'));
   const result = feature.finish(JSON.stringify({ recommendations: [{ courseId: c1, reason: 'Phù hợp người mới học JavaScript' }] }));
   assert.equal(result.recommendations[0].url, `/courses/${c1}`);
@@ -46,15 +43,6 @@ test('unknown, duplicate, enrolled and malformed model recommendations are rejec
   assert.throws(() => feature.finish('not JSON'), e => e.status === 502);
   assert.throws(() => feature.finish('null'), e => e.status === 502);
   assert.throws(() => feature.finish('[]'), e => e.status === 502);
-});
-test('recommendations may include a real lesson from an active enrolled course', async () => {
-  const activeSource = { ...source, enrollments: async () => [{ courseId: c2, status: 'active' }] };
-  const feature = await new Learning(activeSource).prepare(user, payload('recommend'));
-  const lessonId = feature.data.lessons[0].id;
-  const result = feature.finish(JSON.stringify({ recommendations: [{ kind: 'lesson', lessonId, reason: 'Review promises before the next module' }] }));
-  assert.equal(result.recommendations[0].kind, 'lesson');
-  assert.equal(result.recommendations[0].courseId, c2);
-  assert.equal(result.recommendations[0].url, `/courses/${c2}/learn`);
 });
 test('no catalog returns immediate honest response without needing model', async () => {
   const feature = await new Learning({ ...source, catalog: async () => [] }).prepare(user, payload('recommend'));
@@ -73,19 +61,19 @@ test('study plan preserves exact time budget and rejects missing weeks or forged
 });
 test('wrong-answer instructions do not assume the student answer is incorrect or trust reference blindly', async () => {
   const feature = await new Learning(source).prepare(user, payload('wrong_answer', { question: '2+2', studentAnswer: '4' }));
-  assert.match(feature.instruction, /Do not assume/);
-  assert.match(feature.instruction, /has not been graded by the system/);
+  assert.match(feature.instruction, /Không mặc định/);
+  assert.match(feature.instruction, /chưa được hệ thống chấm/);
   assert.equal(feature.finish('Đáp án của bạn đúng.').mode, 'wrong_answer');
 });
 test('new features pass through owned conversation and save structured output idempotently', async () => {
   const row = { _id: c1, turns: [] };
   let calls = 0;
-  const chatRepository = {
+  const dao = {
     get: async owner => owner === user._id ? row : null,
     lock: async () => ({ row, token: 'lock' }), unlock: async () => {}, documents: async () => [],
     append: async (owner, id, token, turn) => row.turns.push(turn),
   };
-  const service = new ChatService({ chatRepository, context: { resolve: async () => null }, learning: new Learning(source),
+  const service = new ChatService({ dao, context: { resolve: async () => null }, learning: new Learning(source),
     gemini: { generateContent: async () => { calls++; return { text: JSON.stringify({ recommendations: [{ courseId: c1, reason: 'Mục tiêu phù hợp' }] }), model: 'test' }; } } });
   await assert.rejects(service.send({ ...user, _id: 'other' }, c1, payload('recommend')), e => e.status === 404);
   assert.equal(calls, 0);
