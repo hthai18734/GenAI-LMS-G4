@@ -1,0 +1,27 @@
+import { api } from '../../shared/api/client.js';
+
+export const adminService = {
+  getTeachers: (query = {}) => api(`/api/admin/teachers?${new URLSearchParams(query)}`),
+  getTeacher: (id) => api(`/api/admin/teachers/${id}`),
+  suspendTeacher: (id) => api(`/api/admin/teachers/${id}/suspend`, { method: 'PATCH' }),
+  unsuspendTeacher: (id) => api(`/api/admin/teachers/${id}/unsuspend`, { method: 'PATCH' }),
+  getUsers: (page = 1, filters = {}) => api(`/api/admin/users?${new URLSearchParams({ page, limit: 10, ...filters })}`),
+  getUser: (id) => api(`/api/admin/users/${id}`),
+  createUser: (data) => api('/api/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUser: (id, data) => api(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteUser: (id) => api(`/api/admin/users/${id}`, { method: 'DELETE' }),
+  updateUserRole: (id, role) => api(`/api/admin/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  updateUserStatus: (id, status) => api(`/api/admin/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  getDashboard: () => api('/api/admin/dashboard'),
+  getTeacherApplications: (status) => api(`/api/v1/admin/teacher-applications${status ? `?status=${status}` : ''}`),
+  approveTeacherApplication: (id) => api(`/api/v1/admin/teacher-applications/${id}/approve`, { method: 'POST' }),
+  rejectTeacherApplication: (id, reason) => api(`/api/v1/admin/teacher-applications/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  getModerationCourses: (query = '') => api(`/api/admin/courses/moderation${query ? `?${query}` : ''}`),
+  getModerationCourse: (courseId) => api(`/api/admin/courses/moderation/${courseId}`),
+  approveCourse: (courseId) => api(`/api/admin/courses/${courseId}/approve`, { method: 'POST' }),
+  rejectCourse: (courseId, reason) => api(`/api/admin/courses/${courseId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  getCategories: () => api('/api/admin/categories'),
+  createCategory: (data) => api('/api/admin/categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateCategory: (id, data) => api(`/api/admin/categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCategory: (id) => api(`/api/admin/categories/${id}`, { method: 'DELETE' }),
+};
