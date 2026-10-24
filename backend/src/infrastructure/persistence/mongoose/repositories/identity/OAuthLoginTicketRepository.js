@@ -1,9 +1,7 @@
 const crypto = require('crypto');
-const OAuthLoginTicket = require('../../model/identity/OAuthLoginTicket');
+const OAuthLoginTicket = require('../../../../../model/identity/OAuthLoginTicket');
 
-const recentConsumedCache = new Map();
-
-class OAuthLoginTicketDAO {
+class OAuthLoginTicketRepository {
   async create(userId) {
     const code = crypto.randomBytes(32).toString('base64url');
     const codeHash = this.hash(code);
@@ -17,20 +15,11 @@ class OAuthLoginTicketDAO {
 
   async consume(code) {
     const codeHash = this.hash(code);
-    if (recentConsumedCache.has(codeHash)) {
-      return recentConsumedCache.get(codeHash);
-    }
-
     const ticket = await OAuthLoginTicket.findOneAndDelete({
       codeHash,
       expiresAt: { $gt: new Date() },
     }).exec();
 
-    if (ticket) {
-      recentConsumedCache.set(codeHash, ticket);
-      const timer = setTimeout(() => recentConsumedCache.delete(codeHash), 30000);
-      if (timer.unref) timer.unref();
-    }
     return ticket;
   }
 
@@ -39,4 +28,4 @@ class OAuthLoginTicketDAO {
   }
 }
 
-module.exports = new OAuthLoginTicketDAO();
+module.exports = new OAuthLoginTicketRepository();

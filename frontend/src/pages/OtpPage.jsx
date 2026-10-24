@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { authService } from '../services/api';
+import { authService } from '../features/auth/api.js';
 import { useToast } from '../components/Toast';
 
 export default function OtpPage() {

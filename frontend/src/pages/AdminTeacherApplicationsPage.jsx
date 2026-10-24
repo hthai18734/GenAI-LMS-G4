@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { adminService } from '../services/api';
+import { adminService } from '../features/admin/api.js';
 import { useToast } from '../components/Toast';
 
 export default function AdminTeacherApplicationsPage() {
@@ -175,7 +175,7 @@ export default function AdminTeacherApplicationsPage() {
                       {app.userId?.fullName || 'Candidate'}
                     </h3>
                     <div style={{ fontSize: '13px', color: '#64748b' }}>
-                      {app.userId?.email} • Applied on {new Date(app.createdAt).toLocaleDateString()}
+                      {app.userId?.email} • Applied on {new Date(app.createdAt).toLocaleDateString('en-US')}
                     </div>
                   </div>
                 </div>

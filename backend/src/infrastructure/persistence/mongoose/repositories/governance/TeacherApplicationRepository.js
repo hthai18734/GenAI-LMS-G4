@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const TeacherApplication = require('../../model/governance/TeacherApplication');
+const TeacherApplication = require('../../../../../model/governance/TeacherApplication');
 
-class TeacherApplicationDAO {
+class TeacherApplicationRepository {
   /**
    * Find application by ID and populate applicant info
    */
@@ -38,6 +38,31 @@ class TeacherApplicationDAO {
       .exec();
   }
 
+  async countByStatus(status) {
+    return TeacherApplication.countDocuments(status ? { status } : {}).exec();
+  }
+
+  async findRecent(limit = 5) {
+    return TeacherApplication.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('userId', 'fullName email avatar role status')
+      .exec();
+  }
+
+  async findLatestByUser(userId) {
+    if (!mongoose.isValidObjectId(userId)) return null;
+    return TeacherApplication.findOne({ userId })
+      .sort({ createdAt: -1 })
+      .populate('reviewedBy', 'fullName email')
+      .exec();
+  }
+
+  async findPendingByUser(userId) {
+    if (!mongoose.isValidObjectId(userId)) return null;
+    return TeacherApplication.findOne({ userId, status: 'pending' }).exec();
+  }
+
   /**
    * Create new teacher application
    */
@@ -69,4 +94,4 @@ class TeacherApplicationDAO {
   }
 }
 
-module.exports = new TeacherApplicationDAO();
+module.exports = new TeacherApplicationRepository();
