@@ -25,8 +25,9 @@ class CreateQuizDTO {
     if (!Number.isFinite(Number(this.passingScore)) || Number(this.passingScore) < 0 || Number(this.passingScore) > 100) {
       errors.passingScore = 'Passing score must be between 0 and 100.';
     }
-    if (this.attemptLimit !== undefined
-      && (!Number.isInteger(Number(this.attemptLimit)) || Number(this.attemptLimit) < 1)) {
+    if (this.attemptLimit === undefined || this.attemptLimit === null || this.attemptLimit === '') {
+      errors.attemptLimit = 'Attempt limit is required.';
+    } else if (!Number.isInteger(Number(this.attemptLimit)) || Number(this.attemptLimit) < 1) {
       errors.attemptLimit = 'Attempt limit must be an integer greater than zero.';
     }
     return errors;
