@@ -13,6 +13,8 @@ const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const discussionRoutes = require('./routes/discussionRoutes');
+const specAliasRoutes = require('./routes/specAliasRoutes');
 
 const app = express();
 app.disable('x-powered-by');
@@ -52,11 +54,25 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api', discussionRoutes);
+app.use('/api/v1', discussionRoutes);
+app.use('/api', specAliasRoutes);
+app.use('/api/v1', specAliasRoutes);
 app.use((req, res) => ResponseUtil.error(res, { status: 404, message: 'Route not found.' }));
 app.use(ErrorFilter);
 
+
 async function start() {
   await MongoDBUtil.connect();
+  await require('./model/voucher/Voucher').init();
+  await require('./model/voucher/VoucherRedemption').init();
+  await require('./model/engagement/Review').init();
+  const { reviewRepository } = require('./composition/repositories');
+  await reviewRepository.repairPendingRatings();
+  const ratingRepairTimer = setInterval(() => {
+    reviewRepository.repairPendingRatings().catch(error => LoggerUtil.error('Review rating repair failed', error));
+  }, 60000);
+  ratingRepairTimer.unref();
   const { seedAdmin } = require('./utils/database/AdminSeeder');
   await seedAdmin();
   const port = Number(process.env.PORT) || 3000;
