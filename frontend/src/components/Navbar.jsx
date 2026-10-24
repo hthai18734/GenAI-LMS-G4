@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../services/AuthContext';
-import { notificationService } from '../services/api';
+import { useAuth } from '../features/auth/useAuth.js';
+import { notificationService } from '../features/engagement/api.js';
 import { useToast } from './Toast';
 
 /* ── tiny helper: time-ago ─────────────────────────────────── */
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60) return 'Vừa xong';
-  if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
-  return `${Math.floor(diff / 86400)} ngày trước`;
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+  return `${Math.floor(diff / 86400)} days ago`;
 }
 
 export default function Navbar({ title }) {
@@ -44,12 +44,22 @@ export default function Navbar({ title }) {
     } catch { /* ignore */ }
   }, [isAuthenticated]);
 
-  // Initial fetch + periodic polling every 30s
+  // Initial fetch + periodic polling every 30s + reactive event updates
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+
+    const handleUpdate = () => {
+      fetchUnreadCount();
+      if (notiOpen) fetchNotifications();
+    };
+    window.addEventListener('notification-updated', handleUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notification-updated', handleUpdate);
+    };
+  }, [fetchUnreadCount, fetchNotifications, notiOpen]);
 
   // Fetch full list when bell panel opens
   useEffect(() => {
@@ -60,25 +70,25 @@ export default function Navbar({ title }) {
     try {
       await notificationService.markNotificationRead(id);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-      setUnreadCount((c) => Math.max(0, c - 1));
-    } catch { /* ignore */ }
+      await fetchUnreadCount();
+    } catch (err) { addToast(err.message, 'error'); }
   };
 
   const handleMarkAllRead = async () => {
     try {
       await notificationService.markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch { /* ignore */ }
+      await fetchUnreadCount();
+    } catch (err) { addToast(err.message, 'error'); }
   };
 
   /* ── Close dropdowns on outside click ────────────────────── */
   const roleNameMap = {
-    admin: 'Quản trị viên',
-    teacher: 'Giảng viên',
-    student: 'Học viên',
+    admin: 'Admin',
+    teacher: 'Teacher',
+    student: 'Student',
   };
-  const roleLabel = roleNameMap[user?.role] || 'Học viên';
+  const roleLabel = roleNameMap[user?.role] || 'Student';
 
   const initials = user?.fullName
     ? user.fullName
@@ -126,7 +136,7 @@ export default function Navbar({ title }) {
     navigate('/', { replace: true });
     try {
       await logout();
-      addToast('Đã đăng xuất thành công.', 'info');
+      addToast('Signed out successfully.', 'info');
     } catch {
       // ignore
     }
@@ -145,7 +155,7 @@ export default function Navbar({ title }) {
 
   return (
     <header className="topbar">
-      <h1 className="topbar-title">{title || 'Không gian học tập'}</h1>
+      <h1 className="topbar-title">{title || 'Learning Space'}</h1>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {/* ── Notification Bell ──────────────────────────────── */}
@@ -155,8 +165,8 @@ export default function Navbar({ title }) {
               type="button"
               className="noti-bell-btn"
               onClick={() => { setNotiOpen(!notiOpen); setOpen(false); }}
-              aria-label="Thông báo"
-              title="Thông báo"
+              aria-label="Notifications"
+              title="Notifications"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -169,19 +179,20 @@ export default function Navbar({ title }) {
             {notiOpen && (
               <div className="noti-dropdown">
                 <div className="noti-dropdown-header">
-                  <span style={{ fontWeight: 700, fontSize: '15px' }}>🔔 Thông báo</span>
+                  <span style={{ fontWeight: 700, fontSize: '15px' }}>🔔 Notifications</span>
                   {unreadCount > 0 && (
                     <button type="button" className="noti-mark-all-btn" onClick={handleMarkAllRead}>
-                      Đánh dấu tất cả đã đọc
+                      Mark all as read
                     </button>
                   )}
                 </div>
 
                 <div className="noti-dropdown-body">
+                  <Link to="/notifications" className="dropdown-item" onClick={() => setNotiOpen(false)}>View all notifications</Link>
                   {notifications.length === 0 ? (
                     <div className="noti-empty">
                       <span style={{ fontSize: '32px' }}>📭</span>
-                      <p>Chưa có thông báo nào</p>
+                      <p>No notifications yet</p>
                     </div>
                   ) : (
                     notifications.map((n) => (
@@ -189,6 +200,7 @@ export default function Navbar({ title }) {
                         key={n.id}
                         className={`noti-item ${n.isRead ? '' : 'noti-unread'}`}
                         onClick={() => !n.isRead && handleMarkRead(n.id)}
+                        onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!n.isRead) handleMarkRead(n.id); } }}
                         role="button"
                         tabIndex={0}
                       >
@@ -225,7 +237,7 @@ export default function Navbar({ title }) {
               )}
             </div>
             <div className="topbar-user-info">
-              <div className="topbar-name">{user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Học viên')}</div>
+              <div className="topbar-name">{user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Student')}</div>
               <div className="topbar-role">{roleLabel}</div>
             </div>
             <svg
@@ -243,12 +255,13 @@ export default function Navbar({ title }) {
           {open && (
             <div className="topbar-dropdown" role="menu">
               <div className="dropdown-header">
-                <div className="dropdown-name">{user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Học viên')}</div>
+                <div className="dropdown-name">{user?.fullName || (user?.role === 'admin' ? 'Admin' : 'Student')}</div>
                 <div className="dropdown-email">{user?.email || ''}</div>
-                <div className="dropdown-badge">Tài khoản {roleLabel.toLowerCase()}</div>
+                <div className="dropdown-badge">{roleLabel} account</div>
               </div>
 
               <div className="dropdown-list">
+                <Link to="/change-password" className="dropdown-item" onClick={() => setOpen(false)} role="menuitem">Change Password</Link>
                 {user?.role === 'admin' ? (
                   <>
                     <Link
@@ -257,15 +270,15 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>📊 Bảng điều khiển Admin</span>
+                      <span>📊 Admin Dashboard</span>
                     </Link>
                     <Link
-                      to="/admin/users"
+                      to="/admin/teacher-applications"
                       className="dropdown-item"
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>👥 Quản lý người dùng</span>
+                      <span>👨‍🏫 Review Teacher Applications</span>
                     </Link>
                     <Link
                       to="/admin/moderation"
@@ -273,7 +286,7 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>🛡️ Kiểm duyệt khóa học</span>
+                      <span>🛡️ Course Moderation</span>
                     </Link>
                     <Link
                       to="/admin/categories"
@@ -281,7 +294,7 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>🏷️ Quản lý danh mục</span>
+                      <span>🏷️ Manage Categories</span>
                     </Link>
                     <Link
                       to="/profile"
@@ -289,7 +302,7 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>👤 Hồ sơ cá nhân</span>
+                      <span>👤 Profile</span>
                     </Link>
                   </>
                 ) : user?.role === 'teacher' ? (
@@ -300,7 +313,7 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>📊 Bảng điều khiển Giảng viên</span>
+                      <span>📊 Teacher Dashboard</span>
                     </Link>
                     <Link
                       to="/teacher/courses"
@@ -308,7 +321,7 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>📚 Khóa học của tôi</span>
+                      <span>📚 My Courses</span>
                     </Link>
                     <Link
                       to="/teacher/courses/new"
@@ -316,7 +329,7 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>➕ Tạo khóa học mới</span>
+                      <span>➕ Create Course</span>
                     </Link>
                     <Link
                       to="/profile"
@@ -324,7 +337,7 @@ export default function Navbar({ title }) {
                       onClick={() => setOpen(false)}
                       role="menuitem"
                     >
-                      <span>👤 Hồ sơ cá nhân</span>
+                      <span>👤 Profile</span>
                     </Link>
                   </>
                 ) : (
@@ -338,7 +351,7 @@ export default function Navbar({ title }) {
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
-                      <span>Hồ sơ cá nhân</span>
+                      <span>Profile</span>
                     </Link>
 
                     <Link
@@ -350,7 +363,16 @@ export default function Navbar({ title }) {
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                       </svg>
-                      <span>Chứng chỉ của tôi</span>
+                      <span>My Certificates</span>
+                    </Link>
+
+                    <Link
+                      to="/my-reports"
+                      className="dropdown-item"
+                      onClick={() => setOpen(false)}
+                      role="menuitem"
+                    >
+                      <span>📢 My Reports & Feedback</span>
                     </Link>
 
                     <Link
@@ -362,7 +384,7 @@ export default function Navbar({ title }) {
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                       </svg>
-                      <span>Cài đặt thông báo</span>
+                      <span>Notification Settings</span>
                     </Link>
                   </>
                 )}
@@ -378,7 +400,7 @@ export default function Navbar({ title }) {
                   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
-                  <span>Đăng xuất</span>
+                  <span>Sign Out</span>
                 </button>
               </div>
             </div>
