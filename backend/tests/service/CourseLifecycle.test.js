@@ -1,11 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const CourseService = require('../../src/service/learning/CourseService');
-const CourseModerationService = require('../../src/service/admin/CourseModerationService');
-const CourseDAO = require('../../src/dao/learning/CourseDAO');
-const LessonDAO = require('../../src/dao/learning/LessonDAO');
-const NotificationDAO = require('../../src/dao/engagement/NotificationDAO');
-const { COURSE_STATUS, COURSE_STATUSES, canTransition } = require('../../src/model/learning/CourseStatus');
+const { courseService: CourseService } = require('../../src/composition/services');
+const { courseModerationService: CourseModerationService } = require('../../src/composition/services');
+const CourseRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/CourseRepository');
+const LessonRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/LessonRepository');
+const NotificationRepository = require('../../src/infrastructure/persistence/mongoose/repositories/engagement/NotificationRepository');
+const { COURSE_STATUS, COURSE_STATUSES, canTransition } = require('../../src/domain/learning/CourseStatus');
 
 const courseId = '507f1f77bcf86cd799439011';
 const teacherId = '507f1f77bcf86cd799439012';
@@ -29,14 +29,14 @@ test('course status definition contains exactly the required statuses and transi
 
 test('teacher submission validates content and clears stale moderation data atomically', async () => {
   const originals = {
-    findById: CourseDAO.findById,
-    transitionStatus: CourseDAO.transitionStatus,
-    countValidByCourseId: LessonDAO.countValidByCourseId,
+    findById: CourseRepository.findById,
+    transitionStatus: CourseRepository.transitionStatus,
+    countValidByCourseId: LessonRepository.countValidByCourseId,
   };
   let transition = null;
-  CourseDAO.findById = async () => course(COURSE_STATUS.REJECTED, { rejectionReason: 'Old reason', moderatedBy: adminId, moderatedAt: new Date() });
-  LessonDAO.countValidByCourseId = async () => 1;
-  CourseDAO.transitionStatus = async (id, fromStatus, updates) => {
+  CourseRepository.findById = async () => course(COURSE_STATUS.REJECTED, { rejectionReason: 'Old reason', moderatedBy: adminId, moderatedAt: new Date() });
+  LessonRepository.countValidByCourseId = async () => 1;
+  CourseRepository.transitionStatus = async (id, fromStatus, updates) => {
     transition = { id, fromStatus, updates };
     return { ...course(updates.status), ...updates };
   };
@@ -50,49 +50,49 @@ test('teacher submission validates content and clears stale moderation data atom
     assert.equal(transition.updates.moderatedAt, null);
     assert.ok(transition.updates.submittedForReviewAt instanceof Date);
   } finally {
-    Object.assign(CourseDAO, { findById: originals.findById, transitionStatus: originals.transitionStatus });
-    LessonDAO.countValidByCourseId = originals.countValidByCourseId;
+    Object.assign(CourseRepository, { findById: originals.findById, transitionStatus: originals.transitionStatus });
+    LessonRepository.countValidByCourseId = originals.countValidByCourseId;
   }
 });
 
 test('incomplete course remains unchanged when submitted or published', async () => {
   const originals = {
-    findById: CourseDAO.findById,
-    transitionStatus: CourseDAO.transitionStatus,
-    countValidByCourseId: LessonDAO.countValidByCourseId,
+    findById: CourseRepository.findById,
+    transitionStatus: CourseRepository.transitionStatus,
+    countValidByCourseId: LessonRepository.countValidByCourseId,
   };
   let transitions = 0;
-  LessonDAO.countValidByCourseId = async () => 0;
-  CourseDAO.transitionStatus = async () => { transitions += 1; };
+  LessonRepository.countValidByCourseId = async () => 0;
+  CourseRepository.transitionStatus = async () => { transitions += 1; };
 
   try {
-    CourseDAO.findById = async () => course(COURSE_STATUS.DRAFT);
+    CourseRepository.findById = async () => course(COURSE_STATUS.DRAFT);
     await assert.rejects(
       CourseService.submitForReview(courseId, { _id: teacherId }),
       /at least one lesson/
     );
-    CourseDAO.findById = async () => course(COURSE_STATUS.APPROVED);
+    CourseRepository.findById = async () => course(COURSE_STATUS.APPROVED);
     await assert.rejects(
       CourseService.publishCourse(courseId, { _id: teacherId }),
       /at least one lesson/
     );
     assert.equal(transitions, 0);
   } finally {
-    Object.assign(CourseDAO, { findById: originals.findById, transitionStatus: originals.transitionStatus });
-    LessonDAO.countValidByCourseId = originals.countValidByCourseId;
+    Object.assign(CourseRepository, { findById: originals.findById, transitionStatus: originals.transitionStatus });
+    LessonRepository.countValidByCourseId = originals.countValidByCourseId;
   }
 });
 
 test('teacher publishes APPROVED and unpublishes PUBLIC back to APPROVED', async () => {
   const originals = {
-    findById: CourseDAO.findById,
-    transitionStatus: CourseDAO.transitionStatus,
-    countValidByCourseId: LessonDAO.countValidByCourseId,
+    findById: CourseRepository.findById,
+    transitionStatus: CourseRepository.transitionStatus,
+    countValidByCourseId: LessonRepository.countValidByCourseId,
   };
   let current = course(COURSE_STATUS.APPROVED);
-  CourseDAO.findById = async () => current;
-  LessonDAO.countValidByCourseId = async () => 1;
-  CourseDAO.transitionStatus = async (id, fromStatus, updates) => {
+  CourseRepository.findById = async () => current;
+  LessonRepository.countValidByCourseId = async () => 1;
+  CourseRepository.transitionStatus = async (id, fromStatus, updates) => {
     assert.equal(fromStatus, current.status);
     current = { ...current, ...updates };
     return current;
@@ -104,24 +104,24 @@ test('teacher publishes APPROVED and unpublishes PUBLIC back to APPROVED', async
     const unpublished = await CourseService.unpublishCourse(courseId, { _id: teacherId });
     assert.equal(unpublished.status, COURSE_STATUS.APPROVED);
   } finally {
-    Object.assign(CourseDAO, { findById: originals.findById, transitionStatus: originals.transitionStatus });
-    LessonDAO.countValidByCourseId = originals.countValidByCourseId;
+    Object.assign(CourseRepository, { findById: originals.findById, transitionStatus: originals.transitionStatus });
+    LessonRepository.countValidByCourseId = originals.countValidByCourseId;
   }
 });
 
 test('admin approval stops at APPROVED and rejection records moderation fields', async () => {
   const originals = {
-    findByIdForModeration: CourseDAO.findByIdForModeration,
-    transitionStatus: CourseDAO.transitionStatus,
-    createNotification: NotificationDAO.create,
+    findByIdForModeration: CourseRepository.findByIdForModeration,
+    transitionStatus: CourseRepository.transitionStatus,
+    createNotification: NotificationRepository.create,
   };
   let current = course(COURSE_STATUS.PENDING_REVIEW);
-  CourseDAO.findByIdForModeration = async () => current;
-  CourseDAO.transitionStatus = async (id, fromStatus, updates) => {
+  CourseRepository.findByIdForModeration = async () => current;
+  CourseRepository.transitionStatus = async (id, fromStatus, updates) => {
     current = { ...current, ...updates };
     return current;
   };
-  NotificationDAO.create = async () => ({});
+  NotificationRepository.create = async () => ({});
 
   try {
     const approved = await CourseModerationService.approveCourse(courseId, { _id: adminId });
@@ -136,8 +136,8 @@ test('admin approval stops at APPROVED and rejection records moderation fields',
     assert.equal(rejected.moderatedBy, adminId);
     assert.ok(rejected.moderatedAt instanceof Date);
   } finally {
-    CourseDAO.findByIdForModeration = originals.findByIdForModeration;
-    CourseDAO.transitionStatus = originals.transitionStatus;
-    NotificationDAO.create = originals.createNotification;
+    CourseRepository.findByIdForModeration = originals.findByIdForModeration;
+    CourseRepository.transitionStatus = originals.transitionStatus;
+    NotificationRepository.create = originals.createNotification;
   }
 });

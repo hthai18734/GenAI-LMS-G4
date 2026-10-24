@@ -1,19 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { publicService, studentService } from '../services/api';
-import { useAuth } from '../services/AuthContext';
+import { publicService } from '../features/public/api.js';
+import { studentService } from '../features/student/api.js';
+import { wishlistService } from '../features/learning/api.js';
+import { useAuth } from '../features/auth/useAuth.js';
 import { useToast } from '../components/Toast';
+import VoucherPreview from '../components/VoucherPreview';
+import ReviewsPanel from '../components/ReviewsPanel';
 
 export default function PublicCourseDetailPage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { addToast } = useToast();
 
   const [course, setCourse] = useState(null);
   const [instructor, setInstructor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [addingWishlist, setAddingWishlist] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
 
   useEffect(() => {
     async function fetchDetail() {
@@ -24,6 +30,21 @@ export default function PublicCourseDetailPage() {
           setCourse(res.data.course);
           setInstructor(res.data.instructor);
         }
+
+        if (isAuthenticated) {
+          try {
+            const enrolledRes = await studentService.getEnrolledCourses();
+            const list = enrolledRes?.data?.courses || enrolledRes?.courses || [];
+            const found = list.some(
+              (c) => String(c.id || c._id || c.courseId) === String(courseId)
+            );
+            if (found) {
+              setIsEnrolled(true);
+            }
+          } catch {
+            // Not a student or error fetching enrollments - ignore
+          }
+        }
       } catch (err) {
         addToast(err.message || 'Course not found', 'error');
       } finally {
@@ -33,7 +54,32 @@ export default function PublicCourseDetailPage() {
     if (courseId) {
       fetchDetail();
     }
-  }, [courseId]);
+  }, [courseId, isAuthenticated]);
+
+  const handleAddToWishlist = async () => {
+    if (!isAuthenticated) {
+      addToast('Please sign in to add this course to your wishlist.', 'info');
+      navigate('/login');
+      return;
+    }
+    if (isEnrolled) {
+      addToast('You are already enrolled in this course.', 'info');
+      return;
+    }
+    setAddingWishlist(true);
+    try {
+      const res = await wishlistService.addToWishlist(courseId);
+      if (res?.data?.alreadyEnrolled || res?.alreadyEnrolled) {
+        addToast('You are already enrolled in this course.', 'info');
+      } else {
+        addToast('Added course to your wishlist!', 'success');
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to add to wishlist.', 'error');
+    } finally {
+      setAddingWishlist(false);
+    }
+  };
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
@@ -42,13 +88,26 @@ export default function PublicCourseDetailPage() {
       return;
     }
 
+    if (isEnrolled) {
+      navigate(`/courses/${courseId}/learn`);
+      return;
+    }
+
     setEnrolling(true);
     try {
       await studentService.enrollCourse(courseId);
-      addToast('Enrolled successfully! Redirecting to study...', 'success');
-      navigate('/courses');
+      setIsEnrolled(true);
+      addToast('Enrolled successfully! Redirecting to lesson...', 'success');
+      navigate(`/courses/${courseId}/learn`);
     } catch (err) {
-      addToast(err.message || 'Enrollment failed.', 'error');
+      const msg = err.message || '';
+
+      if (msg.toLowerCase().includes('already enrolled')) {
+        setIsEnrolled(true);
+        navigate(`/courses/${courseId}/learn`);
+        return;
+      }
+      addToast(msg || 'Enrollment failed.', 'error');
     } finally {
       setEnrolling(false);
     }
@@ -126,16 +185,21 @@ export default function PublicCourseDetailPage() {
           marginBottom: '40px'
         }}>
           <div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
               <span className="badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
                 {course.category || 'General'}
               </span>
               <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-                ★ {course.averageRating ? course.averageRating.toFixed(1) : '5.0'} Rating
+                ★ {(course.averageRating || 0).toFixed(1)} Rating
               </span>
               {course.totalStudents > 0 && (
                 <span className="badge" style={{ background: 'var(--bg-subtle)', color: 'var(--text-dim)' }}>
                   👥 {course.totalStudents} Students
+                </span>
+              )}
+              {isEnrolled && (
+                <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', fontWeight: '700' }}>
+                  ✓ Enrolled
                 </span>
               )}
             </div>
@@ -159,20 +223,46 @@ export default function PublicCourseDetailPage() {
               )}
             </div>
 
-            <button
-              onClick={handleEnroll}
-              disabled={enrolling}
-              className="btn btn-primary"
-              style={{
-                width: '100%',
-                maxWidth: '280px',
-                padding: '14px 28px',
-                fontSize: '16px',
-                fontWeight: '600'
-              }}
-            >
-              {enrolling ? 'Enrolling...' : (course.price > 0 ? 'Enroll Now' : 'Start Learning Free')}
-            </button>
+            {isAuthenticated && user?.role === 'student' && !isEnrolled && <VoucherPreview key={courseId} courseId={courseId} />}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleEnroll}
+                disabled={enrolling}
+                className="btn btn-primary"
+                style={{
+                  flex: 1,
+                  minWidth: '200px',
+                  maxWidth: '280px',
+                  padding: '14px 28px',
+                  fontSize: '16px',
+                  fontWeight: '600'
+                }}
+              >
+                {enrolling
+                  ? 'Processing...'
+                  : isEnrolled
+                  ? '▶ Continue Learning'
+                  : course.price > 0
+                  ? 'Enroll Now'
+                  : 'Start Learning Free'}
+              </button>
+              <button
+                onClick={handleAddToWishlist}
+                disabled={addingWishlist}
+                className="btn btn-secondary"
+                style={{
+                  padding: '14px 20px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {addingWishlist ? 'Saving...' : isEnrolled ? '✓ Already Enrolled' : '💖 Add to Wishlist'}
+              </button>
+            </div>
+
           </div>
 
           <div>
@@ -258,6 +348,7 @@ export default function PublicCourseDetailPage() {
             </div>
           </div>
         )}
+        <ReviewsPanel key={courseId} courseId={courseId} onRatingChange={(averageRating) => setCourse((current) => ({ ...current, averageRating }))} />
       </main>
     </div>
   );
