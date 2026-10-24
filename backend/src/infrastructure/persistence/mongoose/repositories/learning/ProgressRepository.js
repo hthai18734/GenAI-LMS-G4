@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const Progress = require('../../model/learning/Progress');
+const Progress = require('../../../../../model/learning/Progress');
 
-class ProgressDAO {
+class ProgressRepository {
   async findByUserId(userId) {
     if (!mongoose.isValidObjectId(userId)) return [];
     return Progress.find({ userId })
@@ -31,13 +31,19 @@ class ProgressDAO {
       .exec();
   }
 
-  async upsertProgress(userId, courseId, lessonId, status = 'completed') {
+  async upsertProgress(userId, courseId, lessonId, status = 'completed', options = {}) {
+    const update = {
+      status,
+      completedAt: status === 'completed' ? new Date() : null,
+    };
+    if (options.source) update.source = options.source;
+    if (options.lastPositionSec !== undefined) update.lastPositionSec = options.lastPositionSec;
     return Progress.findOneAndUpdate(
       { userId, courseId, lessonId },
-      { status, completedAt: status === 'completed' ? new Date() : null },
+      update,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
 }
 
-module.exports = new ProgressDAO();
+module.exports = new ProgressRepository();

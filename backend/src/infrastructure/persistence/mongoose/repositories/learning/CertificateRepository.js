@@ -1,19 +1,24 @@
 const mongoose = require('mongoose');
-const Certificate = require('../../model/learning/Certificate');
+require('../../../../../model/learning/Course');
+require('../../../../../model/learning/Enrollment');
+const Certificate = require('../../../../../model/learning/Certificate');
 
-class CertificateDAO {
+class CertificateRepository {
   async findByUserId(userId) {
     if (!mongoose.isValidObjectId(userId)) return [];
-    return Certificate.find({ userId })
+    const certs = await Certificate.find({ userId })
       .populate('courseId')
       .populate('enrollmentId')
       .sort({ issuedAt: -1 })
       .exec();
+    return certs.filter((c) => c.courseId && !c.courseId.deletedAt);
   }
 
   async findOneByCourse(userId, courseId) {
     if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(courseId)) return null;
-    return Certificate.findOne({ userId, courseId }).populate('courseId').populate('enrollmentId').exec();
+    const cert = await Certificate.findOne({ userId, courseId }).populate('courseId').populate('enrollmentId').exec();
+    if (!cert || !cert.courseId || cert.courseId.deletedAt) return null;
+    return cert;
   }
 
   async issueCertificate(userId, courseId, enrollmentId) {
@@ -24,4 +29,4 @@ class CertificateDAO {
   }
 }
 
-module.exports = new CertificateDAO();
+module.exports = new CertificateRepository();

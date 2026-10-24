@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const Notification = require('../../model/engagement/Notification');
+const Notification = require('../../../../../model/engagement/Notification');
 
-class NotificationDAO {
+class NotificationRepository {
   /**
    * Create new notification (UC-5.1, UC-5.2)
    */
@@ -12,10 +12,11 @@ class NotificationDAO {
   /**
    * Find notifications for a specific user
    */
-  async findByRecipient(recipientId, { limit = 20 } = {}) {
+  async findByRecipient(recipientId, { limit = 20, skip = 0 } = {}) {
     if (!mongoose.isValidObjectId(recipientId)) return [];
     return Notification.find({ recipientId })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
       .limit(limit)
       .exec();
   }
@@ -23,10 +24,15 @@ class NotificationDAO {
   /**
    * Mark notification as read
    */
-  async markAsRead(id) {
-    if (!mongoose.isValidObjectId(id)) return null;
-    return Notification.findByIdAndUpdate(id, { isRead: true }, { new: true }).exec();
+  async markAsRead(id, recipientId) {
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(recipientId)) return null;
+    return Notification.findOneAndUpdate({ _id: id, recipientId }, { $set: { isRead: true } }, { new: true }).exec();
   }
+  async remove(id, recipientId) {
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(recipientId)) return null;
+    return Notification.findOneAndDelete({ _id: id, recipientId }).exec();
+  }
+  async count(recipientId) { return Notification.countDocuments({ recipientId }).exec(); }
 
   /**
    * Count unread notifications
@@ -45,4 +51,4 @@ class NotificationDAO {
   }
 }
 
-module.exports = new NotificationDAO();
+module.exports = new NotificationRepository();

@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
-const NotificationPreference = require('../../model/learning/NotificationPreference');
+const NotificationPreference = require('../../../../../model/learning/NotificationPreference');
 
-class NotificationPreferenceDAO {
+class NotificationPreferenceRepository {
   async findByUserId(userId) {
     if (!mongoose.isValidObjectId(userId)) return [];
-    return NotificationPreference.find({ userId }).sort({ type: 1 }).exec();
+    return NotificationPreference.find({ userId, type: { $in: NotificationPreference.NOTIFICATION_TYPES } }).sort({ type: 1 }).exec();
   }
 
   async upsertPreference(userId, type, enabled) {
@@ -34,4 +34,4 @@ class NotificationPreferenceDAO {
   }
 }
 
-module.exports = new NotificationPreferenceDAO();
+module.exports = new NotificationPreferenceRepository();
