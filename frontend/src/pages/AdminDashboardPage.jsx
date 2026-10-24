@@ -1,8 +1,13 @@
+/**
+ * Author: ThienDDN - CE182101 / Team
+ * Created at: 01/10/2026
+ * Description: Unified Admin Dashboard & Analytics Control Center
+ */
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { adminService } from '../services/api';
+import { adminService } from '../features/admin/api.js';
 import { useToast } from '../components/Toast';
-import { useAuth } from '../services/AuthContext';
+import { useAuth } from '../features/auth/useAuth.js';
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState(null);
@@ -22,17 +27,15 @@ export default function AdminDashboardPage() {
       const res = await adminService.getDashboard();
       setData(res.data || null);
       if (isManualRefresh) {
-        addToast('Dữ liệu dashboard đã được cập nhật!', 'success');
+        addToast('Dashboard data refreshed!', 'success');
       }
     } catch (err) {
       console.warn('Dashboard API failed, attempting fallback aggregations...', err);
-
+      // Fallback: try querying available endpoints concurrently
       try {
         const [appsRes, coursesRes, catRes] = await Promise.all([
           adminService.getTeacherApplications().catch(() => ({ data: { applications: [] } })),
-          adminService
-            .getModerationCourses('status=PENDING_REVIEW')
-            .catch(() => ({ data: { courses: [] } })),
+          adminService.getModerationCourses('status=PENDING_REVIEW').catch(() => ({ data: { courses: [] } })),
           adminService.getCategories().catch(() => ({ data: { categories: [] } })),
         ]);
 
@@ -63,7 +66,7 @@ export default function AdminDashboardPage() {
           recentUsers: [],
         });
       } catch (fallbackErr) {
-        setError(err.message || 'Không thể tải thông tin thống kê admin.');
+        setError(err.message || 'Unable to load admin statistics.');
       }
     } finally {
       setLoading(false);
@@ -88,7 +91,7 @@ export default function AdminDashboardPage() {
       <div className="page-error" style={{ margin: '30px' }}>
         <span>{error}</span>
         <button className="primary" onClick={() => loadDashboardData()}>
-          Thử lại
+          Try Again
         </button>
       </div>
     );
@@ -97,21 +100,14 @@ export default function AdminDashboardPage() {
   const metrics = data?.metrics || {};
   const users = metrics.users || { total: 0, students: 0, teachers: 0, admins: 0 };
   const applications = metrics.applications || { pending: 0, approved: 0, rejected: 0, total: 0 };
-  const courses = metrics.courses || {
-    PENDING_REVIEW: 0,
-    APPROVED: 0,
-    PUBLIC: 0,
-    DRAFT: 0,
-    REJECTED: 0,
-    ARCHIVED: 0,
-    total: 0,
-  };
+  const courses = metrics.courses || { PENDING_REVIEW: 0, APPROVED: 0, PUBLIC: 0, DRAFT: 0, REJECTED: 0, ARCHIVED: 0, total: 0 };
   const categories = metrics.categories || { total: 0 };
 
   const recentApps = data?.recentApplications || [];
   const recentCourses = data?.recentPendingCourses || [];
   const recentUsers = data?.recentUsers || [];
 
+  // Compute percentages for distribution bars
   const totalUsersCount = users.total || 1;
   const studentPct = Math.round((users.students / totalUsersCount) * 100);
   const teacherPct = Math.round((users.teachers / totalUsersCount) * 100);
@@ -124,15 +120,15 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="admin-dashboard">
+      {/* ─── 1. Hero Header Banner ─────────────────────────────────── */}
       <section className="admin-hero-banner">
         <div className="admin-hero-content">
           <h1>
-            <span>Trung tâm quản trị AI-LMS</span>
-            <span className="admin-hero-badge">Hệ thống sẵn sàng</span>
+            <span>AI-LMS Admin Center</span>
+            <span className="admin-hero-badge">System Ready</span>
           </h1>
           <p>
-            Xin chào <strong>{user?.fullName || 'Admin'}</strong>! Theo dõi trạng thái hoạt động,
-            phê duyệt giảng viên và kiểm duyệt khóa học theo thời gian thực.
+            Hello <strong>{user?.fullName || 'Admin'}</strong>! Monitor activity, review teacher applications, and moderate courses in real time.
           </p>
         </div>
         <div className="admin-hero-actions">
@@ -141,33 +137,30 @@ export default function AdminDashboardPage() {
             disabled={refreshing}
             onClick={() => loadDashboardData(true)}
           >
-            {refreshing ? 'Đang cập nhật…' : '🔄 Làm mới dữ liệu'}
+            {refreshing ? 'Refreshing…' : '🔄 Refresh Data'}
           </button>
         </div>
       </section>
 
+      {/* ─── 2. Top KPI Cards ──────────────────────────────────────── */}
       <section className="admin-kpi-grid">
-        <div
-          className="admin-kpi-card"
-          onClick={() => navigate('/admin/categories')}
-          style={{ cursor: 'pointer' }}
-        >
+        {/* KPI 1: Users */}
+        <div className="admin-kpi-card" onClick={() => navigate('/admin/categories')} style={{ cursor: 'pointer' }}>
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon purple">👥</div>
-            <span className="admin-kpi-badge info">{users.students} Học viên</span>
+            <span className="admin-kpi-badge info">{users.students} Students</span>
           </div>
           <div>
             <div className="admin-kpi-value">{users.total}</div>
-            <div className="admin-kpi-label">Tổng người dùng hệ thống</div>
+            <div className="admin-kpi-label">Total Users</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>
-              {users.teachers} Giảng viên · {users.admins} Admin
-            </span>
+            <span>{users.teachers} Teachers · {users.admins} Admins</span>
             <span>→</span>
           </div>
         </div>
 
+        {/* KPI 2: Teacher Applications */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/admin/teacher-applications')}
@@ -176,21 +169,20 @@ export default function AdminDashboardPage() {
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon amber">👨‍🏫</div>
             <span className={`admin-kpi-badge ${applications.pending > 0 ? 'alert' : 'success'}`}>
-              {applications.pending > 0 ? `${applications.pending} Chờ duyệt` : 'Đã duyệt hết'}
+              {applications.pending > 0 ? `${applications.pending} Pending Review` : 'All Reviewed'}
             </span>
           </div>
           <div>
             <div className="admin-kpi-value">{applications.pending}</div>
-            <div className="admin-kpi-label">Đơn ứng tuyển giảng viên</div>
+            <div className="admin-kpi-label">Teacher Applications</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>
-              {applications.approved} Đã duyệt · {applications.rejected} Từ chối
-            </span>
-            <span>Xét duyệt →</span>
+            <span>{applications.approved} Approved · {applications.rejected} Rejected</span>
+            <span>Review →</span>
           </div>
         </div>
 
+        {/* KPI 3: Course Moderation */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/admin/moderation')}
@@ -199,19 +191,20 @@ export default function AdminDashboardPage() {
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon emerald">🛡️</div>
             <span className={`admin-kpi-badge ${courses.PENDING_REVIEW > 0 ? 'alert' : 'info'}`}>
-              {courses.PENDING_REVIEW > 0 ? `${courses.PENDING_REVIEW} Chờ duyệt` : 'Sạch sẽ'}
+              {courses.PENDING_REVIEW > 0 ? `${courses.PENDING_REVIEW} Pending Review` : 'All Clear'}
             </span>
           </div>
           <div>
             <div className="admin-kpi-value">{courses.PENDING_REVIEW || 0}</div>
-            <div className="admin-kpi-label">Khóa học chờ kiểm duyệt</div>
+            <div className="admin-kpi-label">Courses Pending Review</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>{courses.PUBLIC || 0} Đã phát hành</span>
-            <span>Kiểm duyệt →</span>
+            <span>{courses.PUBLIC || 0} Published</span>
+            <span>Moderate →</span>
           </div>
         </div>
 
+        {/* KPI 4: Categories */}
         <div
           className="admin-kpi-card"
           onClick={() => navigate('/admin/categories')}
@@ -219,54 +212,57 @@ export default function AdminDashboardPage() {
         >
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon blue">🏷️</div>
-            <span className="admin-kpi-badge info">Đang dùng</span>
+            <span className="admin-kpi-badge info">Active</span>
           </div>
           <div>
             <div className="admin-kpi-value">{categories.total || 0}</div>
-            <div className="admin-kpi-label">Danh mục khóa học</div>
+            <div className="admin-kpi-label">Course Categories</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>Cấu hình & phân loại môn</span>
-            <span>Quản lý →</span>
+            <span>Organize Course Categories</span>
+            <span>Manage →</span>
           </div>
         </div>
       </section>
 
+      {/* ─── 3. Quick Action Shortcuts ──────────────────────────────── */}
       <section className="admin-shortcuts-card">
         <div className="admin-shortcuts-title">
-          <span>⚡ Phím tắt tác vụ nhanh</span>
+          <span>⚡ Quick Actions</span>
         </div>
         <div className="admin-shortcuts-links">
           <Link to="/admin/teacher-applications" className="admin-shortcut-btn primary">
-            👨‍🏫 Duyệt đơn giảng viên {applications.pending > 0 && `(${applications.pending})`}
+            👨‍🏫 Review Teacher Applications {applications.pending > 0 && `(${applications.pending})`}
           </Link>
           <Link to="/admin/moderation" className="admin-shortcut-btn primary">
-            🛡️ Kiểm duyệt khóa học {courses.PENDING_REVIEW > 0 && `(${courses.PENDING_REVIEW})`}
+            🛡️ Course Moderation {courses.PENDING_REVIEW > 0 && `(${courses.PENDING_REVIEW})`}
           </Link>
           <Link to="/admin/categories" className="admin-shortcut-btn secondary">
-            🏷️ Thêm & Sửa Danh mục
+            🏷️ Add & Edit Categories
           </Link>
         </div>
       </section>
 
+      {/* ─── 4. Main Split Grid: Pending Queues ────────────────────── */}
       <section className="admin-split-grid">
+        {/* Panel 1: Pending Teacher Applications */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
-              <h3>Đơn ứng tuyển giáo viên mới</h3>
+              <h3>Recent Teacher Applications</h3>
               <span className={`admin-panel-count ${applications.pending > 0 ? 'alert' : ''}`}>
-                {applications.pending} chờ xử lý
+                {applications.pending} pending
               </span>
             </div>
             <Link to="/admin/teacher-applications" className="admin-panel-viewall">
-              Xem tất cả →
+              View all →
             </Link>
           </div>
           <div className="admin-panel-list">
             {recentApps.length === 0 ? (
               <div className="admin-empty-panel">
                 <span className="admin-empty-icon">🎉</span>
-                <p>Không có đơn ứng tuyển nào đang chờ duyệt!</p>
+                <p>No teacher applications are awaiting review!</p>
               </div>
             ) : (
               recentApps.map((app) => (
@@ -276,16 +272,13 @@ export default function AdminDashboardPage() {
                       {(app.userId?.fullName || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div className="admin-item-meta">
-                      <strong>{app.userId?.fullName || 'Ứng viên'}</strong>
-                      <span>
-                        {app.userId?.email || 'Chưa có email'} ·{' '}
-                        {app.bio ? app.bio.slice(0, 38) + '…' : 'Chưa có tiểu sử'}
-                      </span>
+                      <strong>{app.userId?.fullName || 'Applicant'}</strong>
+                      <span>{app.userId?.email || 'No email'} · {app.bio ? app.bio.slice(0, 38) + '…' : 'No bio'}</span>
                     </div>
                   </div>
                   <div className="admin-item-action">
                     <Link to="/admin/teacher-applications" className="admin-quick-action-btn">
-                      Xem xét
+                      Review
                     </Link>
                   </div>
                 </div>
@@ -294,45 +287,42 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Panel 2: Courses Pending Moderation */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
-              <h3>Khóa học chờ kiểm duyệt</h3>
+              <h3>Courses Pending Review</h3>
               <span className={`admin-panel-count ${courses.PENDING_REVIEW > 0 ? 'alert' : ''}`}>
-                {courses.PENDING_REVIEW || 0} bài chờ
+                {courses.PENDING_REVIEW || 0} pending
               </span>
             </div>
             <Link to="/admin/moderation" className="admin-panel-viewall">
-              Xem hàng chờ →
+              View Queue →
             </Link>
           </div>
           <div className="admin-panel-list">
             {recentCourses.length === 0 ? (
               <div className="admin-empty-panel">
                 <span className="admin-empty-icon">✨</span>
-                <p>Tất cả khóa học đã được duyệt hoặc chưa có bài mới!</p>
+                <p>All courses have been reviewed, or no new courses have been submitted!</p>
               </div>
             ) : (
               recentCourses.map((course) => (
                 <div className="admin-panel-item" key={course._id}>
                   <div className="admin-item-info">
-                    <div
-                      className="admin-item-avatar"
-                      style={{ background: '#d1fae5', color: '#059669' }}
-                    >
+                    <div className="admin-item-avatar" style={{ background: '#d1fae5', color: '#059669' }}>
                       📚
                     </div>
                     <div className="admin-item-meta">
                       <strong>{course.title}</strong>
                       <span>
-                        GV: {course.teacherId?.fullName || 'Chưa rõ'} ·{' '}
-                        {course.category || 'Môn học'}
+                        Teacher: {course.teacherId?.fullName || 'Unknown'} · {course.category || 'Subject'}
                       </span>
                     </div>
                   </div>
                   <div className="admin-item-action">
                     <Link to="/admin/moderation" className="admin-quick-action-btn">
-                      Duyệt ngay
+                      Review Now
                     </Link>
                   </div>
                 </div>
@@ -342,21 +332,21 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
+      {/* ─── 5. Analytics & Distribution ───────────────────────────── */}
       <section className="admin-analytics-grid">
+        {/* Distribution Card 1: Users */}
         <div className="admin-chart-card">
           <div className="admin-chart-title">
-            <span>Cơ cấu người dùng nền tảng</span>
+            <span>User Distribution</span>
             <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>
-              Tổng: {users.total} thành viên
+              Total: {users.total} members
             </span>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Học viên (Students)</span>
-              <span>
-                {users.students} ({studentPct}%)
-              </span>
+              <span>Students</span>
+              <span>{users.students} ({studentPct}%)</span>
             </div>
             <div className="admin-stat-bar">
               <div className="admin-stat-fill purple" style={{ width: `${studentPct}%` }}></div>
@@ -365,10 +355,8 @@ export default function AdminDashboardPage() {
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Giảng viên (Teachers)</span>
-              <span>
-                {users.teachers} ({teacherPct}%)
-              </span>
+              <span>Teachers</span>
+              <span>{users.teachers} ({teacherPct}%)</span>
             </div>
             <div className="admin-stat-bar">
               <div className="admin-stat-fill emerald" style={{ width: `${teacherPct}%` }}></div>
@@ -377,10 +365,8 @@ export default function AdminDashboardPage() {
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Quản trị viên (Admins)</span>
-              <span>
-                {users.admins} ({adminPct}%)
-              </span>
+              <span>Admins</span>
+              <span>{users.admins} ({adminPct}%)</span>
             </div>
             <div className="admin-stat-bar">
               <div className="admin-stat-fill blue" style={{ width: `${adminPct}%` }}></div>
@@ -388,77 +374,64 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Distribution Card 2: Course Lifecycle Status */}
         <div className="admin-chart-card">
           <div className="admin-chart-title">
-            <span>Vòng đời khóa học trên AI-LMS</span>
+            <span>Course Status Distribution</span>
             <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>
-              Tổng: {courses.total || 0} khóa
+              Total: {courses.total || 0} courses
             </span>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Đã phát hành công khai</span>
-              <span>
-                {courses.PUBLIC || 0} ({publishedCoursesPct}%)
-              </span>
+              <span>Published</span>
+              <span>{courses.PUBLIC || 0} ({publishedCoursesPct}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill emerald"
-                style={{ width: `${publishedCoursesPct}%` }}
-              ></div>
+              <div className="admin-stat-fill emerald" style={{ width: `${publishedCoursesPct}%` }}></div>
             </div>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Đang chờ duyệt (Pending)</span>
-              <span>
-                {courses.PENDING_REVIEW || 0} ({pendingCoursesPct}%)
-              </span>
+              <span>Pending Review</span>
+              <span>{courses.PENDING_REVIEW || 0} ({pendingCoursesPct}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill amber"
-                style={{ width: `${pendingCoursesPct}%` }}
-              ></div>
+              <div className="admin-stat-fill amber" style={{ width: `${pendingCoursesPct}%` }}></div>
             </div>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Bản nháp của giảng viên (Draft)</span>
-              <span>
-                {courses.DRAFT || 0} ({draftCoursesPct}%)
-              </span>
+              <span>Draft</span>
+              <span>{courses.DRAFT || 0} ({draftCoursesPct}%)</span>
             </div>
             <div className="admin-stat-bar">
-              <div
-                className="admin-stat-fill purple"
-                style={{ width: `${draftCoursesPct}%` }}
-              ></div>
+              <div className="admin-stat-fill purple" style={{ width: `${draftCoursesPct}%` }}></div>
             </div>
           </div>
         </div>
       </section>
 
+      {/* ─── 6. Recent Registered Users Table ─────────────────────── */}
       {recentUsers.length > 0 && (
         <section className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
-              <h3>Tài khoản đăng ký gần đây</h3>
+              <h3>Recently Registered Accounts</h3>
             </div>
           </div>
           <div className="table-wrap">
             <table className="admin-recent-users-table">
               <thead>
                 <tr>
-                  <th>Họ và tên</th>
+                  <th>Full Name</th>
                   <th>Email</th>
-                  <th>Vai trò</th>
-                  <th>Trạng thái</th>
-                  <th>Ngày tạo</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Created</th>
                 </tr>
               </thead>
               <tbody>
@@ -472,14 +445,12 @@ export default function AdminDashboardPage() {
                       <span className={`role-pill ${u.role}`}>{u.role}</span>
                     </td>
                     <td>
-                      <span
-                        className={`status-badge status-${u.status === 'active' ? 'open' : 'draft'}`}
-                      >
+                      <span className={`status-badge status-${u.status === 'active' ? 'open' : 'draft'}`}>
                         {u.status}
                       </span>
                     </td>
                     <td style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : '—'}
+                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US') : '—'}
                     </td>
                   </tr>
                 ))}
