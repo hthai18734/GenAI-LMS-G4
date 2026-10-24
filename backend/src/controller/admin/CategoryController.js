@@ -1,5 +1,10 @@
+/**
+Author: HuyTG - CE182405
+Created at: 01/10/2026
+Description: Category Management
+ */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const CategoryService = require('../../service/learning/CategoryService');
+const { categoryService: CategoryService } = require('../../composition/services');
 const CreateCategoryDTO = require('../../dto/category/CreateCategoryDTO');
 const UpdateCategoryDTO = require('../../dto/category/UpdateCategoryDTO');
 
