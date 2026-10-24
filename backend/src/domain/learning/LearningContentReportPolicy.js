@@ -1,0 +1,13 @@
+const ISSUE_TYPES = Object.freeze([
+  'BROKEN_VIDEO',
+  'BROKEN_FILE',
+  'INCORRECT_CONTENT',
+  'OUTDATED_CONTENT',
+  'AUDIO_ISSUE',
+  'TYPO_ERROR',
+  'WRONG_ANSWER',
+  'OTHER',
+]);
+const REPORT_STATUSES = Object.freeze(['OPEN', 'IN_REVIEW', 'RESOLVED', 'REJECTED']);
+
+module.exports = { ISSUE_TYPES, REPORT_STATUSES };
