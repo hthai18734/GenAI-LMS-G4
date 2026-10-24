@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useAuth } from '../services/AuthContext';
-import { authService } from '../services/api';
+import { useAuth } from '../features/auth/useAuth.js';
+import { authService, clearSession } from '../features/auth/api.js';
 import { useToast } from '../components/Toast';
+import PasswordInput from '../components/PasswordInput';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -12,17 +13,21 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  const noticeSearchRef = useRef(null);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !new URLSearchParams(location.search).has('error')) {
       navigate(user?.role === 'teacher' ? '/teacher/dashboard' : user?.role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
     }
-  }, [isAuthenticated, navigate, user]);
+  }, [isAuthenticated, navigate, user, location.search]);
 
   useEffect(() => {
+    if (noticeSearchRef.current === location.search) return;
+    noticeSearchRef.current = location.search;
     const params = new URLSearchParams(location.search);
     const errorParam = params.get('error');
     if (errorParam) {
+      clearSession();
       addToast(errorParam, 'error');
     }
     const notice = sessionStorage.getItem('ai_lms_auth_notice');
@@ -35,7 +40,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      addToast('Vui lòng nhập đầy đủ email và mật khẩu.', 'error');
+      addToast('Please enter your email and password.', 'error');
       return;
     }
 
@@ -44,11 +49,18 @@ export default function LoginPage() {
       const res = await authService.login(email.trim(), password);
       if (res.data) {
         login(res.data);
-        addToast('Đăng nhập thành công! Chào mừng bạn trở lại.', 'success');
+        addToast('Signed in successfully! Welcome back.', 'success');
         navigate(res.data.user?.role === 'teacher' ? '/teacher/dashboard' : res.data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
       }
     } catch (err) {
-      addToast(err.message || 'Email hoặc mật khẩu không chính xác.', 'error');
+      if (err.errors?.requiresEmailVerification) {
+        const pendingEmail = err.errors.email;
+        sessionStorage.setItem('ai_lms_pending_email', pendingEmail);
+        addToast(err.message, 'info');
+        navigate('/verify-otp', { state: { email: pendingEmail } });
+        return;
+      }
+      addToast(err.message || 'Incorrect email or password.', 'error');
     } finally {
       setLoading(false);
     }
@@ -96,9 +108,8 @@ export default function LoginPage() {
 
           <label>
             Password <span className="required-mark" aria-hidden="true">*</span>
-            <input
+            <PasswordInput
               name="password"
-              type="password"
               autoComplete="current-password"
               required
               value={password}
@@ -120,6 +131,9 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
+        <p className="auth-switch">
+          <Link to="/request-password-reset">Forgot password?</Link>
+        </p>
         <p className="auth-switch">
           Need an account? <Link to="/register">Register</Link>
         </p>

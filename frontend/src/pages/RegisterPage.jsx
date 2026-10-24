@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { authService } from '../services/api';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import PasswordInput from '../components/PasswordInput';
+import { authService } from '../features/auth/api.js';
 import { useToast } from '../components/Toast';
 
 export default function RegisterPage() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const googleRegistrationRequired = params.get('reason') === 'google_registration_required';
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
-    email: '',
+    email: googleRegistrationRequired ? (params.get('email') || '') : '',
     password: '',
     confirmPassword: '',
   });
@@ -79,6 +83,11 @@ export default function RegisterPage() {
           Create your AI-LMS account
         </h1>
         <p className="subtitle">Your account will be activated after OTP verification.</p>
+        {googleRegistrationRequired && (
+          <p className="page-error" role="alert">
+            No account exists for this Google email. Register with your email and a password, then verify your email with OTP. You can sign in with Google after completing registration.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} data-mode="register">
           <label>
@@ -121,9 +130,8 @@ export default function RegisterPage() {
 
           <label>
             Password <span className="required-mark" aria-hidden="true">*</span>
-            <input
+            <PasswordInput
               name="password"
-              type="password"
               autoComplete="new-password"
               minLength={8}
               maxLength={15}
@@ -135,9 +143,8 @@ export default function RegisterPage() {
 
           <label>
             Confirm password <span className="required-mark" aria-hidden="true">*</span>
-            <input
+            <PasswordInput
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               minLength={8}
               maxLength={15}
