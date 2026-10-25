@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: UC-4.4 View Learning History
+ */
 
 class LearningHistoryQueryDTO {
   constructor({ user = {} } = {}) {

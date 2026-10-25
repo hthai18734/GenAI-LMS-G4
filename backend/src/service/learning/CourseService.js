@@ -1,25 +1,35 @@
-const mongoose = require('mongoose');
-const CourseDAO = require('../../dao/learning/CourseDAO');
-const CategoryDAO = require('../../dao/learning/CategoryDAO');
-const LessonDAO = require('../../dao/learning/LessonDAO');
-const { COURSE_STATUS, canTransition } = require('../../model/learning/CourseStatus');
+/**
+Author: HuyTG - CE182405
+Created at: 29/09/2026
+Description: Course Management
+ */
+const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
+const LoggerUtil = require('../../utils/common/LoggerUtil');
+const { COURSE_STATUS, canTransition } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class CourseService {
+  constructor({ courseRepository, categoryRepository, lessonRepository, materialRepository, courseCleanupRepository } = {}) {
+    this.courseRepository = courseRepository;
+    this.categoryRepository = categoryRepository;
+    this.lessonRepository = lessonRepository;
+    this.materialRepository = materialRepository;
+    this.courseCleanupRepository = courseCleanupRepository;
+  }
   assertValidId(id, field = 'Course') {
-    if (!mongoose.isValidObjectId(id)) throw new ServiceError(400, `${field} ID is invalid.`);
+    if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} ID is invalid.`);
   }
 
   async createCourse(user, dto) {
     const data = dto.toObject();
     await this.resolveCategory(data);
-    return CourseDAO.create({ ...data, teacherId: user._id, status: COURSE_STATUS.DRAFT });
+    return this.courseRepository.create({ ...data, teacherId: user._id, status: COURSE_STATUS.DRAFT });
   }
 
   async getTeacherCourses(user, queryDto) {
-    const result = await CourseDAO.findAllByTeacher(user._id, queryDto.toObject());
+    const result = await this.courseRepository.findAllByTeacher(user._id, queryDto.toObject());
     const courses = await Promise.all(result.courses.map(async (course) => {
-      const lessonCount = await LessonDAO.countValidByCourseId(course._id);
+      const lessonCount = await this.lessonRepository.countValidByCourseId(course._id);
       const serialized = typeof course.toObject === 'function' ? course.toObject() : course;
       return { ...serialized, lessonCount, contentComplete: this.isMetadataComplete(course) && lessonCount > 0 };
     }));
@@ -32,14 +42,14 @@ class CourseService {
 
   async getOwnedCourse(courseId, user) {
     this.assertValidId(courseId);
-    const course = await CourseDAO.findById(courseId);
+    const course = await this.courseRepository.findById(courseId);
     if (!course) throw new ServiceError(404, 'Course not found.');
     this.assertTeacherOwnsCourse(course, user);
     return course;
   }
 
   assertTeacherOwnsCourse(course, user) {
-    if (String(course.teacherId) !== String(user._id)) throw new ServiceError(403, 'You do not have permission to access this course.');
+    if (String(course.teacherId) !== String(user._id)) throw new ServiceError(403, 'You do not have permission to perform this action.');
   }
 
   async updateCourse(courseId, user, dto) {
@@ -47,13 +57,24 @@ class CourseService {
     this.assertContentEditable(course);
     const updates = dto.toObject();
     await this.resolveCategory(updates, course);
-    return CourseDAO.update(courseId, updates);
+    return this.courseRepository.update(courseId, updates);
   }
 
   async deleteCourse(courseId, user) {
     const course = await this.getOwnedCourse(courseId, user);
     if (course.status === COURSE_STATUS.PENDING_REVIEW) throw new ServiceError(409, 'A course pending review cannot be deleted.');
-    return CourseDAO.softDelete(courseId);
+
+    // Soft-delete the course
+    const deletedCourse = await this.courseRepository.softDelete(courseId);
+
+    // Persistence-specific cleanup is isolated behind the Repository boundary.
+    try {
+      await this.courseCleanupRepository.removeAssociatedData(courseId);
+    } catch (cleanupError) {
+      LoggerUtil.error('Cascading course deletion failed', cleanupError, { courseId });
+    }
+
+    return deletedCourse;
   }
 
   async submitForReview(courseId, user) {
@@ -105,7 +126,7 @@ class CourseService {
   }
 
   async transitionCourse(course, targetStatus, updates = {}) {
-    const updated = await CourseDAO.transitionStatus(course._id, course.status, { ...updates, status: targetStatus });
+    const updated = await this.courseRepository.transitionStatus(course._id, course.status, { ...updates, status: targetStatus });
     if (!updated) throw new ServiceError(409, 'The course status changed while the request was being processed. Please try again.');
     return updated;
   }
@@ -118,7 +139,7 @@ class CourseService {
     if (!this.isMetadataComplete(course)) {
       throw new ServiceError(400, 'Course title and description are required before this action.');
     }
-    const validLessonCount = await LessonDAO.countValidByCourseId(course._id);
+    const validLessonCount = await this.lessonRepository.countValidByCourseId(course._id);
     if (validLessonCount < 1) {
       throw new ServiceError(400, 'The course must contain at least one lesson with a title and content before this action.');
     }
@@ -126,31 +147,34 @@ class CourseService {
 
   async listLessons(courseId, user) {
     await this.getOwnedCourse(courseId, user);
-    return LessonDAO.findByCourseId(courseId);
+    return this.lessonRepository.findByCourseId(courseId);
   }
 
   async createLesson(courseId, user, dto) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
-    return LessonDAO.create({ ...dto.toObject(), courseId });
+    return this.lessonRepository.create({ ...dto.toObject(), courseId });
   }
 
   async updateLesson(courseId, lessonId, user, dto) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
     this.assertValidId(lessonId, 'Lesson');
-    const lesson = await LessonDAO.findById(lessonId);
+    const lesson = await this.lessonRepository.findById(lessonId);
     if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
-    return LessonDAO.update(lessonId, dto.toObject());
+    return this.lessonRepository.update(lessonId, dto.toObject());
   }
 
   async deleteLesson(courseId, lessonId, user) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
     this.assertValidId(lessonId, 'Lesson');
-    const lesson = await LessonDAO.findById(lessonId);
+    const lesson = await this.lessonRepository.findById(lessonId);
     if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
-    return LessonDAO.remove(lessonId);
+    await this.materialRepository.softDeleteByLessonId(lessonId);
+    await this.lessonRepository.softDelete(lessonId);
+    await this.lessonRepository.normalizeOrder(course._id);
+    return true;
   }
 
   assertContentEditable(course) {
@@ -165,10 +189,10 @@ class CourseService {
       if (!data.category && existingCourse?.categoryId) data.category = null;
       return;
     }
-    const category = await CategoryDAO.findActiveById(data.categoryId);
+    const category = await this.categoryRepository.findActiveById(data.categoryId);
     if (!category) throw new ServiceError(400, 'Selected category does not exist or is inactive.');
     data.category = category.name;
   }
 }
 
-module.exports = new CourseService();
+module.exports = CourseService;

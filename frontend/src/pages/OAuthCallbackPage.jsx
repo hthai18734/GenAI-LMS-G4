@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { authService, getToken } from '../services/api';
-import { useAuth } from '../services/AuthContext';
+import { authService, clearSession, getToken, getUser } from '../features/auth/api.js';
+import { useAuth } from '../features/auth/useAuth.js';
 import { useToast } from '../components/Toast';
 
 export default function OAuthCallbackPage() {
@@ -9,19 +9,20 @@ export default function OAuthCallbackPage() {
   const location = useLocation();
   const { login } = useAuth();
   const { addToast } = useToast();
-  const executedRef = useRef(false);
+  const executedRef = useRef(null);
 
   useEffect(() => {
     // Prevent double invocation in React StrictMode
-    if (executedRef.current) return;
-    executedRef.current = true;
+    if (executedRef.current === location.search) return;
+    executedRef.current = location.search;
 
     const handleExchange = async () => {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(location.search);
       const code = params.get('code');
       const oauthError = params.get('error');
 
       if (oauthError) {
+        clearSession();
         addToast(oauthError, 'error');
         navigate('/login', { replace: true });
         return;
@@ -29,7 +30,8 @@ export default function OAuthCallbackPage() {
 
       if (!code) {
         if (getToken()) {
-          navigate('/dashboard', { replace: true });
+          const role = getUser()?.role;
+          navigate(role === 'teacher' ? '/teacher/dashboard' : role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
         } else {
           navigate('/login', { replace: true });
         }
@@ -46,18 +48,14 @@ export default function OAuthCallbackPage() {
           throw new Error('No user data returned.');
         }
       } catch (err) {
-        // If already authenticated by concurrent call, proceed to dashboard
-        if (getToken()) {
-          navigate('/dashboard', { replace: true });
-          return;
-        }
+        clearSession();
         addToast(err.message || 'Google sign-in failed. Please try again.', 'error');
         navigate('/login', { replace: true });
       }
     };
 
     handleExchange();
-  }, []);
+  }, [location.search, login, navigate, addToast]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg)' }}>

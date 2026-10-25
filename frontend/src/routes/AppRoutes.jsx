@@ -18,13 +18,18 @@ import SettingsPage from '../pages/SettingsPage';
 import TeacherCoursesPage from '../pages/TeacherCoursesPage';
 import TeacherCourseFormPage from '../pages/TeacherCourseFormPage';
 import TeacherDashboardPage from '../pages/TeacherDashboardPage';
+import TeacherQuizFormPage from '../pages/TeacherQuizFormPage';
+import TeacherQuizWorkspacePage from '../pages/TeacherQuizWorkspacePage';
+import TeacherAssignmentFormPage from '../pages/TeacherAssignmentFormPage';
+import TeacherAIContentPage from '../pages/TeacherAIContentPage';
 import AdminModerationPage from '../pages/AdminModerationPage';
 import CategoriesPage from '../pages/CategoriesPage';
 import PublicCoursesPage from '../pages/PublicCoursesPage';
 import PublicCourseDetailPage from '../pages/PublicCourseDetailPage';
 import TeacherProfilePage from '../pages/TeacherProfilePage';
+import AdminTeacherApplicationsPage from '../pages/AdminTeacherApplicationsPage';
 import AdminDashboardPage from '../pages/AdminDashboardPage';
-import AdminUsersPage from '../pages/AdminUsersPage';
+import TeacherApplicationPage from '../pages/TeacherApplicationPage';
 
 export default function AppRoutes() {
   return (
@@ -54,6 +59,7 @@ export default function AppRoutes() {
         <Route path="/certificates" element={<CertificatesPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/apply-teacher" element={<TeacherApplicationPage />} />
         <Route path="/account" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
@@ -63,12 +69,16 @@ export default function AppRoutes() {
         <Route path="/teacher/courses" element={<TeacherCoursesPage />} />
         <Route path="/teacher/courses/new" element={<TeacherCourseFormPage />} />
         <Route path="/teacher/courses/:courseId/edit" element={<TeacherCourseFormPage />} />
+        <Route path="/teacher/quizzes/new" element={<TeacherQuizFormPage />} />
+        <Route path="/teacher/quizzes/:quizId" element={<TeacherQuizWorkspacePage />} />
+        <Route path="/teacher/assignments/new" element={<TeacherAssignmentFormPage />} />
+        <Route path="/teacher/ai-content" element={<TeacherAIContentPage />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={['admin']}><Layout /></ProtectedRoute>}>
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/teacher-applications" element={<AdminTeacherApplicationsPage />} />
         <Route path="/admin/moderation" element={<AdminModerationPage />} />
         <Route path="/admin/categories" element={<CategoriesPage />} />
       </Route>

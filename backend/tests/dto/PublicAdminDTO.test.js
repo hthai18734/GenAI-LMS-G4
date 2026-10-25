@@ -1,3 +1,8 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Unit Tests for Public Courses and Admin Teacher Application DTOs
+ */
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,8 +14,9 @@ const FilterCoursesQueryDTO = require('../../src/dto/public/FilterCoursesQueryDT
 const CourseDetailQueryDTO = require('../../src/dto/public/CourseDetailQueryDTO');
 const TeacherProfileQueryDTO = require('../../src/dto/public/TeacherProfileQueryDTO');
 
-const CreateManagedUserDTO = require('../../src/dto/admin/CreateManagedUserDTO');
-const UpdateUserRoleDTO = require('../../src/dto/admin/UpdateUserRoleDTO');
+const TeacherApplicationQueryDTO = require('../../src/dto/admin/TeacherApplicationQueryDTO');
+const ApproveTeacherApplicationDTO = require('../../src/dto/admin/ApproveTeacherApplicationDTO');
+const RejectTeacherApplicationDTO = require('../../src/dto/admin/RejectTeacherApplicationDTO');
 
 // ─── UC-1.1: HomepageQueryDTO ───────────────────────────────────────
 test('HomepageQueryDTO accepts valid limit and clamps to max', () => {
@@ -100,16 +106,38 @@ test('TeacherProfileQueryDTO validates teacherId presence', () => {
   assert.equal(validDto.toObject().teacherId, 't456');
 });
 
-test('CreateManagedUserDTO validates a direct Teacher account', () => {
-  const dto = new CreateManagedUserDTO({ fullName: 'Thai Nguyen', email: 'thai@example.com', password: 'secure123', role: 'teacher' });
-  assert.deepEqual(dto.validate(), {});
-  assert.equal(dto.toObject().role, 'teacher');
+// ─── UC-5.1: ApproveTeacherApplicationDTO & TeacherApplicationQueryDTO
+test('TeacherApplicationQueryDTO validates allowed statuses', () => {
+  const validDto = new TeacherApplicationQueryDTO({ status: 'pending' });
+  assert.deepEqual(validDto.validate(), {});
+  assert.equal(validDto.toObject().status, 'pending');
+
+  const invalidDto = new TeacherApplicationQueryDTO({ status: 'deleted' });
+  assert.equal(invalidDto.validate().status, 'Status filter must be pending, approved, or rejected.');
 });
 
-test('UpdateUserRoleDTO accepts only assignable roles', () => {
-  const validDto = new UpdateUserRoleDTO({ userId: '507f1f77bcf86cd799439011' }, { role: 'teacher' });
+test('ApproveTeacherApplicationDTO validates applicationId and binds adminId', () => {
+  const invalidDto = new ApproveTeacherApplicationDTO({}, {});
+  assert.equal(invalidDto.validate().applicationId, 'Application ID is required.');
+
+  const validDto = new ApproveTeacherApplicationDTO({ id: 'app100' }, { _id: 'admin1' });
   assert.deepEqual(validDto.validate(), {});
-  const invalidDto = new UpdateUserRoleDTO({ userId: 'invalid' }, { role: 'admin' });
-  assert.ok(invalidDto.validate().userId);
-  assert.ok(invalidDto.validate().role);
+  assert.deepEqual(validDto.toObject(), { applicationId: 'app100', adminId: 'admin1' });
+});
+
+// ─── UC-5.2: RejectTeacherApplicationDTO ────────────────────────────
+test('RejectTeacherApplicationDTO requires reason and whitelists payload', () => {
+  const emptyReasonDto = new RejectTeacherApplicationDTO({ id: 'app1' }, { reason: '   ' });
+  assert.equal(emptyReasonDto.validate().reason, 'Reason required');
+
+  const payloadDto = new RejectTeacherApplicationDTO({ id: 'app1' }, { reason: 'No CV', extraField: 'bad' });
+  assert.ok(payloadDto.validate().payload);
+
+  const validDto = new RejectTeacherApplicationDTO({ id: 'app1' }, { reason: 'Insufficient experience' }, { _id: 'admin1' });
+  assert.deepEqual(validDto.validate(), {});
+  assert.deepEqual(validDto.toObject(), {
+    applicationId: 'app1',
+    reason: 'Insufficient experience',
+    adminId: 'admin1',
+  });
 });

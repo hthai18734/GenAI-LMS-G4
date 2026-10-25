@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: Seed default admin account on startup
+ */
 const User = require('../../model/identity/User');
 const PasswordUtil = require('../auth/PasswordUtil');
 const LoggerUtil = require('../common/LoggerUtil');
@@ -44,7 +49,8 @@ async function seedAdmin() {
       LoggerUtil.info('Teacher account already exists, skipping seed.');
     }
 
-    // Seed sample student accounts for learning-flow testing.
+    // Seed sample student accounts & pending teacher applications for testing UC-5.1 & UC-5.2
+    const TeacherApplication = require('../../model/governance/TeacherApplication');
     const student1Email = 'student1@ai-lms.edu';
     let student1 = await User.findOne({ email: student1Email });
     if (!student1) {
@@ -77,6 +83,30 @@ async function seedAdmin() {
         emailVerifiedAt: new Date(),
       });
       LoggerUtil.info(`Default student account seeded (email: ${student2Email})`);
+    }
+
+    // Seed pending teacher applications if none exist
+    const pendingAppsCount = await TeacherApplication.countDocuments({ status: 'pending' });
+    if (pendingAppsCount === 0) {
+      if (student1) {
+        await TeacherApplication.create({
+          userId: student1._id,
+          bio: '5 năm kinh nghiệm giảng dạy Web Development, chuyên gia React & Node.js với chứng chỉ AWS Certified Solutions Architect.',
+          cvUrl: 'https://linkedin.com/in/mai-lan-tran',
+          certificates: ['AWS Solutions Architect', 'Meta Certified Front-End Developer', 'IELTS 7.5'],
+          status: 'pending',
+        });
+      }
+      if (student2) {
+        await TeacherApplication.create({
+          userId: student2._id,
+          bio: 'Kỹ sư Trí tuệ nhân tạo (AI Engineer), có kinh nghiệm nghiên cứu mô hình LLM và Computer Vision, mong muốn giảng dạy AI tại AI-LMS.',
+          cvUrl: 'https://github.com/nam-le-ai',
+          certificates: ['TensorFlow Developer Certificate', 'DeepLearning.AI Specialization'],
+          status: 'pending',
+        });
+      }
+      LoggerUtil.info('Sample pending teacher applications seeded for Admin moderation.');
     }
 
     // Seed default categories if none exist

@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: Student Course Catalog Query
+ */
 
 class CatalogQueryDTO {
   constructor(query = {}) {

@@ -1,3 +1,8 @@
+/**
+ * Author: ThaiQH - CE181542
+ * Created at: 01/10/2026
+ * Description: Filter & Sort Courses Query DTO for Guest Public Courses (UC-1.4)
+ */
 
 const ALLOWED_SORTS = ['newest', 'oldest', 'popular', 'rating', 'price-asc', 'price-desc'];
 

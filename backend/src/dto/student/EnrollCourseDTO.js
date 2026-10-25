@@ -1,3 +1,8 @@
+/**
+Author: ThienDDN - CE182101
+Created at: 01/10/2026
+Description: Student Course Enrollment
+ */
 const { objectId } = require('../common/DTOUtil');
 
 class EnrollCourseDTO {

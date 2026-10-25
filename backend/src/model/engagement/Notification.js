@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 
 const NOTIFICATION_TYPES = [
+  'teacher approval',
+  'teacher rejection',
   'general',
   'system',
   'course',

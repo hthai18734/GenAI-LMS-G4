@@ -1,8 +1,13 @@
+/**
+ * Author: ThienDDN - CE182101 / Team
+ * Created at: 01/10/2026
+ * Description: Teacher Instructor Dashboard & Analytics Control Center
+ */
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { teacherService } from '../services/api';
+import { teacherService } from '../features/teacher/api.js';
 import { useToast } from '../components/Toast';
-import { useAuth } from '../services/AuthContext';
+import { useAuth } from '../features/auth/useAuth.js';
 
 const statusLabels = {
   DRAFT: 'Draft',
@@ -31,7 +36,7 @@ export default function TeacherDashboardPage() {
       const res = await teacherService.getDashboard();
       setData(res.data || null);
       if (isManualRefresh) {
-        addToast('Dữ liệu giảng dạy đã được cập nhật!', 'success');
+        addToast('Teaching data refreshed!', 'success');
       }
     } catch (err) {
       console.warn('Teacher dashboard API failed, falling back to courses list...', err);
@@ -59,7 +64,7 @@ export default function TeacherDashboardPage() {
           recentEnrollments: [],
         });
       } catch (fallbackErr) {
-        setError(err.message || 'Không thể tải bảng điều khiển giảng viên.');
+        setError(err.message || 'Unable to load the teacher dashboard.');
       }
     } finally {
       setLoading(false);
@@ -84,7 +89,7 @@ export default function TeacherDashboardPage() {
       <div className="page-error" style={{ margin: '30px' }}>
         <span>{error}</span>
         <button className="primary" onClick={() => loadDashboardData()}>
-          Thử lại
+          Try Again
         </button>
       </div>
     );
@@ -109,23 +114,23 @@ export default function TeacherDashboardPage() {
       <section className="teacher-hero-banner">
         <div className="teacher-hero-content">
           <h1>
-            <span>Không gian Giảng viên AI-LMS</span>
-            <span className="teacher-hero-badge">Giảng viên đối tác</span>
+            <span>AI-LMS Teacher Workspace</span>
+            <span className="teacher-hero-badge">Teaching Partner</span>
           </h1>
           <p>
-            Chào mừng trở lại, thầy/cô <strong>{user?.fullName || 'Giảng viên'}</strong>! Quản lý khóa học, theo dõi học viên và tạo nội dung đào tạo tương tác.
+            Welcome back, <strong>{user?.fullName || 'Teacher'}</strong>! Manage courses, track students, and create interactive learning content.
           </p>
         </div>
         <div className="teacher-hero-actions">
           <Link to="/teacher/courses/new" className="teacher-cta-btn">
-            ➕ Tạo khóa học mới
+            ➕ Create Course
           </Link>
           <button
             className="teacher-refresh-btn"
             disabled={refreshing}
             onClick={() => loadDashboardData(true)}
           >
-            {refreshing ? 'Đang tải…' : '🔄'}
+            {refreshing ? 'Loading…' : '🔄'}
           </button>
         </div>
       </section>
@@ -140,15 +145,15 @@ export default function TeacherDashboardPage() {
         >
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon emerald">📚</div>
-            <span className="admin-kpi-badge info">{publishedCourses} Đang mở</span>
+            <span className="admin-kpi-badge info">{publishedCourses} Published</span>
           </div>
           <div>
             <div className="admin-kpi-value">{totalCourses}</div>
-            <div className="admin-kpi-label">Tổng khóa học đã tạo</div>
+            <div className="admin-kpi-label">Total Courses Created</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>{draftCourses} Bản nháp · {publishedCourses} Đang mở</span>
-            <span>Xem tất cả →</span>
+            <span>{draftCourses} Draft · {publishedCourses} Published</span>
+            <span>View all →</span>
           </div>
         </div>
 
@@ -160,11 +165,11 @@ export default function TeacherDashboardPage() {
           </div>
           <div>
             <div className="admin-kpi-value">{totalStudents}</div>
-            <div className="admin-kpi-label">Tổng lượt học viên tham gia</div>
+            <div className="admin-kpi-label">Total Enrollments</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>Theo dõi tiến độ học tập</span>
-            <span>Tích cực</span>
+            <span>Track learning progress</span>
+            <span>Active</span>
           </div>
         </div>
 
@@ -177,16 +182,16 @@ export default function TeacherDashboardPage() {
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon amber">⏳</div>
             <span className={`admin-kpi-badge ${pendingCourses > 0 ? 'alert' : 'info'}`}>
-              {pendingCourses > 0 ? `${pendingCourses} Đang chờ` : 'Không có'}
+              {pendingCourses > 0 ? `${pendingCourses} Pending` : 'None'}
             </span>
           </div>
           <div>
             <div className="admin-kpi-value">{pendingCourses}</div>
-            <div className="admin-kpi-label">Khóa học chờ Admin kiểm duyệt</div>
+            <div className="admin-kpi-label">Courses Pending Admin Review</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>Admin sẽ duyệt trong 24-48h</span>
-            <span>Chi tiết →</span>
+            <span>Admin review usually takes 24–48 hours</span>
+            <span>Details →</span>
           </div>
         </div>
 
@@ -198,15 +203,15 @@ export default function TeacherDashboardPage() {
         >
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon blue">⭐</div>
-            <span className="admin-kpi-badge success">Công khai</span>
+            <span className="admin-kpi-badge success">Public</span>
           </div>
           <div>
             <div className="admin-kpi-value">{publishedCourses}</div>
-            <div className="admin-kpi-label">Khóa học đang hoạt động</div>
+            <div className="admin-kpi-label">Active Courses</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>Học viên có thể học ngay</span>
-            <span>Mở →</span>
+            <span>Available for students to learn</span>
+            <span>Open →</span>
           </div>
         </div>
       </section>
@@ -214,17 +219,17 @@ export default function TeacherDashboardPage() {
       {/* ─── 3. Quick Action Shortcuts ──────────────────────────────── */}
       <section className="admin-shortcuts-card">
         <div className="admin-shortcuts-title">
-          <span>⚡ Lối tắt công cụ giảng dạy</span>
+          <span>⚡ Teaching Shortcuts</span>
         </div>
         <div className="admin-shortcuts-links">
           <Link to="/teacher/courses/new" className="admin-shortcut-btn primary">
-            ➕ Soạn khóa học mới
+            ➕ Create Course
           </Link>
           <Link to="/teacher/courses" className="admin-shortcut-btn secondary">
-            📋 Quản lý toàn bộ khóa học ({totalCourses})
+            📋 Manage All Courses ({totalCourses})
           </Link>
           <Link to="/profile" className="admin-shortcut-btn secondary">
-            👤 Hồ sơ giảng viên
+            👤 Teacher Profile
           </Link>
         </div>
       </section>
@@ -235,20 +240,20 @@ export default function TeacherDashboardPage() {
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
-              <h3>Khóa học gần đây của bạn</h3>
-              <span className="admin-panel-count">{coursesList.length} hiển thị</span>
+              <h3>Your Recent Courses</h3>
+              <span className="admin-panel-count">{coursesList.length} shown</span>
             </div>
             <Link to="/teacher/courses" className="admin-panel-viewall">
-              Tất cả khóa học →
+              All courses →
             </Link>
           </div>
           <div className="admin-panel-list">
             {coursesList.length === 0 ? (
               <div className="admin-empty-panel">
                 <span className="admin-empty-icon">📖</span>
-                <p>Bạn chưa tạo khóa học nào trên hệ thống.</p>
+                <p>You have not created any courses yet.</p>
                 <Link to="/teacher/courses/new" className="teacher-empty-cta">
-                  Tạo khóa học đầu tiên ngay
+                  Create Your First Course
                 </Link>
               </div>
             ) : (
@@ -261,7 +266,7 @@ export default function TeacherDashboardPage() {
                     <div className="admin-item-meta">
                       <strong>{course.title}</strong>
                       <span>
-                        {course.category || 'Môn học'} · {course.duration || 0} giờ · {course.totalStudents || 0} học viên
+                        {course.category || 'Subject'} · {course.duration || 0} hours · {course.totalStudents || 0} students
                       </span>
                     </div>
                   </div>
@@ -273,7 +278,7 @@ export default function TeacherDashboardPage() {
                       className="admin-quick-action-btn"
                       onClick={() => navigate(`/teacher/courses/${course._id}/edit`)}
                     >
-                      Sửa
+                      Edit
                     </button>
                   </div>
                 </div>
@@ -286,17 +291,17 @@ export default function TeacherDashboardPage() {
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
-              <h3>Học viên mới ghi danh</h3>
-              <span className="admin-panel-count">{recentEnrollments.length} gần đây</span>
+              <h3>Recent Enrollments</h3>
+              <span className="admin-panel-count">{recentEnrollments.length} recent</span>
             </div>
           </div>
           <div className="admin-panel-list">
             {recentEnrollments.length === 0 ? (
               <div className="admin-empty-panel">
                 <span className="admin-empty-icon">👋</span>
-                <p>Chưa có lượt ghi danh mới gần đây.</p>
+                <p>No recent enrollments yet.</p>
                 <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                  Khi học viên đăng ký các khóa học đang mở, thông tin sẽ hiển thị tại đây.
+                  New enrollments in your published courses will appear here.
                 </span>
               </div>
             ) : (
@@ -307,15 +312,15 @@ export default function TeacherDashboardPage() {
                       {(enr.userId?.fullName || 'H').charAt(0).toUpperCase()}
                     </div>
                     <div className="admin-item-meta">
-                      <strong>{enr.userId?.fullName || 'Học viên'}</strong>
+                      <strong>{enr.userId?.fullName || 'Student'}</strong>
                       <span>
-                        Khóa: {enr.courseId?.title || 'Khóa học'} · {new Date(enr.enrolledAt || enr.createdAt).toLocaleDateString('vi-VN')}
+                        Course: {enr.courseId?.title || 'Course'} · {new Date(enr.enrolledAt || enr.createdAt).toLocaleDateString('en-US')}
                       </span>
                     </div>
                   </div>
                   <div className="admin-item-action">
                     <span className={`status-badge status-${enr.status === 'completed' ? 'open' : 'pending_review'}`}>
-                      {enr.status === 'completed' ? 'Đã xong' : 'Đang học'}
+                      {enr.status === 'completed' ? 'Completed' : 'In Progress'}
                     </span>
                   </div>
                 </div>
@@ -330,15 +335,15 @@ export default function TeacherDashboardPage() {
         {/* Pipeline Chart */}
         <div className="admin-chart-card">
           <div className="admin-chart-title">
-            <span>Trạng thái các khóa học của bạn</span>
+            <span>Your Course Statuses</span>
             <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 500 }}>
-              Tổng cộng: {totalCourses} khóa
+              Total: {totalCourses} courses
             </span>
           </div>
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Đã xuất bản (Published)</span>
+              <span>Published</span>
               <span>{publishedCourses} ({calcPct(publishedCourses)}%)</span>
             </div>
             <div className="admin-stat-bar">
@@ -348,7 +353,7 @@ export default function TeacherDashboardPage() {
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Đang chờ duyệt (Pending Review)</span>
+              <span>Pending Review</span>
               <span>{pendingCourses} ({calcPct(pendingCourses)}%)</span>
             </div>
             <div className="admin-stat-bar">
@@ -358,7 +363,7 @@ export default function TeacherDashboardPage() {
 
           <div className="admin-stat-row">
             <div className="admin-stat-header">
-              <span>Bản nháp đang biên soạn (Draft)</span>
+              <span>Draft</span>
               <span>{draftCourses} ({calcPct(draftCourses)}%)</span>
             </div>
             <div className="admin-stat-bar">
@@ -370,20 +375,20 @@ export default function TeacherDashboardPage() {
         {/* Teaching Quality & Guidelines Card */}
         <div className="admin-chart-card" style={{ background: '#f8fdfa', borderColor: '#a7f3d0' }}>
           <div className="admin-chart-title" style={{ color: '#065f46' }}>
-            <span>💡 Lời khuyên duyệt khóa học nhanh</span>
+            <span>💡 Tips for Course Approval</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', color: '#047857', lineHeight: 1.6 }}>
             <div>
-              <strong>1. Tiêu đề rõ ràng:</strong> Đặt tên khóa học súc tích, phản ánh đúng kỹ năng trọng tâm.
+              <strong>1. Clear title:</strong> Use a concise course title that reflects its main skills.
             </div>
             <div>
-              <strong>2. Mô tả chi tiết:</strong> Nêu rõ chuẩn đầu ra, kiến thức tiên quyết và đối tượng phù hợp.
+              <strong>2. Detailed description:</strong> Describe the learning outcomes, prerequisites, and intended audience.
             </div>
             <div>
-              <strong>3. Thời lượng hợp lý:</strong> Phân chia bài học thành các phần ngắn từ 5-15 phút để học viên dễ tiếp thu.
+              <strong>3. Appropriate duration:</strong> Break lessons into 5–15 minute sections to help students learn.
             </div>
             <div>
-              <strong>4. Nộp duyệt kiểm duyệt:</strong> Sau khi hoàn thành bản nháp, bấm nút <em>"Submit for review"</em> để ban quản trị thẩm định và mở lớp.
+              <strong>4. Submit for review:</strong> After completing your draft, select <em>"Submit for review"</em> so an administrator can review and publish your course.
             </div>
           </div>
         </div>

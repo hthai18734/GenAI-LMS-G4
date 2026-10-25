@@ -1,6 +1,7 @@
 const express = require('express');
 const NoCacheFilter = require('../filter/NoCacheFilter');
 const AuthController = require('../controller/auth/AuthController');
+const { AuthFilter } = require('../composition/http');
 
 const router = express.Router();
 router.use(NoCacheFilter);
@@ -9,6 +10,10 @@ router.post('/register', AuthController.register.bind(AuthController));
 router.post('/verify-otp', AuthController.verifyOtp.bind(AuthController));
 router.post('/resend-otp', AuthController.resendOtp.bind(AuthController));
 router.post('/login', AuthController.login.bind(AuthController));
+router.post('/request-password-reset', AuthController.requestPasswordReset.bind(AuthController));
+router.post('/reset-password', AuthController.resetPassword.bind(AuthController));
+router.post('/change-password', AuthFilter, AuthController.changePassword.bind(AuthController));
+router.post('/refresh-token', AuthController.refreshToken.bind(AuthController));
 router.get('/google', AuthController.getGoogleLoginUrl.bind(AuthController));
 router.get('/google/callback', AuthController.googleCallback.bind(AuthController));
 router.post('/google/exchange', AuthController.exchangeGoogleLoginCode.bind(AuthController));
