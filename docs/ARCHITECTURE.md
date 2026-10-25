@@ -225,6 +225,11 @@ Không sửa bằng cách:
 - Development seed mặc định tắt và luôn tắt trong production.
 - Thumbnail khóa học có thể public.
 - Material và lesson video phải qua authenticated endpoint và kiểm tra enrollment, course owner hoặc admin.
+- `APPROVED` chỉ là đã được admin duyệt; khóa học chỉ mở cho sinh viên sau khi giảng viên Publish sang `PUBLIC`. Catalog, tìm kiếm, trang chi tiết, enrollment và nội dung học phải thống nhất điều kiện này.
+- Khi Unpublish, khóa học trở về `APPROVED`: ẩn khỏi catalog, My Courses/Dashboard và chặn truy cập học; giữ enrollment cùng kết quả đã lưu để dùng lại khi Publish.
+- Trang Learn của sinh viên giữ route `/courses/:courseId/learn` với quyền Student. Giảng viên xem trước qua `/teacher/courses/:courseId/preview`; quyền sở hữu vẫn được kiểm tra tại backend.
+
+Lesson từ schema cũ có thể thiếu `isPublished` hoàn toàn, khiến khóa học đã `PUBLIC` có bài học trong DB nhưng Learn trả danh sách rỗng. Dùng `npm run repair:legacy-lessons -- <courseId>` trong `backend` để xem các bản ghi cần khôi phục, sau đó thêm `--apply` để ghi. Công cụ chỉ xử lý trường bị thiếu của khóa học được chỉ định đang `PUBLIC`; giữ nguyên bài có `isPublished: false`, bài đã xóa, nội dung và thời gian cập nhật.
 
 Development seed chỉ bật khi thật sự cần:
 

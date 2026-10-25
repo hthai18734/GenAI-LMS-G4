@@ -480,7 +480,7 @@ export default function TeacherCoursesPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate(`/courses/${course._id}/learn`)}
+                      onClick={() => navigate(`/teacher/courses/${course._id}/preview`)}
                       className="btn btn-secondary"
                       style={{
                         fontSize: '12px',

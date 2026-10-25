@@ -39,6 +39,12 @@ export default function CourseLearnPage() {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [videoProgress, setVideoProgress] = useState(null);
 
+  // Assignment states & modal
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [assignmentModalMode, setAssignmentModalMode] = useState('submit'); // 'submit' | 'view'
+  const [assignmentAnswer, setAssignmentAnswer] = useState('');
+  const [submittingAssignment, setSubmittingAssignment] = useState(false);
+
   // Tab state: 'content' | 'materials' | 'discussions'
   const [activeTab, setActiveTab] = useState('content');
 
@@ -448,6 +454,37 @@ export default function CourseLearnPage() {
     }
   };
 
+  const handleOpenAssignmentModal = (assignment, mode = 'submit') => {
+    setSelectedAssignment(assignment);
+    setAssignmentModalMode(mode);
+    setAssignmentAnswer(assignment.latestSubmission?.answer || '');
+  };
+
+  const handleSubmitAssignment = async (e) => {
+    e.preventDefault();
+    if (!selectedAssignment || !assignmentAnswer.trim()) return;
+    setSubmittingAssignment(true);
+    try {
+      const res = await studentService.submitAssignment(selectedAssignment._id, assignmentAnswer.trim());
+      addToast('Nộp bài tập thành công!', 'success');
+      const updatedSubmission = res.data?.submission || {
+        status: 'submitted',
+        answer: assignmentAnswer.trim(),
+        submittedAt: new Date().toISOString(),
+      };
+      setAssignments((prev) =>
+        prev.map((a) => (a._id === selectedAssignment._id ? { ...a, latestSubmission: updatedSubmission } : a))
+      );
+      setSelectedAssignment((prev) => (prev ? { ...prev, latestSubmission: updatedSubmission } : null));
+      setAssignmentModalMode('view');
+      loadCourseProgress();
+    } catch (err) {
+      addToast(err.message || 'Không thể nộp bài tập.', 'error');
+    } finally {
+      setSubmittingAssignment(false);
+    }
+  };
+
   const handleCompleteCurrent = async () => {
     if (!currentLesson) return;
     setCompleting(true);
@@ -662,12 +699,93 @@ export default function CourseLearnPage() {
               </div>
             </div>
           ))}
-          {assignments.map((assignment) => (
-            <div key={assignment._id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
-              <strong>{assignment.title}</strong>
-              <p style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{assignment.content}</p>
-            </div>
-          ))}
+          {assignments.map((assignment) => {
+            const submission = assignment.latestSubmission;
+            const statusConfig = {
+              passed: { label: 'Đạt ✓', bg: '#dcfce7', color: '#166534' },
+              needs_revision: { label: 'Cần sửa lại ⚠️', bg: '#fee2e2', color: '#dc2626' },
+              submitted: { label: 'Đã nộp (Chờ chấm) ⏳', bg: '#fef3c7', color: '#b45309' },
+            };
+            const badge = submission?.status ? statusConfig[submission.status] : null;
+
+            return (
+              <div
+                key={assignment._id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 0',
+                  borderBottom: '1px solid var(--line)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '15px' }}>📋</span>
+                    <strong>{assignment.title}</strong>
+                    {badge ? (
+                      <span
+                        style={{
+                          background: badge.bg,
+                          color: badge.color,
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                        }}
+                      >
+                        {badge.label}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                        }}
+                      >
+                        Chưa nộp
+                      </span>
+                    )}
+                  </div>
+                  <small style={{ color: 'var(--muted)', display: 'block', marginTop: '4px' }}>
+                    {assignment.lessonId
+                      ? `Bài học: ${lessons.find((l) => (l._id || l.id) === String(assignment.lessonId))?.title || 'Bài giảng'}`
+                      : 'Bài tập khóa học'}
+                    {submission?.submittedAt && (
+                      <span style={{ marginLeft: '6px' }}>
+                        · Nộp lúc: {new Date(submission.submittedAt).toLocaleString()}
+                      </span>
+                    )}
+                  </small>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {submission && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      type="button"
+                      onClick={() => handleOpenAssignmentModal(assignment, 'view')}
+                    >
+                      Xem bài đã nộp
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    onClick={() => handleOpenAssignmentModal(assignment, 'submit')}
+                  >
+                    {submission ? 'Nộp lại bài tập' : 'Làm bài tập'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </section>
       )}
       {lessons.length === 0 ? (
@@ -917,6 +1035,7 @@ export default function CourseLearnPage() {
                                 sendVideoHeartbeatCall();
                               }}
                             >
+                              <source src={activeVideo} />
                               Your browser does not support the video tag.
                             </AuthenticatedVideo>
                             {(() => {
@@ -1090,7 +1209,7 @@ export default function CourseLearnPage() {
                       value={newThreadTitle}
                       onChange={(e) => setNewThreadTitle(e.target.value)}
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--line)', marginBottom: '8px' }}
-                            />
+                    />
                     <textarea
                       placeholder="Write your question or discussion topic here..."
                       required
@@ -1543,6 +1662,217 @@ export default function CourseLearnPage() {
                     Close
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Assignment Details & Submission */}
+      {selectedAssignment && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: '16px' }}>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '28px', maxWidth: '780px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--line)', paddingBottom: '16px', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '20px' }}>📋</span>
+                  <h3 style={{ fontFamily: 'Space Grotesk', fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>
+                    {selectedAssignment.title}
+                  </h3>
+                  {selectedAssignment.latestSubmission?.status && (
+                    <span
+                      style={{
+                        background:
+                          selectedAssignment.latestSubmission.status === 'passed'
+                            ? '#dcfce7'
+                            : selectedAssignment.latestSubmission.status === 'needs_revision'
+                            ? '#fee2e2'
+                            : '#fef3c7',
+                        color:
+                          selectedAssignment.latestSubmission.status === 'passed'
+                            ? '#166534'
+                            : selectedAssignment.latestSubmission.status === 'needs_revision'
+                            ? '#dc2626'
+                            : '#b45309',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '3px 10px',
+                        borderRadius: '999px',
+                      }}
+                    >
+                      {selectedAssignment.latestSubmission.status === 'passed'
+                        ? 'Đã đạt ✓'
+                        : selectedAssignment.latestSubmission.status === 'needs_revision'
+                        ? 'Cần chỉnh sửa ⚠️'
+                        : 'Đã nộp (Chờ chấm) ⏳'}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>
+                  {selectedAssignment.lessonId
+                    ? `Bài học: ${lessons.find((l) => (l._id || l.id) === String(selectedAssignment.lessonId))?.title || 'Bài học'}`
+                    : 'Bài tập chung của khóa học'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAssignment(null)}
+                style={{ background: 'transparent', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--muted)', lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Assignment Instructions / Description */}
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📖</span> Yêu cầu & Hướng dẫn làm bài
+              </h4>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '18px',
+                  fontSize: '14px',
+                  lineHeight: 1.65,
+                  color: '#334155',
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {selectedAssignment.content}
+              </div>
+            </div>
+
+            {/* Teacher Feedback (if available) */}
+            {selectedAssignment.latestSubmission?.feedback && (
+              <div
+                style={{
+                  background: selectedAssignment.latestSubmission.status === 'passed' ? '#f0fdf4' : '#fffbeb',
+                  border: `1px solid ${selectedAssignment.latestSubmission.status === 'passed' ? '#86efac' : '#fde68a'}`,
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#166534' : '#92400e' }}>
+                  <span>💬</span> Nhận xét của giảng viên:
+                </div>
+                <p style={{ margin: '6px 0 0', fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#15803d' : '#b45309', whiteSpace: 'pre-wrap' }}>
+                  "{selectedAssignment.latestSubmission.feedback}"
+                </p>
+                {selectedAssignment.latestSubmission.gradedAt && (
+                  <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
+                    Chấm lúc: {new Date(selectedAssignment.latestSubmission.gradedAt).toLocaleString()}
+                  </small>
+                )}
+              </div>
+            )}
+
+            {/* Submission Section */}
+            {assignmentModalMode === 'view' ? (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📝</span> Bài làm bạn đã nộp
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentModalMode('submit')}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '12px' }}
+                  >
+                    ✏️ Chỉnh sửa / Nộp lại
+                  </button>
+                </div>
+                <div
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    fontSize: '14px',
+                    lineHeight: 1.6,
+                    color: '#0f172a',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {selectedAssignment.latestSubmission?.answer || '(Chưa có nội dung bài làm)'}
+                </div>
+                {selectedAssignment.latestSubmission?.submittedAt && (
+                  <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
+                    Thời gian nộp: {new Date(selectedAssignment.latestSubmission.submittedAt).toLocaleString()}
+                  </small>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitAssignment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>✍️</span> Nhập bài làm / Giải pháp của bạn <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  {selectedAssignment.latestSubmission && (
+                    <button
+                      type="button"
+                      onClick={() => setAssignmentModalMode('view')}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--purple)', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      &larr; Xem bài cũ đã nộp
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  rows="7"
+                  required
+                  value={assignmentAnswer}
+                  onChange={(e) => setAssignmentAnswer(e.target.value)}
+                  placeholder="Nhập mã nguồn, câu trả lời, giải pháp hoặc đường link bài nộp (GitHub, Drive...) của bạn tại đây..."
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    lineHeight: 1.6,
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAssignment(null)}
+                    className="btn btn-secondary btn-sm"
+                    disabled={submittingAssignment}
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    disabled={submittingAssignment || !assignmentAnswer.trim()}
+                  >
+                    {submittingAssignment ? 'Đang nộp bài...' : selectedAssignment.latestSubmission ? 'Cập nhật bài nộp' : 'Nộp bài tập'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {assignmentModalMode === 'view' && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAssignment(null)}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Đóng
+                </button>
               </div>
             )}
           </div>

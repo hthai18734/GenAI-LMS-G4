@@ -204,7 +204,7 @@ export default function TeacherCourseFormPage() {
           if (requestedLesson) {
             setActiveTab('lessons');
             setEditingLessonId(requestedLesson._id);
-            setLessonForm({ title: requestedLesson.title, content: requestedLesson.content, order: requestedLesson.order, duration: requestedLesson.duration || 0, videoRef: requestedLesson.videoRef || '' });
+            setLessonForm({ title: requestedLesson.title, content: requestedLesson.content, order: requestedLesson.order, duration: requestedLesson.duration || 0, videoRef: requestedLesson.videoRef || '', isPublished: requestedLesson.isPublished === true });
             setTimeout(() => document.getElementById('lesson-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
           }
           setQuizzes(quizRes.data?.quizzes || []);
@@ -538,7 +538,7 @@ export default function TeacherCourseFormPage() {
         {isEdit && (
           <div style={{ display: 'flex', gap: '10px' }}>
             <Link
-              to={`/courses/${courseId}/learn`}
+              to={`/teacher/courses/${courseId}/preview`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary"
@@ -858,6 +858,7 @@ export default function TeacherCourseFormPage() {
                   )}
                 </div>
               )}
+              {fieldErrors.thumbnail && <small style={{ color: '#ef4444', fontSize: '12px' }}>{fieldErrors.thumbnail}</small>}
             </div>
 
             {/* Actions */}

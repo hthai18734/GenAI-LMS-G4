@@ -68,7 +68,7 @@ router.post('/courses/:courseId/enroll', StudentController.enrollCourse.bind(Stu
 router.get('/courses', StudentController.getEnrolledCourses.bind(StudentController));
 
 router.post('/courses/:courseId/lessons/:lessonId/complete', StudentController.completeLesson.bind(StudentController));
-router.post('/assignments/:assignmentId/submissions', StudentQuizController.submitAssignment.bind(StudentQuizController));
+router.post('/assignments/:assignmentId/submissions', StudentAssignmentController.submitAssignment.bind(StudentAssignmentController));
 
 // Iteration 2: I2-14, I2-15, I2-16 Course Wishlist
 router.post('/wishlist/:courseId', WishlistController.add.bind(WishlistController));

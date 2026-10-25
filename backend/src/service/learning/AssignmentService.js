@@ -29,10 +29,18 @@ class AssignmentService {
 
   async listAvailableAssignments(courseId, user) {
     const course = await this.courseRepository.findById(courseId);
-    if (!course || (course.status !== COURSE_STATUS.PUBLIC && course.status !== COURSE_STATUS.APPROVED)) throw new ServiceError(404, 'Course not found.');
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
-    return this.assignmentRepository.findByCourseId(courseId);
+    const assignments = await this.assignmentRepository.findByCourseId(courseId);
+    if (!this.assignmentSubmissionRepository || !assignments || !assignments.length) return assignments || [];
+    const submissions = await this.assignmentSubmissionRepository.findByStudentAndCourse(user._id, courseId);
+    const submissionMap = new Map((submissions || []).map((s) => [String(s.assignmentId), s]));
+    return assignments.map((assignment) => {
+      const doc = assignment.toObject ? assignment.toObject() : { ...assignment };
+      doc.latestSubmission = submissionMap.get(String(assignment._id)) || null;
+      return doc;
+    });
   }
 
   async submitAssignment(assignmentId, user, answer) {
@@ -41,7 +49,11 @@ class AssignmentService {
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, assignment.courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
     if (!String(answer || '').trim()) throw new ServiceError(400, 'Assignment answer is required.');
-    return this.assignmentSubmissionRepository.submit(assignment._id, assignment.courseId, user._id, String(answer).trim());
+    const submission = await this.assignmentSubmissionRepository.submit(assignment._id, assignment.courseId, user._id, String(answer).trim());
+    if (this.progressTrackingService) {
+      await this.progressTrackingService.recalculateCourseProgress(user._id, assignment.courseId);
+    }
+    return submission;
   }
 
   async gradeSubmission(submissionId, user, passed, feedback) {

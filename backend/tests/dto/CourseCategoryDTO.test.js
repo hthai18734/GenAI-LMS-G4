@@ -23,6 +23,17 @@ test('update course DTO rejects protected status updates', () => {
   assert.deepEqual(dto.toObject(), { description: 'Updated' });
 });
 
+test('course editor can save without a thumbnail and clear optional text fields', () => {
+  const body = { title: 'Java Programming Fundamentals', description: 'Learn Java', categoryId: null, duration: 24, thumbnail: null };
+  const dto = new UpdateCourseDTO(body);
+  assert.deepEqual(dto.validate(), {});
+  assert.deepEqual(dto.toObject(), body);
+  assert.deepEqual(new UpdateCourseDTO({ category: null }).validate(), {});
+  for (const thumbnail of [false, 12, {}, []]) {
+    assert.ok(new UpdateCourseDTO({ thumbnail }).validate().thumbnail);
+  }
+});
+
 test('reject course DTO requires a non-blank reason', () => {
   const dto = new RejectCourseDTO({ reason: '   ' });
   assert.equal(dto.validate().reason, 'A rejection reason is required.');

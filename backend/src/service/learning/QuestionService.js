@@ -51,11 +51,7 @@ class QuestionService {
   }
 
   async getQuestionDetails(questionId, user) {
-    this.assertValidId(questionId);
-    const question = await this.questionRepository.findById(questionId);
-    if (!question || (question.ownerTeacherId && String(question.ownerTeacherId) !== String(user._id))) {
-      throw new ServiceError(404, QUESTION_NOT_FOUND);
-    }
+    const question = await this.getOwnedQuestion(questionId, user);
     const usageCount = await this.quizQuestionRepository.countActiveByQuestionId(question._id);
     const qObj = typeof question.toObject === 'function' ? question.toObject() : question;
     return { ...qObj, usageCount };
@@ -68,7 +64,7 @@ class QuestionService {
         const { course } = await this.quizService.getOwnedQuiz(question.quizId, user, { includeCourse: true });
         if (course) this.courseService.assertContentEditable(course);
       } catch (err) {
-        // Quiz soft-deleted or course checked
+        if (err.status !== 404) throw err;
       }
     }
     const updates = dto.toObject();
@@ -95,7 +91,7 @@ class QuestionService {
         const { course } = await this.quizService.getOwnedQuiz(question.quizId, user, { includeCourse: true });
         if (course) this.courseService.assertContentEditable(course);
       } catch (err) {
-        // Allowed if quiz already removed
+        if (err.status !== 404) throw err;
       }
     }
     // Requirement #6: Khi xóa Question đang được Quiz hoạt động sử dụng, trả HTTP 409
@@ -122,11 +118,15 @@ class QuestionService {
     const validIds = (questionIds || []).filter((id) => isValidIdentifier(id));
     const linked = [];
     for (const qId of validIds) {
-      const question = await this.questionRepository.findById(qId);
-      if (question && (!question.ownerTeacherId || String(question.ownerTeacherId) === String(user._id))) {
-        await this.quizQuestionRepository.linkQuestion(quiz._id, question._id);
-        linked.push(question);
+      let question;
+      try {
+        question = await this.getOwnedQuestion(qId, user);
+      } catch (error) {
+        if ([403, 404].includes(error.status)) continue;
+        throw error;
       }
+      await this.quizQuestionRepository.linkQuestion(quiz._id, question._id);
+      linked.push(question);
     }
     return linked;
   }
@@ -134,8 +134,12 @@ class QuestionService {
   async unlinkQuestionFromQuiz(quizId, questionId, user) {
     const { quiz, course } = await this.quizService.getOwnedQuiz(quizId, user, { includeCourse: true });
     this.courseService.assertContentEditable(course);
-    this.assertValidId(questionId);
+    const question = await this.getOwnedQuestion(questionId, user);
     await this.quizQuestionRepository.unlinkQuestion(quiz._id, questionId);
+    // Clear the legacy membership too, so the legacy fallback cannot reattach it.
+    if (String(question.quizId) === String(quiz._id)) {
+      await this.questionRepository.update(question._id, { quizId: null, ownerTeacherId: user._id });
+    }
     return { success: true, message: 'Question unlinked from quiz successfully.' };
   }
 
@@ -150,6 +154,8 @@ class QuestionService {
       }
     } else if (question.quizId) {
       await this.quizService.getOwnedQuiz(question.quizId, user);
+    } else {
+      throw new ServiceError(403, 'You do not have permission to access this question.');
     }
 
     if (includeCourse && question.quizId) {

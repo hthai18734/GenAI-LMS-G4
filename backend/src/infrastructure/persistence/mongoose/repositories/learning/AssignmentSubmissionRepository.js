@@ -17,6 +17,14 @@ class AssignmentSubmissionRepository {
   }
 
   async findById(id) { return mongoose.isValidObjectId(id) ? AssignmentSubmission.findById(id).exec() : null; }
+  async findByStudentAndCourse(studentId, courseId) {
+    if (!mongoose.isValidObjectId(studentId) || !mongoose.isValidObjectId(courseId)) return [];
+    return AssignmentSubmission.find({ studentId, courseId }).lean().exec();
+  }
+  async findByAssignmentAndStudent(assignmentId, studentId) {
+    if (!mongoose.isValidObjectId(assignmentId) || !mongoose.isValidObjectId(studentId)) return null;
+    return AssignmentSubmission.findOne({ assignmentId, studentId }).lean().exec();
+  }
   async grade(id, teacherId, status, feedback = '') {
     return AssignmentSubmission.findByIdAndUpdate(id, { $set: { status, feedback, gradedAt: new Date(), gradedBy: teacherId } }, { new: true, runValidators: true }).exec();
   }

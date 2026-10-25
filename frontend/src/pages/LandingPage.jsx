@@ -136,24 +136,6 @@ export default function LandingPage() {
 
         {/* Right Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          {user?.role === 'admin' && (
-            <Link
-              to="/admin/dashboard"
-              style={{
-                textDecoration: 'none',
-                color: '#4338ca',
-                background: '#eef2ff',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                border: '1px solid #c7d2fe',
-              }}
-            >
-              📊 Admin Dashboard
-            </Link>
-          )}
-
           {isAuthenticated ? (
             <Link
               to={user?.role === 'admin' ? '/admin/dashboard' : user?.role === 'teacher' ? '/teacher/courses' : '/dashboard'}

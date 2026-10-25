@@ -180,7 +180,7 @@ test('UC-4.3: getDashboard returns data for authenticated user', async () => {
 
   EnrollmentRepository.findByUserId = async () => [{
     _id: 'enroll1', status: 'active', enrolledAt: new Date(),
-    courseId: { _id: 'course1', title: 'Node.js Basics', thumbnail: null },
+    courseId: { _id: 'course1', title: 'Node.js Basics', thumbnail: null, status: 'PUBLIC' },
   }];
   ProgressRepository.findByUserId = async () => [];
   LessonRepository.countByCourseId = async () => 10;
@@ -485,7 +485,7 @@ test('UC-10.3: getEnrolledCourses returns courses with progress', async () => {
 
   EnrollmentRepository.findByUserId = async () => [{
     _id: 'enroll1', status: 'active', enrolledAt: new Date(), completedAt: null,
-    courseId: { _id: 'course1', title: 'Node.js', description: 'Learn Node', thumbnail: null, category: 'Programming' },
+    courseId: { _id: 'course1', title: 'Node.js', description: 'Learn Node', thumbnail: null, category: 'Programming', status: 'PUBLIC' },
   }];
   LessonRepository.countByCourseId = async () => 5;
   ProgressRepository.countByUserAndCourse = async () => 2;

@@ -138,7 +138,7 @@ test('student cannot start when attempts are exhausted or the course is unpublis
     await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.publicMessage === 'No quiz attempts remaining.');
 
     mockStart({ course: { _id: COURSE_ID, status: 'DRAFT' } });
-    await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.status === 404 && error.publicMessage === 'Quiz not found.');
+    await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.status === 409 && /not published/i.test(error.publicMessage));
 
     mockStart({ currentQuiz: { ...quiz, isPublished: false } });
     await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.status === 404 && error.publicMessage === 'Quiz not found.');
