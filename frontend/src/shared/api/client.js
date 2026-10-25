@@ -80,3 +80,26 @@ export async function api(url, options = {}) {
   }
   return body;
 }
+
+export async function authenticatedBlob(url) {
+  const protectedUrl = url.startsWith('/uploads/lesson-videos/')
+    ? url.replace('/uploads/lesson-videos/', '/api/media/lesson-videos/')
+    : url;
+  let token = getToken();
+  const request = () => fetch(`${API_BASE}${protectedUrl}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  let res = await request();
+  if (res.status === 401 && token && getRefreshToken()) {
+    await refreshSession();
+    token = getToken();
+    res = await request();
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const error = new Error(body.message || 'Unable to load protected media.');
+    error.status = res.status;
+    throw error;
+  }
+  return res.blob();
+}

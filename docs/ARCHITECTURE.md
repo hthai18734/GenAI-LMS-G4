@@ -29,7 +29,8 @@ src/composition/services.js
   constructor-injects repositories and collaborating use cases
 
 src/composition/http.js
-  injects authentication dependencies into HTTP middleware
+  constructs controller factories with their use cases and injects authentication
+  dependencies into HTTP middleware
 ```
 
 ## Backend boundaries
@@ -43,6 +44,9 @@ src/composition/http.js
 7. `model` contains Mongoose persistence schemas. Models do not depend on application or HTTP code.
 8. `domain` contains framework-independent policies, constants and state rules.
 9. `composition` is the sole wiring layer allowed to know both application code and concrete infrastructure.
+
+Outbound gateways such as email, OAuth/token handling and generative AI are also
+injected by `composition/services.js`; application services do not construct them.
 
 The dependency rule is inward-facing:
 
@@ -115,3 +119,16 @@ npm run build
 ```
 
 Architecture tests are part of the definition of done. New code must extend an application port and its adapter, then wire it in `composition`; it must not bypass a boundary.
+
+## Development seed data
+
+Startup never creates accounts with repository-known credentials. Optional local
+seed data is disabled by default and is always disabled in production. To enable
+it locally, set `ENABLE_DEVELOPMENT_SEED=true` and provide only the accounts you
+need through `DEV_SEED_ADMIN_EMAIL`, `DEV_SEED_ADMIN_PASSWORD`,
+`DEV_SEED_TEACHER_EMAIL` and `DEV_SEED_TEACHER_PASSWORD`.
+
+Uploaded course thumbnails are public media. Learning materials and uploaded
+lesson videos are not served by static middleware; they are downloaded through
+authenticated endpoints after the corresponding use case verifies enrollment,
+course ownership or administrator access.

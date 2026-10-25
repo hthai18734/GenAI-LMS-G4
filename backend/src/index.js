@@ -6,6 +6,8 @@ const MongoDBUtil = require('./utils/database/MongoDBUtil');
 const LoggerUtil = require('./utils/common/LoggerUtil');
 const ResponseUtil = require('./utils/common/ResponseUtil');
 const ErrorFilter = require('./filter/ErrorFilter');
+require('./composition/http');
+const { initializePersistence, seedDevelopmentData } = require('./composition/bootstrap');
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
@@ -15,6 +17,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const discussionRoutes = require('./routes/discussionRoutes');
 const specAliasRoutes = require('./routes/specAliasRoutes');
+const mediaRoutes = require('./routes/mediaRoutes');
 
 const app = express();
 app.disable('x-powered-by');
@@ -35,12 +38,14 @@ app.use((req, res, next) => {
   return next();
 });
 
-// Serve files uploaded through the API; application pages are served by the frontend.
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Only explicitly public media is served statically. Course materials must pass
+// through the authenticated download use case.
+app.use('/uploads/course-thumbnails', express.static(path.join(__dirname, '../uploads/course-thumbnails')));
 
 // API routes
 app.get('/health', (req, res) => ResponseUtil.success(res, { data: { service: 'AI-LMS Iteration 1', status: 'ok' } }));
 app.use('/api/auth', authRoutes);
+app.use('/api/media', mediaRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/v1/student', studentRoutes);
@@ -64,17 +69,8 @@ app.use(ErrorFilter);
 
 async function start() {
   await MongoDBUtil.connect();
-  await require('./model/voucher/Voucher').init();
-  await require('./model/voucher/VoucherRedemption').init();
-  await require('./model/engagement/Review').init();
-  const { reviewRepository } = require('./composition/repositories');
-  await reviewRepository.repairPendingRatings();
-  const ratingRepairTimer = setInterval(() => {
-    reviewRepository.repairPendingRatings().catch(error => LoggerUtil.error('Review rating repair failed', error));
-  }, 60000);
-  ratingRepairTimer.unref();
-  const { seedAdmin } = require('./utils/database/AdminSeeder');
-  await seedAdmin();
+  await initializePersistence();
+  await seedDevelopmentData();
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, () => LoggerUtil.info(`AI-LMS Iteration 1 server listening on port ${port}`));
 }

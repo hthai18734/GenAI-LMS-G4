@@ -1,6 +1,7 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 const { REVIEW_STATUSES } = require('../../domain/engagement/ReviewPolicy');
-const { reviewService: ReviewService } = require('../../composition/services');
+const { reviewService: ReviewService } = UseCases;
 const ReviewQueryDTO = require('../../dto/review/ReviewQueryDTO');
 const ReviewWriteDTO = require('../../dto/review/ReviewWriteDTO');
 const { unknownFields } = require('../../dto/common/DTOUtil');
@@ -60,4 +61,5 @@ class ReviewController {
     } catch (error) { return next(error); }
   }
 }
-module.exports = new ReviewController();
+return  new ReviewController();
+};

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const AuthController = require('../../src/controller/auth/AuthController');
+const AuthController = require('../../src/composition/http').controllers.AuthController;
 const OtpVerificationRepository = require('../../src/infrastructure/persistence/mongoose/repositories/identity/OtpVerificationRepository');
 const OTPUtil = require('../../src/utils/auth/OTPUtil');
 const EmailUtil = require('../../src/utils/email/EmailUtil');

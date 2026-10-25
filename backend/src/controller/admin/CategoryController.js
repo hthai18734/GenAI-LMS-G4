@@ -1,10 +1,11 @@
+module.exports = function createController(UseCases) {
 /**
 Author: HuyTG - CE182405
 Created at: 01/10/2026
 Description: Category Management
  */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { categoryService: CategoryService } = require('../../composition/services');
+const { categoryService: CategoryService } = UseCases;
 const CreateCategoryDTO = require('../../dto/category/CreateCategoryDTO');
 const UpdateCategoryDTO = require('../../dto/category/UpdateCategoryDTO');
 
@@ -41,4 +42,5 @@ class CategoryController {
     } catch (error) { return next(error); }
   }
 }
-module.exports = new CategoryController();
+return  new CategoryController();
+};

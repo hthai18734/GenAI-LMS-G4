@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { publicCatalogService: PublicCatalogService } = require('../../composition/services');
+const { publicCatalogService: PublicCatalogService } = UseCases;
 const HomepageQueryDTO = require('../../dto/public/HomepageQueryDTO');
 const BrowseCoursesQueryDTO = require('../../dto/public/BrowseCoursesQueryDTO');
 const SearchCoursesQueryDTO = require('../../dto/public/SearchCoursesQueryDTO');
@@ -64,4 +65,5 @@ class PublicController {
     return this.execute(res, next, () => PublicCatalogService.getTeacherProfile(input.teacherId), 'Teacher profile retrieved successfully.');
   }
 }
-module.exports = new PublicController();
+return  new PublicController();
+};

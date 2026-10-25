@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const AdminController = require('../../src/controller/admin/AdminController');
+const AdminController = require('../../src/composition/http').controllers.AdminController;
 const TeacherApplicationRepository = require('../../src/infrastructure/persistence/mongoose/repositories/governance/TeacherApplicationRepository');
 const UserRepository = require('../../src/infrastructure/persistence/mongoose/repositories/identity/UserRepository');
 const NotificationRepository = require('../../src/infrastructure/persistence/mongoose/repositories/engagement/NotificationRepository');

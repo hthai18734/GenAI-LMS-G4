@@ -1,11 +1,11 @@
-const EmailUtil = require('../../utils/email/EmailUtil');
 const ServiceError = require('../common/ServiceError');
 
 class TeacherApplicationService {
-  constructor({ teacherApplicationRepository, userRepository, notificationRepository } = {}) {
+  constructor({ teacherApplicationRepository, userRepository, notificationRepository, emailGateway } = {}) {
     this.teacherApplicationRepository = teacherApplicationRepository;
     this.userRepository = userRepository;
     this.notificationRepository = notificationRepository;
+    this.emailGateway = emailGateway;
   }
   async list(status) { return { applications: await this.teacherApplicationRepository.findAll({ status }) }; }
   async getPending(applicationId) {
@@ -20,7 +20,7 @@ class TeacherApplicationService {
     const updated = await this.teacherApplicationRepository.updateStatus(applicationId, 'approved', adminId);
     await this.userRepository.updateRole(userId, 'teacher');
     await this.notificationRepository.create({ recipientId: userId, title: 'Teacher Application Approved', message: 'Congratulations! Your application to teach on AI-LMS has been approved.', type: 'teacher approval' });
-    if (application.userId?.email) await EmailUtil.sendApplicationNotification(application.userId.email, 'approved', null);
+    if (application.userId?.email) await this.emailGateway.sendApplicationNotification(application.userId.email, 'approved', null);
     return { application: updated };
   }
   async reject({ applicationId, reason, adminId }) {
@@ -28,7 +28,7 @@ class TeacherApplicationService {
     const userId = application.userId?._id || application.userId;
     const updated = await this.teacherApplicationRepository.updateStatus(applicationId, 'rejected', adminId, reason);
     await this.notificationRepository.create({ recipientId: userId, title: 'Teacher Application Not Approved', message: reason, type: 'teacher rejection' });
-    if (application.userId?.email) await EmailUtil.sendApplicationNotification(application.userId.email, 'rejected', reason);
+    if (application.userId?.email) await this.emailGateway.sendApplicationNotification(application.userId.email, 'rejected', reason);
     return { application: updated };
   }
 }

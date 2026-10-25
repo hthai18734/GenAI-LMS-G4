@@ -31,9 +31,36 @@ function findImports(files, forbidden) {
 test('HTTP controllers depend on use cases, never persistence', () => {
   const files = javascriptFiles(path.join(sourceRoot, 'controller'));
   assert.deepEqual(findImports(files, [
+    /require\(['"][^'"]*composition\//,
     /require\(['"][^'"]*(?:dao|model|infrastructure)\//,
     /require\(['"]mongoose['"]\)/,
+    /new\s+\w*Service\s*\(/,
+    /common\/UseCases/,
   ]), []);
+});
+
+test('only infrastructure and composition import persistence models', () => {
+  const files = javascriptFiles(sourceRoot).filter((file) => {
+    const name = relative(file);
+    return !name.startsWith('model/')
+      && !name.startsWith('infrastructure/')
+      && !name.startsWith('composition/');
+  });
+  assert.deepEqual(findImports(files, [
+    /require\(['"][^'"]*model\//,
+  ]), []);
+});
+
+test('startup never exposes protected material storage or fixed privileged credentials', () => {
+  const indexSource = fs.readFileSync(path.join(sourceRoot, 'index.js'), 'utf8');
+  assert.doesNotMatch(indexSource, /app\.use\(['"]\/uploads['"],\s*express\.static/);
+  assert.doesNotMatch(indexSource, /express\.static\([^\n]*lesson-videos/);
+
+  const source = javascriptFiles(sourceRoot)
+    .map(file => fs.readFileSync(file, 'utf8'))
+    .join('\n');
+  assert.doesNotMatch(source, /ADMIN_PASSWORD\s*=\s*['"]/);
+  assert.doesNotMatch(source, /TEACHER_PASSWORD\s*=\s*['"]/);
 });
 
 test('application services are independent from HTTP and Mongoose', () => {
@@ -41,6 +68,7 @@ test('application services are independent from HTTP and Mongoose', () => {
   assert.deepEqual(findImports(files, [
     /require\(['"][^'"]*(?:controller|filter|model|routes|infrastructure)\//,
     /require\(['"](?:express|mongoose)['"]\)/,
+    /require\(['"][^'"]*utils\/(?:email\/EmailUtil|ai\/GeminiClient|auth\/(?:JWTUtil|OAuthUtil))['"]\)/,
     /\b(?:req|res)\.(?:body|params|query|user|status|json|redirect|setHeader)\b/,
   ]), []);
 });

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const StudentController = require('../../src/controller/student/StudentController');
+const StudentController = require('../../src/composition/http').controllers.StudentController;
 const UserRepository = require('../../src/infrastructure/persistence/mongoose/repositories/identity/UserRepository');
 const CourseRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/CourseRepository');
 const EnrollmentRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/EnrollmentRepository');

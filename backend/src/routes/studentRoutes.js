@@ -1,14 +1,14 @@
 const express = require('express');
 const NoCacheFilter = require('../filter/NoCacheFilter');
 const { AuthFilter, RoleFilter } = require('../composition/http');
-const StudentController = require('../controller/student/StudentController');
-const StudentQuizController = require('../controller/student/StudentQuizController');
-const StudentAssignmentController = require('../controller/student/StudentAssignmentController');
-const LessonManagementController = require('../controller/learning/LessonManagementController');
-const MaterialController = require('../controller/learning/MaterialController');
-const WishlistController = require('../controller/learning/WishlistController');
-const LearningGoalController = require('../controller/learning/LearningGoalController');
-const ReviewController = require('../controller/engagement/ReviewController');
+const StudentController = require('../composition/http').controllers.StudentController;
+const StudentQuizController = require('../composition/http').controllers.StudentQuizController;
+const StudentAssignmentController = require('../composition/http').controllers.StudentAssignmentController;
+const LessonManagementController = require('../composition/http').controllers.LessonManagementController;
+const MaterialController = require('../composition/http').controllers.MaterialController;
+const WishlistController = require('../composition/http').controllers.WishlistController;
+const LearningGoalController = require('../composition/http').controllers.LearningGoalController;
+const ReviewController = require('../composition/http').controllers.ReviewController;
 
 const router = express.Router();
 router.use(NoCacheFilter);
@@ -31,8 +31,8 @@ router.get('/materials/:materialId/download', RoleFilter('student', 'teacher', '
 
 // Student-only features
 router.use(RoleFilter('student'));
-router.post('/vouchers/apply',require('../controller/admin/VoucherController').apply);
-router.get('/vouchers/available',require('../controller/admin/VoucherController').available);
+router.post('/vouchers/apply',require('../composition/http').controllers.VoucherController.apply);
+router.get('/vouchers/available',require('../composition/http').controllers.VoucherController.available);
 router.get('/reviews', ReviewController.list.bind(ReviewController));
 router.get('/reviews/:reviewId', ReviewController.getById.bind(ReviewController));
 router.post('/courses/:courseId/reviews', ReviewController.create.bind(ReviewController));

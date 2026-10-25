@@ -1,8 +1,16 @@
 const repositories = require('./repositories');
+const crypto = require('crypto');
 const ChatContextService = require('../service/chat/ChatContextService');
 const ChatLearningService = require('../service/chat/ChatLearningService');
 const ChatService = require('../service/chat/ChatService');
 const GeminiClient = require('../utils/ai/GeminiClient');
+const EmailUtil = require('../utils/email/EmailUtil');
+const PasswordUtil = require('../utils/auth/PasswordUtil');
+const OTPUtil = require('../utils/auth/OTPUtil');
+const JWTUtil = require('../utils/auth/JWTUtil');
+const OAuthUtil = require('../utils/auth/OAuthUtil');
+const ContentGenerationService = require('../service/ai/ContentGenerationService');
+const path = require('path');
 const createVoucherService = require('../service/voucher/VoucherService');
 const createVoucherCheckoutService = require('../service/voucher/VoucherCheckoutService');
 
@@ -53,9 +61,18 @@ const services = {
   adminDashboardService: create('../service/admin/AdminDashboardService'),
   adminTeacherService: create('../service/admin/AdminTeacherService'),
   assignmentService,
-  authService: create('../service/auth/AuthService'),
+  authService: create('../service/auth/AuthService', {
+    ...repositories,
+    cryptoGateway: crypto,
+    passwordGateway: PasswordUtil,
+    otpGateway: OTPUtil,
+    tokenGateway: JWTUtil,
+    oAuthGateway: OAuthUtil,
+    emailGateway: EmailUtil,
+  }),
   categoryService: create('../service/learning/CategoryService'),
   chatService,
+  contentGenerationService: new ContentGenerationService({ gemini: new GeminiClient({ timeoutMs: 30000 }) }),
   courseModerationService,
   courseService,
   discussionService: create('../service/learning/DiscussionService'),
@@ -67,6 +84,10 @@ const services = {
   learningGoalService: create('../service/learning/LearningGoalService'),
   learningStatisticsService: create('../service/learning/LearningStatisticsService'),
   lessonManagementService: create('../service/learning/LessonManagementService'),
+  lessonVideoService: create('../service/learning/LessonVideoService', {
+    ...repositories,
+    videoDirectory: path.resolve(__dirname, '../../uploads/lesson-videos'),
+  }),
   materialService: create('../service/learning/MaterialService'),
   notificationService: create('../service/engagement/NotificationService'),
   progressTrackingService,
@@ -79,7 +100,10 @@ const services = {
   quizService,
   reviewService: create('../service/engagement/ReviewService'),
   studentService: create('../service/student/StudentService'),
-  teacherApplicationService: create('../service/admin/TeacherApplicationService'),
+  teacherApplicationService: create('../service/admin/TeacherApplicationService', {
+    ...repositories,
+    emailGateway: EmailUtil,
+  }),
   teacherDashboardService: create('../service/teacher/TeacherDashboardService'),
   wishlistService: create('../service/learning/WishlistService'),
   voucherCheckoutService,

@@ -1,16 +1,16 @@
 const express = require('express');
 const NoCacheFilter = require('../filter/NoCacheFilter');
 const { AuthFilter, RoleFilter } = require('../composition/http');
-const StudentController = require('../controller/student/StudentController');
-const LessonManagementController = require('../controller/learning/LessonManagementController');
-const MaterialController = require('../controller/learning/MaterialController');
-const WishlistController = require('../controller/learning/WishlistController');
-const LearningGoalController = require('../controller/learning/LearningGoalController');
-const EnrollmentLifecycleController = require('../controller/learning/EnrollmentLifecycleController');
-const ProgressTrackingController = require('../controller/learning/ProgressTrackingController');
-const LearningContentReportController = require('../controller/learning/LearningContentReportController');
-const LearningStatisticsController = require('../controller/learning/LearningStatisticsController');
-const ReviewController = require('../controller/engagement/ReviewController');
+const StudentController = require('../composition/http').controllers.StudentController;
+const LessonManagementController = require('../composition/http').controllers.LessonManagementController;
+const MaterialController = require('../composition/http').controllers.MaterialController;
+const WishlistController = require('../composition/http').controllers.WishlistController;
+const LearningGoalController = require('../composition/http').controllers.LearningGoalController;
+const EnrollmentLifecycleController = require('../composition/http').controllers.EnrollmentLifecycleController;
+const ProgressTrackingController = require('../composition/http').controllers.ProgressTrackingController;
+const LearningContentReportController = require('../composition/http').controllers.LearningContentReportController;
+const LearningStatisticsController = require('../composition/http').controllers.LearningStatisticsController;
+const ReviewController = require('../composition/http').controllers.ReviewController;
 const { uploadMaterial } = require('../utils/upload/MaterialUpload');
 
 const router = express.Router();

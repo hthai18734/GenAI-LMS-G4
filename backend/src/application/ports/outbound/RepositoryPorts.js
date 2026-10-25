@@ -17,7 +17,7 @@ module.exports = Object.freeze({
   learningActivityLogRepository: port('countActivities', 'findStudentIntervals', 'logActivity'),
   learningContentReportRepository: port('create', 'findByCourses', 'findById', 'findByReporter', 'updateStatus'),
   learningGoalRepository: port('create', 'deleteById', 'findById', 'findByStudent', 'findInProgressByCourse', 'findOwned', 'markCancelled', 'updateProgress', 'updateRule'),
-  lessonRepository: port('countByCourseId', 'countValidByCourseId', 'create', 'findByCourseId', 'findById', 'findFirstLesson', 'findPublishedByCourseId', 'maxActiveOrder', 'normalizeOrder', 'reorderLessons', 'softDelete', 'update'),
+  lessonRepository: port('countByCourseId', 'countValidByCourseId', 'create', 'findByCourseId', 'findById', 'findByVideoRef', 'findFirstLesson', 'findPublishedByCourseId', 'maxActiveOrder', 'normalizeOrder', 'reorderLessons', 'softDelete', 'update'),
   materialRepository: port('create', 'findActiveByLessonId', 'findById', 'softDelete', 'softDeleteByLessonId', 'update'),
   notificationPreferenceRepository: port('findByUserId', 'isEnabled', 'upsertMany'),
   notificationRepository: port('count', 'countUnread', 'create', 'findByRecipient', 'markAllAsRead', 'markAsRead', 'remove'),

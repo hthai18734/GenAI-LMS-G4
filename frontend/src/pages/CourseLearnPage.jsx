@@ -6,6 +6,7 @@ import { getUser } from '../features/auth/api.js';
 import { useToast } from '../components/Toast';
 import { useChatContext } from '../components/chat/useChatContext';
 import ReviewsPanel from '../components/ReviewsPanel';
+import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 
 export default function CourseLearnPage() {
   const { courseId } = useParams();
@@ -893,7 +894,7 @@ export default function CourseLearnPage() {
                           </div>
                         ) : (
                           <div>
-                            <video
+                            <AuthenticatedVideo
                               key={activeVideo}
                               src={activeVideo}
                               ref={videoElementRef}
@@ -916,9 +917,8 @@ export default function CourseLearnPage() {
                                 sendVideoHeartbeatCall();
                               }}
                             >
-                              <source src={activeVideo} />
                               Your browser does not support the video tag.
-                            </video>
+                            </AuthenticatedVideo>
                             {(() => {
                               const effPercent = Math.round(videoProgress?.watchedPercent !== undefined ? videoProgress.watchedPercent : localWatchedPercent);
                               const effSec = Math.round(videoProgress?.watchedSeconds !== undefined ? videoProgress.watchedSeconds : localWatchedSeconds);
@@ -1090,7 +1090,7 @@ export default function CourseLearnPage() {
                       value={newThreadTitle}
                       onChange={(e) => setNewThreadTitle(e.target.value)}
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--line)', marginBottom: '8px' }}
-                    />
+                            />
                     <textarea
                       placeholder="Write your question or discussion topic here..."
                       required

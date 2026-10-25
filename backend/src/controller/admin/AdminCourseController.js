@@ -1,10 +1,11 @@
+module.exports = function createController(UseCases) {
 /**
 Author: HuyTG - CE182405
 Created at: 29/09/2026
 Description: Course Management
  */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { courseModerationService: CourseModerationService } = require('../../composition/services');
+const { courseModerationService: CourseModerationService } = UseCases;
 const CourseQueryDTO = require('../../dto/course/CourseQueryDTO');
 const RejectCourseDTO = require('../../dto/course/RejectCourseDTO');
 
@@ -41,4 +42,5 @@ class AdminCourseController {
     } catch (error) { return next(error); }
   }
 }
-module.exports = new AdminCourseController();
+return  new AdminCourseController();
+};

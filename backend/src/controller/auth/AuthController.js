@@ -1,6 +1,7 @@
+module.exports = function createController(UseCases) {
 const LoggerUtil = require('../../utils/common/LoggerUtil');
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { authService: AuthService } = require('../../composition/services');
+const { authService: AuthService } = UseCases;
 
 class AuthController {
   async send(res, next, action) {
@@ -62,4 +63,5 @@ class AuthController {
     const redirect = new URL(target); redirect.searchParams.set('error', message); return res.redirect(redirect.toString());
   }
 }
-module.exports = new AuthController();
+return  new AuthController();
+};

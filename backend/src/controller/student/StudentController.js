@@ -1,6 +1,7 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { studentService: StudentService } = require('../../composition/services');
-const { notificationService: NotificationService } = require('../../composition/services');
+const { studentService: StudentService } = UseCases;
+const { notificationService: NotificationService } = UseCases;
 const { handleError } = require('../common/ControllerUtil');
 const ViewProfileDTO = require('../../dto/student/ViewProfileDTO');
 const UpdateProfileDTO = require('../../dto/student/UpdateProfileDTO');
@@ -93,4 +94,5 @@ class StudentController {
   async sendTestNotification(req, res, next) { return this.respond(res, next, () => StudentService.sendTestNotification(req.user._id, req.body?.type), { status: 201, message: 'Test notification sent! Check the notification bell in the top bar.' }); }
   toPublicProfile(user) { return StudentService.toPublicProfile(user); }
 }
-module.exports = new StudentController();
+return  new StudentController();
+};

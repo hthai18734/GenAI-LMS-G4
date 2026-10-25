@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { wishlistService: WishlistService } = require('../../composition/services');
+const { wishlistService: WishlistService } = UseCases;
 
 class WishlistController {
   async add(req, res, next) {
@@ -39,4 +40,5 @@ class WishlistController {
   }
 }
 
-module.exports = new WishlistController();
+return  new WishlistController();
+};

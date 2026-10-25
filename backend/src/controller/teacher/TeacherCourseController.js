@@ -1,16 +1,17 @@
+module.exports = function createController(UseCases) {
 /**
 Author: HuyTG - CE182405
 Created at: 29/09/2026
 Description: Course Management
  */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { courseService: CourseService } = require('../../composition/services');
+const { courseService: CourseService } = UseCases;
 const CreateCourseDTO = require('../../dto/course/CreateCourseDTO');
 const UpdateCourseDTO = require('../../dto/course/UpdateCourseDTO');
 const CourseQueryDTO = require('../../dto/course/CourseQueryDTO');
 const LessonDTO = require('../../dto/course/LessonDTO');
-const { categoryService: CategoryService } = require('../../composition/services');
-const { teacherDashboardService: TeacherDashboardService } = require('../../composition/services');
+const { categoryService: CategoryService } = UseCases;
+const { teacherDashboardService: TeacherDashboardService } = UseCases;
 
 class TeacherCourseController {
   validationError(res, errors) { return ResponseUtil.error(res, { status: 400, message: 'Validation failed.', errors }); }
@@ -170,4 +171,5 @@ class TeacherCourseController {
     }
   }
 }
-module.exports = new TeacherCourseController();
+return  new TeacherCourseController();
+};

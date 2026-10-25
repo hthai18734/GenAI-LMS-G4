@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { notificationService: NotificationService } = require('../../composition/services');
+const { notificationService: NotificationService } = UseCases;
 const { handleError } = require('../common/ControllerUtil');
 
 class NotificationController {
@@ -29,4 +30,5 @@ class NotificationController {
     catch (error) { return handleError(res, next, error); }
   }
 }
-module.exports = new NotificationController();
+return  new NotificationController();
+};

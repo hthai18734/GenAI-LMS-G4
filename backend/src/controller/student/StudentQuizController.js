@@ -1,7 +1,8 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { quizService: QuizService } = require('../../composition/services');
+const { quizService: QuizService } = UseCases;
 const SubmitQuizDTO = require('../../dto/student/SubmitQuizDTO');
-const { assignmentService: AssignmentService } = require('../../composition/services');
+const { assignmentService: AssignmentService } = UseCases;
 
 class StudentQuizController {
   validationError(res, errors) {
@@ -47,4 +48,5 @@ class StudentQuizController {
   }
 }
 
-module.exports = new StudentQuizController();
+return  new StudentQuizController();
+};

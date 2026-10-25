@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const Lesson = require('../../../../../model/learning/Lesson');
 
 class LessonRepository {
+  async findByVideoRef(videoRef) {
+    return Lesson.findOne({ videoRef, deletedAt: null }).exec();
+  }
   async findByCourseId(courseId) {
     if (!mongoose.isValidObjectId(courseId)) return [];
     return Lesson.find({ courseId, deletedAt: null }).sort({ order: 1 }).exec();

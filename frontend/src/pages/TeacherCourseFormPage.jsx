@@ -9,6 +9,7 @@ import { teacherService } from '../features/teacher/api.js';
 import { materialService, discussionService } from '../features/learning/api.js';
 import { getUser } from '../features/auth/api.js';
 import { useToast } from '../components/Toast';
+import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 
 const initial = { title: '', description: '', categoryId: '', thumbnail: '', duration: '' };
 const initialLesson = { title: '', content: '', order: 1, duration: 0, videoRef: '', isPublished: true };
@@ -1160,13 +1161,11 @@ export default function TeacherCourseFormPage() {
                           );
                         }
                         return (
-                          <video
+                          <AuthenticatedVideo
                             src={url}
                             controls
                             style={{ width: '100%', maxHeight: '220px', borderRadius: '6px', background: '#000' }}
-                          >
-                            <source src={url} />
-                          </video>
+                          />
                         );
                       })()}
                     </div>

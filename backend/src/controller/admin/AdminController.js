@@ -1,6 +1,7 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { adminDashboardService: AdminDashboardService } = require('../../composition/services');
-const { teacherApplicationService: TeacherApplicationService } = require('../../composition/services');
+const { adminDashboardService: AdminDashboardService } = UseCases;
+const { teacherApplicationService: TeacherApplicationService } = UseCases;
 const TeacherApplicationQueryDTO = require('../../dto/admin/TeacherApplicationQueryDTO');
 const ApproveTeacherApplicationDTO = require('../../dto/admin/ApproveTeacherApplicationDTO');
 const RejectTeacherApplicationDTO = require('../../dto/admin/RejectTeacherApplicationDTO');
@@ -39,4 +40,5 @@ class AdminController {
     catch (error) { return next(error); }
   }
 }
-module.exports = new AdminController();
+return  new AdminController();
+};

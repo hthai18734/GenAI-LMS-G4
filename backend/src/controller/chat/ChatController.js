@@ -1,4 +1,5 @@
-const { chatService: service } = require('../../composition/services');
+module.exports = function createController(UseCases) {
+const { chatService: service } = UseCases;
 const ChatDTO = require('../../dto/chat/ChatDTO');
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 const action = handler => async (req, res, next) => {
@@ -6,7 +7,7 @@ const action = handler => async (req, res, next) => {
   catch (error) { return next(error); }
   finally { req.releaseChatSlot?.(); }
 };
-module.exports = {
+return  {
   list: action(req => service.list(req.user, ChatDTO.list(req.query))),
   create: action(req => service.create(req.user, ChatDTO.create(req.body))),
   get: action(req => service.get(req.user, ChatDTO.id(req.params.id))),
@@ -17,4 +18,5 @@ module.exports = {
   async authorizeUpload(req, res, next) {
     try { await service.owned(req.user, ChatDTO.id(req.params.id)); next(); } catch (error) { next(error); }
   },
+};
 };

@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { quizService: QuizService } = require('../../composition/services');
+const { quizService: QuizService } = UseCases;
 const CreateQuizDTO = require('../../dto/quiz/CreateQuizDTO');
 const UpdateQuizDTO = require('../../dto/quiz/UpdateQuizDTO');
 
@@ -67,4 +68,5 @@ class TeacherQuizController {
   }
 }
 
-module.exports = new TeacherQuizController();
+return  new TeacherQuizController();
+};

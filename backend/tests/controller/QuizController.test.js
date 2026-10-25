@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const TeacherQuizController = require('../../src/controller/teacher/TeacherQuizController');
+const TeacherQuizController = require('../../src/composition/http').controllers.TeacherQuizController;
 const { quizService: QuizService } = require('../../src/composition/services');
 
 const COURSE_ID = '507f1f77bcf86cd799439011';

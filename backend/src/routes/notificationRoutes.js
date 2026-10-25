@@ -6,7 +6,7 @@ Description: Notification Inbox Routes for all authenticated users
 const express = require('express');
 const NoCacheFilter = require('../filter/NoCacheFilter');
 const { AuthFilter } = require('../composition/http');
-const NotificationController = require('../controller/engagement/NotificationController');
+const NotificationController = require('../composition/http').controllers.NotificationController;
 
 const router = express.Router();
 router.use(NoCacheFilter);

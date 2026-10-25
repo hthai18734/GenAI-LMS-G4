@@ -1,4 +1,5 @@
-const { assignmentService: AssignmentService } = require('../../composition/services');
+module.exports = function createController(UseCases) {
+const { assignmentService: AssignmentService } = UseCases;
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 
 class StudentAssignmentController {
@@ -9,4 +10,5 @@ class StudentAssignmentController {
     } catch (error) { return next(error); }
   }
 }
-module.exports = new StudentAssignmentController();
+return  new StudentAssignmentController();
+};

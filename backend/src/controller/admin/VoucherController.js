@@ -1,4 +1,5 @@
-const { voucherService: service } = require("../../composition/services");
+module.exports = function createController(UseCases) {
+const { voucherService: service } = UseCases;
 const {
   validateVoucherInput,
 } = require("../../service/voucher/VoucherValidation");
@@ -41,7 +42,7 @@ function input(req, res, creating) {
   }
   return parsed.value;
 }
-module.exports = {
+return  {
   list: wrap(async (req, res) => {
     if (
       req.query.status &&
@@ -156,4 +157,5 @@ module.exports = {
       },
     });
   }),
+};
 };

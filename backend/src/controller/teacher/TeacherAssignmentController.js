@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { assignmentService: AssignmentService } = require('../../composition/services');
+const { assignmentService: AssignmentService } = UseCases;
 const CreateAssignmentDTO = require('../../dto/assignment/CreateAssignmentDTO');
 
 class TeacherAssignmentController {
@@ -37,4 +38,5 @@ class TeacherAssignmentController {
   }
 }
 
-module.exports = new TeacherAssignmentController();
+return  new TeacherAssignmentController();
+};
