@@ -1,9 +1,10 @@
 const crypto = require('crypto');
-const Conversation = require('../../model/chat/ChatConversation');
-const Document = require('../../model/chat/ChatDocument');
-const ServiceError = require('../../service/common/ServiceError');
+const Conversation = require('../../../../../model/chat/ChatConversation');
+const Document = require('../../../../../model/chat/ChatDocument');
 
-class ChatDAO {
+function conflict(code) { const error = new Error(code); error.code = code; return error; }
+
+class ChatRepository {
   create(ownerId, context, title) { return Conversation.create({ ownerId, ...context, title }); }
   list(ownerId, context = {}, before = null) {
     return Conversation.find({ ownerId, ...(context.courseId ? { courseId: context.courseId } : {}), ...(context.lessonId ? { lessonId: context.lessonId } : {}), ...(before ? { _id: { $lt: before } } : {}) })
@@ -20,17 +21,17 @@ class ChatDAO {
     const row = await Conversation.findOneAndUpdate({ _id: id, ownerId, $or: [{ lockUntil: null }, { lockUntil: { $lt: new Date() } }] }, {
       $set: { lockToken: token, lockUntil: new Date(Date.now() + 5 * 60 * 1000) },
     }, { new: true }).lean();
-    if (!row) throw new ServiceError(409, 'Cuộc trò chuyện đang xử lý hoặc không còn tồn tại. Vui lòng thử lại.');
+    if (!row) throw conflict('CHAT_LOCK_CONFLICT');
     return { row, token };
   }
   unlock(ownerId, id, token) { return Conversation.updateOne({ _id: id, ownerId, lockToken: token }, { $set: { lockToken: null, lockUntil: null } }); }
   async append(ownerId, id, token, turn, title) {
     const result = await Conversation.updateOne({ _id: id, ownerId, lockToken: token }, { $push: { turns: turn }, $set: { title } });
-    if (!result.matchedCount) throw new ServiceError(409, 'Phiên xử lý đã thay đổi. Vui lòng tải lại cuộc trò chuyện.');
+    if (!result.matchedCount) throw conflict('CHAT_SESSION_CHANGED');
   }
   async remove(ownerId, id, token) {
     await Document.deleteMany({ ownerId, conversationId: id });
     await Conversation.deleteOne({ _id: id, ownerId, lockToken: token });
   }
 }
-module.exports = new ChatDAO();
+module.exports = new ChatRepository();

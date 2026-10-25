@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { publicService } from '../services/api';
-import { useAuth } from '../services/AuthContext';
+import { publicService } from '../features/public/api.js';
+import { useAuth } from '../features/auth/useAuth.js';
 
 export default function LandingPage() {
   const { isAuthenticated, user } = useAuth();
@@ -150,7 +150,7 @@ export default function LandingPage() {
                 border: '1px solid #c7d2fe',
               }}
             >
-              📊 Bảng điều khiển Admin
+              📊 Admin Dashboard
             </Link>
           )}
 
@@ -167,7 +167,7 @@ export default function LandingPage() {
                 fontWeight: '600'
               }}
             >
-              {user?.role === 'admin' ? 'Bảng quản trị Admin →' : user?.role === 'teacher' ? 'Quản lý khóa học →' : `My Dashboard (${user?.fullName || 'Student'}) →`}
+              {user?.role === 'admin' ? 'Admin Dashboard →' : user?.role === 'teacher' ? 'Manage Courses →' : `My Dashboard (${user?.fullName || 'Student'}) →`}
             </Link>
           ) : (
             <>

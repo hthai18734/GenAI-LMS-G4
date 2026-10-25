@@ -1,9 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const PublicController = require('../../src/controller/public/PublicController');
-const CourseDAO = require('../../src/dao/content/CourseDAO');
-const CategoryDAO = require('../../src/dao/content/CategoryDAO');
-const UserDAO = require('../../src/dao/identity/UserDAO');
+const CourseRepository = require('../../src/infrastructure/persistence/mongoose/repositories/content/CourseRepository');
+const CategoryRepository = require('../../src/infrastructure/persistence/mongoose/repositories/content/CategoryRepository');
+const UserRepository = require('../../src/infrastructure/persistence/mongoose/repositories/identity/UserRepository');
 
 function createMockRes() {
   const res = {
@@ -23,13 +23,13 @@ function createMockRes() {
 
 // ─── UC-1.1: View Homepage ──────────────────────────────────────────
 test('UC-1.1: getHomepage returns featured courses and active categories', async () => {
-  const origFeatured = CourseDAO.findFeaturedCourses;
-  const origCategories = CategoryDAO.findAllActive;
+  const origFeatured = CourseRepository.findFeaturedCourses;
+  const origCategories = CategoryRepository.findAllActive;
 
-  CourseDAO.findFeaturedCourses = async () => [
+  CourseRepository.findFeaturedCourses = async () => [
     { _id: 'c1', title: 'Intro to AI', isFeatured: true, status: 'PUBLIC' },
   ];
-  CategoryDAO.findAllActive = async () => [
+  CategoryRepository.findAllActive = async () => [
     { _id: 'cat1', name: 'Computer Science', isActive: true },
   ];
 
@@ -44,20 +44,20 @@ test('UC-1.1: getHomepage returns featured courses and active categories', async
     assert.equal(res.body.data.categories.length, 1);
     assert.ok(res.body.data.banner);
   } finally {
-    CourseDAO.findFeaturedCourses = origFeatured;
-    CategoryDAO.findAllActive = origCategories;
+    CourseRepository.findFeaturedCourses = origFeatured;
+    CategoryRepository.findAllActive = origCategories;
   }
 });
 
 // ─── UC-1.2: Browse Courses ─────────────────────────────────────────
 test('UC-1.2: browseCourses returns paginated course list', async () => {
-  const origPaging = CourseDAO.findPublishedWithPaging;
-  const origCount = CourseDAO.countPublished;
+  const origPaging = CourseRepository.findPublishedWithPaging;
+  const origCount = CourseRepository.countPublished;
 
-  CourseDAO.findPublishedWithPaging = async (page, limit) => [
+  CourseRepository.findPublishedWithPaging = async (page, limit) => [
     { _id: 'c1', title: 'Fullstack React', status: 'PUBLIC' },
   ];
-  CourseDAO.countPublished = async () => 1;
+  CourseRepository.countPublished = async () => 1;
 
   try {
     const req = { query: { page: '1', limit: '10' } };
@@ -70,8 +70,8 @@ test('UC-1.2: browseCourses returns paginated course list', async () => {
     assert.equal(res.body.data.pagination.total, 1);
     assert.equal(res.body.data.pagination.page, 1);
   } finally {
-    CourseDAO.findPublishedWithPaging = origPaging;
-    CourseDAO.countPublished = origCount;
+    CourseRepository.findPublishedWithPaging = origPaging;
+    CourseRepository.countPublished = origCount;
   }
 });
 
@@ -87,9 +87,9 @@ test('UC-1.3: searchCourses rejects empty keyword with 400 Keyword required', as
 });
 
 test('UC-1.3: searchCourses returns ranked results for valid keyword', async () => {
-  const origSearch = CourseDAO.searchByKeyword;
+  const origSearch = CourseRepository.searchByKeyword;
 
-  CourseDAO.searchByKeyword = async (keyword, page, limit) => ({
+  CourseRepository.searchByKeyword = async (keyword, page, limit) => ({
     courses: [{ _id: 'c1', title: 'Machine Learning', description: 'ML course' }],
     total: 1,
   });
@@ -104,7 +104,7 @@ test('UC-1.3: searchCourses returns ranked results for valid keyword', async () 
     assert.equal(res.body.data.courses.length, 1);
     assert.equal(res.body.data.courses[0].title, 'Machine Learning');
   } finally {
-    CourseDAO.searchByKeyword = origSearch;
+    CourseRepository.searchByKeyword = origSearch;
   }
 });
 
@@ -120,9 +120,9 @@ test('UC-1.4: filterAndSortCourses rejects invalid filter options', async () => 
 });
 
 test('UC-1.4: filterAndSortCourses returns filtered and sorted courses', async () => {
-  const origFilter = CourseDAO.findByFilterAndSort;
+  const origFilter = CourseRepository.findByFilterAndSort;
 
-  CourseDAO.findByFilterAndSort = async () => ({
+  CourseRepository.findByFilterAndSort = async () => ({
     courses: [{ _id: 'c1', title: 'Python Basics', price: 0 }],
     total: 1,
   });
@@ -136,14 +136,14 @@ test('UC-1.4: filterAndSortCourses returns filtered and sorted courses', async (
     assert.equal(res.body.success, true);
     assert.equal(res.body.data.courses.length, 1);
   } finally {
-    CourseDAO.findByFilterAndSort = origFilter;
+    CourseRepository.findByFilterAndSort = origFilter;
   }
 });
 
 // ─── UC-1.5: View Course Detail ─────────────────────────────────────
 test('UC-1.5: getCourseDetail returns 404 when course not found', async () => {
-  const origFind = CourseDAO.findById;
-  CourseDAO.findById = async () => null;
+  const origFind = CourseRepository.findById;
+  CourseRepository.findById = async () => null;
 
   try {
     const req = { params: { id: 'nonexistent' } };
@@ -154,20 +154,20 @@ test('UC-1.5: getCourseDetail returns 404 when course not found', async () => {
     assert.equal(res.body.success, false);
     assert.equal(res.body.message, 'Course not found');
   } finally {
-    CourseDAO.findById = origFind;
+    CourseRepository.findById = origFind;
   }
 });
 
 test('UC-1.5: getCourseDetail returns course and instructor summary when found', async () => {
-  const origFindCourse = CourseDAO.findById;
-  const origFindTeacher = UserDAO.findTeacherSummaryById;
+  const origFindCourse = CourseRepository.findById;
+  const origFindTeacher = UserRepository.findTeacherSummaryById;
 
-  CourseDAO.findById = async () => ({
+  CourseRepository.findById = async () => ({
     _id: 'c1',
     title: 'Node.js Mastery',
     instructorId: 't1',
   });
-  UserDAO.findTeacherSummaryById = async () => ({
+  UserRepository.findTeacherSummaryById = async () => ({
     _id: 't1',
     fullName: 'Dr. John Doe',
     avatar: 'https://example.com/avatar.jpg',
@@ -184,15 +184,15 @@ test('UC-1.5: getCourseDetail returns course and instructor summary when found',
     assert.equal(res.body.data.course.title, 'Node.js Mastery');
     assert.equal(res.body.data.instructor.fullName, 'Dr. John Doe');
   } finally {
-    CourseDAO.findById = origFindCourse;
-    UserDAO.findTeacherSummaryById = origFindTeacher;
+    CourseRepository.findById = origFindCourse;
+    UserRepository.findTeacherSummaryById = origFindTeacher;
   }
 });
 
 // ─── UC-1.6: View Public Categories & Teacher Profile ────────────────
 test('UC-1.6: getPublicCategories returns active category list', async () => {
-  const origCategories = CategoryDAO.findAllActive;
-  CategoryDAO.findAllActive = async () => [
+  const origCategories = CategoryRepository.findAllActive;
+  CategoryRepository.findAllActive = async () => [
     { _id: 'cat1', name: 'Web Development', isActive: true },
   ];
 
@@ -204,13 +204,13 @@ test('UC-1.6: getPublicCategories returns active category list', async () => {
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.data.categories.length, 1);
   } finally {
-    CategoryDAO.findAllActive = origCategories;
+    CategoryRepository.findAllActive = origCategories;
   }
 });
 
 test('UC-1.6: getPublicTeacherProfile returns 404 when teacher profile not found', async () => {
-  const origTeacher = UserDAO.findPublicTeacherById;
-  UserDAO.findPublicTeacherById = async () => null;
+  const origTeacher = UserRepository.findPublicTeacherById;
+  UserRepository.findPublicTeacherById = async () => null;
 
   try {
     const req = { params: { teacherId: 'unknown' } };
@@ -220,20 +220,20 @@ test('UC-1.6: getPublicTeacherProfile returns 404 when teacher profile not found
     assert.equal(res.statusCode, 404);
     assert.equal(res.body.message, 'Teacher profile not found');
   } finally {
-    UserDAO.findPublicTeacherById = origTeacher;
+    UserRepository.findPublicTeacherById = origTeacher;
   }
 });
 
 test('UC-1.6: getPublicTeacherProfile returns profile and published courses', async () => {
-  const origTeacher = UserDAO.findPublicTeacherById;
-  const origCourses = CourseDAO.findCoursesByTeacherId;
+  const origTeacher = UserRepository.findPublicTeacherById;
+  const origCourses = CourseRepository.findCoursesByTeacherId;
 
-  UserDAO.findPublicTeacherById = async () => ({
+  UserRepository.findPublicTeacherById = async () => ({
     _id: 't1',
     fullName: 'Jane Smith',
     role: 'teacher',
   });
-  CourseDAO.findCoursesByTeacherId = async () => [
+  CourseRepository.findCoursesByTeacherId = async () => [
     { _id: 'c1', title: 'Data Structures' },
   ];
 
@@ -246,7 +246,7 @@ test('UC-1.6: getPublicTeacherProfile returns profile and published courses', as
     assert.equal(res.body.data.teacher.fullName, 'Jane Smith');
     assert.equal(res.body.data.publishedCourses.length, 1);
   } finally {
-    UserDAO.findPublicTeacherById = origTeacher;
-    CourseDAO.findCoursesByTeacherId = origCourses;
+    UserRepository.findPublicTeacherById = origTeacher;
+    CourseRepository.findCoursesByTeacherId = origCourses;
   }
 });

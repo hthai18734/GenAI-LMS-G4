@@ -1,5 +1,5 @@
 const express = require('express');
-const { AuthFilter, RoleFilter } = require('../filter/AuthFilter');
+const { AuthFilter, RoleFilter } = require('../composition/http');
 const NoCacheFilter = require('../filter/NoCacheFilter');
 const ChatLimitFilter = require('../filter/ChatLimitFilter');
 const controller = require('../controller/chat/ChatController');

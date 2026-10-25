@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 
 function text(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -9,7 +9,7 @@ function hasOwn(body, field) {
 }
 
 function objectId(value) {
-  return !value || mongoose.isValidObjectId(value);
+  return !value || isValidIdentifier(value);
 }
 
 function unknownFields(body, allowed) {

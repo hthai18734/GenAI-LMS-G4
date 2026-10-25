@@ -1,7 +1,6 @@
-const ChatService = require('../../service/chat/ChatService');
+const { chatService: service } = require('../../composition/services');
 const ChatDTO = require('../../dto/chat/ChatDTO');
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const service = new ChatService();
 const action = handler => async (req, res, next) => {
   try { return ResponseUtil.success(res, { data: await handler(req) }); }
   catch (error) { return next(error); }

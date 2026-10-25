@@ -63,7 +63,7 @@ class CourseService {
   async deleteCourse(courseId, user) {
     const course = await this.getOwnedCourse(courseId, user);
     if (course.status === COURSE_STATUS.PENDING_REVIEW) throw new ServiceError(409, 'A course pending review cannot be deleted.');
-    
+
     // Soft-delete the course
     const deletedCourse = await this.courseRepository.softDelete(courseId);
 
