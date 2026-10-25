@@ -1,134 +1,320 @@
-# AI-LMS Architecture
+# Cấu trúc và kiến trúc phát triển AI-LMS
 
-## Decision
+> Tài liệu duy nhất để thành viên dựa vào khi thêm chức năng hoặc sửa lỗi.
+> Code và test trên `main` là nguồn xác minh cuối cùng nếu tài liệu chưa kịp cập nhật.
 
-AI-LMS uses a feature-oriented React frontend and a Hexagonal (Ports and Adapters) backend. HTTP and MongoDB are adapters around application use cases; they are not the center of the system. Public HTTP contracts and MongoDB schemas remain stable.
+## 1. Kiến trúc được chọn
 
-`DAO` is not used. Persistence access is expressed as application-owned Repository ports and implemented by Mongoose Repository adapters.
+- Frontend: React theo **feature-oriented architecture**, không áp dụng MVC máy móc.
+- Backend: **Hexagonal Architecture / Ports and Adapters**.
+- Database: MongoDB qua Mongoose.
+- DTO được giữ tại biên HTTP để kiểm tra và chuẩn hóa input.
+- Không dùng DAO. Truy cập dữ liệu đi qua Repository Port và Mongoose Repository Adapter.
 
-## System flow
-
-```text
-React page/component
-  -> feature public API
-  -> shared HTTP client
-  -> Express route/controller       (inbound adapter)
-  -> application service/use case
-  -> Repository port                (outbound port)
-  -> Mongoose Repository adapter    (outbound adapter)
-  -> Mongoose model -> MongoDB
-```
-
-The composition root is the only place that connects use cases to concrete adapters:
+Luồng tổng quát:
 
 ```text
-src/composition/repositories.js
-  validates Mongoose adapters against application Repository ports
-
-src/composition/services.js
-  constructor-injects repositories and collaborating use cases
-
-src/composition/http.js
-  constructs controller factories with their use cases and injects authentication
-  dependencies into HTTP middleware
+React Page/Component
+  -> features/<feature>/api.js
+  -> shared/api/client.js
+  -> Express Route
+  -> Controller + DTO                 inbound adapter
+  -> Application Service / Use Case
+  -> Repository Port                  outbound port
+  -> Mongoose Repository Adapter      outbound adapter
+  -> Mongoose Model
+  -> MongoDB
 ```
 
-## Backend boundaries
-
-1. `routes` compose middleware and controller handlers only.
-2. `controller` is the inbound HTTP adapter. It reads HTTP data, invokes DTO validation and calls a configured use case.
-3. `dto` validates, normalizes and whitelists untrusted transport input.
-4. `service` contains application use cases. Services receive ports and collaborating use cases through constructors; they never import Mongoose repositories or models.
-5. `application/ports/outbound` defines repository capabilities required by the application and validates adapters at startup.
-6. `infrastructure/persistence/mongoose/repositories` implements those ports and owns queries, aggregation, transactions and persistence concurrency.
-7. `model` contains Mongoose persistence schemas. Models do not depend on application or HTTP code.
-8. `domain` contains framework-independent policies, constants and state rules.
-9. `composition` is the sole wiring layer allowed to know both application code and concrete infrastructure.
-
-Outbound gateways such as email, OAuth/token handling and generative AI are also
-injected by `composition/services.js`; application services do not construct them.
-
-The dependency rule is inward-facing:
+Dependency luôn hướng vào application/domain:
 
 ```text
-presentation/http -> application/use cases -> application ports <- infrastructure adapters
-                              |
-                              v
-                            domain
+HTTP/UI -> Application Service -> Repository Port <- Infrastructure Adapter
+                         |
+                         v
+                       Domain
 
-composition ----------------------------------------------------^ (wiring only)
+Composition root nối các thành phần, không chứa nghiệp vụ.
 ```
 
-Infrastructure never imports controllers or use cases. Use cases never import infrastructure.
-
-## Repository, DTO and model responsibilities
-
-### Repository port
-
-- Is owned by the application, not by MongoDB.
-- Names operations in business/application language.
-- Describes only capabilities required by use cases.
-- Has no Mongoose, query builder or HTTP dependency.
-
-### Mongoose Repository adapter
-
-- Implements one or more application repository ports.
-- Knows schemas, MongoDB filters, population and transactions.
-- Never knows `req`, `res`, controllers, DTOs or use cases.
-- Is created once and injected by the composition root.
-
-### DTO
-
-- Accepts untrusted boundary input.
-- Validates types, ranges, identifiers and allowed fields.
-- Produces plain application input.
-- Never imports a Mongoose model or creates MongoDB operators.
-
-### Mongoose model
-
-- Defines persistence schema and database constraints only.
-- Is used by repository adapters, not controllers or services.
-- Is not an API DTO or a domain service.
-
-## Frontend boundaries
+## 2. Cấu trúc backend
 
 ```text
-App/Router -> pages/components -> features/<feature>/api.js -> shared/api/client.js
-                    |
-                    -> feature hooks/state/components
+backend/src/
+├── application/
+│   └── ports/outbound/                Repository contracts
+├── composition/
+│   ├── repositories.js                Khởi tạo và kiểm tra adapters
+│   ├── services.js                    Inject repositories/gateways vào services
+│   ├── http.js                        Inject services vào HTTP controllers
+│   └── bootstrap.js                   Khởi động ứng dụng và seed dev tùy chọn
+├── controller/                        HTTP inbound adapters
+│   ├── admin/
+│   ├── auth/
+│   ├── chat/
+│   ├── engagement/
+│   ├── learning/
+│   ├── public/
+│   ├── student/
+│   └── teacher/
+├── domain/                            Policy, constant, state rule thuần
+├── dto/                               Validate/normalize/whitelist HTTP input
+├── filter/                            Auth, permission, error middleware
+├── infrastructure/
+│   └── persistence/mongoose/
+│       └── repositories/              MongoDB/Mongoose adapters
+├── model/                             Mongoose schemas và DB constraints
+├── routes/                            Ghép middleware và controller
+├── service/                           Application use cases
+└── utils/                             Gateway kỹ thuật: JWT, OAuth, email, AI, upload
 ```
 
-1. React does not use backend MVC folders. It uses feature-oriented modules and one-way data flow.
-2. `shared` is independent of pages and features.
-3. Pages and reusable components consume feature public APIs, never transport modules directly.
-4. Each feature owns its API facade and may depend on `shared`, but not another feature's internal implementation.
-5. `App.jsx` is the frontend composition root for providers and routing.
+### Trách nhiệm từng layer
 
-## Executable architecture rules
+| Layer | Được làm | Không được làm |
+|---|---|---|
+| `routes` | Khai báo URL, middleware, controller | Nghiệp vụ, query DB |
+| `controller` | Đọc `req`, gọi DTO/service, trả response | Import model/repository, gọi Mongoose |
+| `dto` | Validate type/range/ID/allowed fields | Query DB, chứa nghiệp vụ |
+| `service` | Use case, authorization nghiệp vụ, transaction flow | Import Express, Mongoose, infrastructure |
+| `domain` | Rule và policy thuần | Import HTTP, Mongoose, service |
+| `application/ports` | Khai báo capability service cần | Biết MongoDB/Mongoose |
+| `infrastructure/.../repositories` | Query, populate, aggregate, transaction | Biết `req/res`, controller |
+| `model` | Schema, index, DB constraint | Là DTO hoặc application service |
+| `composition` | Khởi tạo và inject dependencies | Chứa business rule |
 
-Backend boundaries are enforced by `backend/tests/architecture/LayerBoundaries.test.js`. Frontend boundaries are enforced by `frontend/src/architecture/Boundaries.test.js`.
+### Composition root
+
+Chỉ `composition` được biết cả service và implementation cụ thể:
+
+```text
+repositories.js: Model -> Repository Adapter -> kiểm tra Repository Port
+services.js:     Repository/Gateway -> Service constructor
+http.js:         Service -> Controller factory và AuthFilter
+bootstrap.js:    Startup dependency và development seed
+```
+
+Controller không được import `composition/services` như service locator. Route nhận controller đã được cấu hình từ `composition/http.js`.
+
+### DTO, Repository và Model
+
+```text
+DTO
+  Input từ HTTP -> plain validated object
+
+Repository Port
+  Capability theo ngôn ngữ use case, do application sở hữu
+
+Mongoose Repository
+  Implementation port, sở hữu mọi query MongoDB
+
+Mongoose Model
+  Schema/index/constraint lưu trữ
+```
+
+Không tạo lại thư mục `backend/src/dao`. Nếu service cần thao tác dữ liệu mới:
+
+1. Mở rộng port trong `application/ports/outbound/RepositoryPorts.js`.
+2. Thêm method vào repository adapter phù hợp.
+3. Inject repository qua `composition/repositories.js` và `composition/services.js`.
+4. Service gọi port, không gọi model trực tiếp.
+
+## 3. Cấu trúc frontend
+
+```text
+frontend/src/
+├── App.jsx                            Composition root của React
+├── routes/                            Route configuration
+├── pages/                             Màn hình theo route
+├── components/                        UI dùng lại
+├── features/
+│   ├── admin/
+│   ├── auth/
+│   ├── chat/
+│   ├── engagement/
+│   ├── learning/
+│   ├── public/
+│   ├── student/
+│   ├── teacher/
+│   └── voucher/
+├── shared/
+│   ├── api/client.js                  HTTP client, token refresh, common errors
+│   └── media/AuthenticatedVideo.jsx   Video cần Bearer token
+└── architecture/Boundaries.test.js
+```
+
+Luồng dependency:
+
+```text
+App/Router -> Page/Component -> feature public API -> shared API client
+```
+
+Quy tắc:
+
+1. Page/component gọi `features/<feature>/api.js`, không gọi Axios/fetch trực tiếp.
+2. `shared` không import `features`, `pages` hoặc business component.
+3. Một feature không import file implementation nội bộ của feature khác.
+4. Logic dùng chung thật sự mới đặt trong `shared`; logic nghiệp vụ vẫn thuộc feature.
+5. Provider toàn cục được ghép trong `App.jsx`.
+6. Media bảo vệ phải đi qua authenticated client; không dùng URL static trực tiếp.
+
+## 4. Quy trình thêm một chức năng
+
+Ví dụ thêm use case `Complete Course`:
+
+1. Xác định actor, input, output, authorization và trạng thái lỗi.
+2. Tạo/cập nhật DTO cho input HTTP.
+3. Thêm capability vào Repository Port nếu cần dữ liệu mới.
+4. Implement capability trong Mongoose Repository.
+5. Viết application service/use case; inject dependencies qua constructor.
+6. Wire service trong `composition/services.js`.
+7. Tạo controller mỏng và wire trong `composition/http.js`.
+8. Ghép middleware/controller trong route.
+9. Frontend thêm API facade vào feature tương ứng.
+10. Page/component chỉ gọi feature API.
+11. Thêm unit/regression tests và chạy toàn bộ quality gate.
+
+Tên file nên phản ánh nghiệp vụ, ví dụ:
+
+```text
+dto/student/CompleteCourseDTO.js
+service/learning/CourseCompletionService.js
+infrastructure/.../learning/EnrollmentRepository.js
+features/learning/api.js
+```
+
+Không tạo `CompleteCourseDAO.js`, không query `Enrollment.find()` trong controller/service.
+
+## 5. Quy trình sửa lỗi
+
+1. Tái hiện lỗi bằng request/test nhỏ nhất.
+2. Xác định layer sở hữu nguyên nhân, không vá ở layer ngoài chỉ để che lỗi.
+3. Thêm regression test thất bại trước khi sửa nếu có thể.
+4. Sửa đúng contract tại layer sở hữu.
+5. Kiểm tra các caller khác của contract.
+6. Chạy targeted tests rồi chạy toàn bộ quality gate.
+
+Hướng chẩn đoán nhanh:
+
+| Triệu chứng | Kiểm tra đầu tiên |
+|---|---|
+| Route 404 | `routes`, mount trong `index.js`/composition |
+| 400 validation | DTO và whitelist field |
+| 401/403 | `AuthFilter`, role middleware, authorization trong service |
+| `x is not a function` | Contract gateway/repository và wiring trong composition |
+| Query sai hoặc thiếu populate | Mongoose Repository adapter |
+| React gọi sai endpoint | Feature API và `shared/api/client.js` |
+| Token refresh/logout lỗi | `AuthService`, `JWTUtil`, `RefreshSessionRepository` |
+| Chỉ lỗi sau merge | Import cũ, file bị xóa/đổi tên, composition không đồng bộ |
+
+Không sửa bằng cách:
+
+- Cho controller/service import model trực tiếp.
+- Khôi phục DAO cũ.
+- Public thư mục upload chứa tài liệu/video học tập.
+- Hard-code credential, token hoặc privileged account.
+- Bỏ authorization chỉ để test chạy.
+- Chọn toàn bộ “Accept Current/Incoming” khi chưa hiểu conflict.
+
+## 6. Authentication và media security
+
+- `AuthService` nhận `JWTUtil`, `OAuthUtil`, password, OTP, email qua dependency injection.
+- Access token và refresh token khác `type`; refresh token có session ID (`sid`) và token version.
+- OAuth redirect chỉ cho phép origin nằm trong cấu hình frontend/CORS.
+- Startup không tạo tài khoản đặc quyền với mật khẩu cố định.
+- Development seed mặc định tắt và luôn tắt trong production.
+- Thumbnail khóa học có thể public.
+- Material và lesson video phải qua authenticated endpoint và kiểm tra enrollment, course owner hoặc admin.
+
+Development seed chỉ bật khi thật sự cần:
+
+```env
+ENABLE_DEVELOPMENT_SEED=true
+DEV_SEED_ADMIN_EMAIL=...
+DEV_SEED_ADMIN_PASSWORD=...
+DEV_SEED_TEACHER_EMAIL=...
+DEV_SEED_TEACHER_PASSWORD=...
+```
+
+Không commit giá trị thật của các biến trên.
+
+## 7. Quality gate bắt buộc
+
+Từ thư mục project:
 
 ```powershell
 cd backend
+npm install
 npm run test:architecture
 npm test
 
 cd ../frontend
+npm install
 npm test
+npm run lint
 npm run build
 ```
 
-Architecture tests are part of the definition of done. New code must extend an application port and its adapter, then wire it in `composition`; it must not bypass a boundary.
+Điều kiện trước khi push/merge:
 
-## Development seed data
+- Architecture tests pass.
+- Backend và frontend tests không fail.
+- Lint không có error; warning phải được xem xét và ghi nhận.
+- Production build thành công.
+- `git diff --check` không báo lỗi.
+- Không có `.env`, credential, `node_modules`, file build hoặc dữ liệu test ngẫu nhiên trong commit.
 
-Startup never creates accounts with repository-known credentials. Optional local
-seed data is disabled by default and is always disabled in production. To enable
-it locally, set `ENABLE_DEVELOPMENT_SEED=true` and provide only the accounts you
-need through `DEV_SEED_ADMIN_EMAIL`, `DEV_SEED_ADMIN_PASSWORD`,
-`DEV_SEED_TEACHER_EMAIL` and `DEV_SEED_TEACHER_PASSWORD`.
+Test kiến trúc:
 
-Uploaded course thumbnails are public media. Learning materials and uploaded
-lesson videos are not served by static middleware; they are downloaded through
-authenticated endpoints after the corresponding use case verifies enrollment,
-course ownership or administrator access.
+```text
+backend/tests/architecture/LayerBoundaries.test.js
+frontend/src/architecture/Boundaries.test.js
+```
+
+Nếu cần phá một boundary, phải cập nhật quyết định kiến trúc, test boundary và tài liệu này trong cùng thay đổi; không chỉ tắt test.
+
+## 8. Checklist review Pull Request
+
+- [ ] Chức năng nằm đúng feature/module.
+- [ ] Controller mỏng và không gọi Mongoose.
+- [ ] DTO whitelist input từ client.
+- [ ] Service nhận dependency qua constructor.
+- [ ] Query chỉ nằm trong repository adapter.
+- [ ] Authorization kiểm tra trong use case, không chỉ ẩn nút frontend.
+- [ ] Route có đúng auth/role middleware.
+- [ ] API không trả password hash, token nội bộ hoặc field nhạy cảm.
+- [ ] File upload được kiểm tra type, size, filename và quyền truy cập.
+- [ ] Có test cho success, validation và permission/error path.
+- [ ] Full quality gate đã chạy.
+
+## 9. Quy tắc Git cho nhóm
+
+Trước khi code:
+
+```powershell
+git switch <nhanh-ca-nhan>
+git status --short
+git fetch origin
+git pull --no-rebase origin main
+```
+
+Sau khi code và test:
+
+```powershell
+git status --short
+git diff --check
+git add <cac-file-thuoc-chuc-nang>
+git commit -m "<ThanhVien>_<TenChucNang>_Add|edit|delete"
+git push origin <nhanh-ca-nhan>
+```
+
+Không dùng `git add -A` nếu working tree chứa thay đổi của nhiều chức năng. Merge PR bằng merge commit khi cần giữ lịch sử commit theo chức năng.
+
+## 10. Khi tài liệu và code không khớp
+
+1. Không đoán và không tạo thêm tài liệu kiến trúc thứ hai.
+2. Kiểm tra architecture tests và composition root hiện tại.
+3. Xác định code hay tài liệu bị lỗi.
+4. Sửa `docs/ARCHITECTURE.md` trong cùng PR với thay đổi kiến trúc.
+
+File này mô tả kiến trúc; test bảo vệ boundary; code thực thi hành vi.
