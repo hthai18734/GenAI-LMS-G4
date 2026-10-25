@@ -61,7 +61,7 @@ class QuizService {
   async listAvailableQuizzes(courseId, user) {
     this.assertValidId(courseId, 'Course');
     const course = await this.courseRepository.findById(courseId);
-    if (!course || (course.status !== COURSE_STATUS.PUBLIC && course.status !== COURSE_STATUS.APPROVED)) throw new ServiceError(404, 'Course not found.');
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
     const quizzes = await this.quizRepository.findByCourseId(courseId, { publishedOnly: true });
@@ -125,7 +125,10 @@ class QuizService {
     const quiz = await this.quizRepository.findById(quizId);
     if (!quiz || quiz.isPublished === false) throw new ServiceError(404, QUIZ_NOT_FOUND);
     const course = await this.courseRepository.findById(quiz.courseId);
-    if (!course || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, QUIZ_NOT_FOUND);
+    if (!course || course.deletedAt) throw new ServiceError(404, QUIZ_NOT_FOUND);
+    if (course.status !== COURSE_STATUS.PUBLIC) {
+      throw new ServiceError(409, 'This course is not published. The teacher must publish it before you can start this quiz.');
+    }
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, quiz.courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
     const attemptCount = await this.quizAttemptRepository.countByUserAndQuiz(user._id, quiz._id);
@@ -133,6 +136,7 @@ class QuizService {
 
     const questions = await this.getQuizQuestions(quiz._id);
     const startedAt = new Date();
+    if (!questions.length) throw new ServiceError(409, 'This quiz has no questions yet.');
     const expiresAt = new Date(startedAt.getTime() + (Number(quiz.timeLimit) * 60 * 1000));
 
     const questionsSnapshot = questions.map((q) => ({

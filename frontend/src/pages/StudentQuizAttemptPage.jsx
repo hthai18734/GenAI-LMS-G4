@@ -16,7 +16,7 @@ export default function StudentQuizAttemptPage() {
   const navigate = useNavigate();
   const { addToast, confirmToast } = useToast();
   const [session, setSession] = useState(() => getQuizAttemptSession(attemptId));
-  const [now, setNow] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');

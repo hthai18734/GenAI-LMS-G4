@@ -39,7 +39,7 @@ class StudentService {
   }
   async getDashboard(userId) {
     const [allEnrollments, progressRecords] = await Promise.all([this.enrollmentRepository.findByUserId(userId), this.progressRepository.findByUserId(userId)]);
-    const enrollments = allEnrollments.filter((e) => e.courseId && !e.courseId.deletedAt);
+    const enrollments = allEnrollments.filter((e) => e.courseId?.status === COURSE_STATUS.PUBLIC && !e.courseId.deletedAt);
     const courses = [];
     for (const enrollment of enrollments) {
       const course = enrollment.courseId?._id ? enrollment.courseId : null;
@@ -48,7 +48,7 @@ class StudentService {
       const [totalLessons, completedLessons] = await Promise.all([this.lessonRepository.countByCourseId(courseId), this.progressRepository.countByUserAndCourse(userId, courseId)]);
       courses.push({ id: courseId, _id: courseId, courseId, title: course.title || 'Unknown Course', thumbnail: course.thumbnail || null, category: course.category || null, enrollmentStatus: enrollment.status, enrolledAt: enrollment.enrolledAt, totalLessons, completedLessons, progressPercent: totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0 });
     }
-    const recentActivity = progressRecords.filter((p) => p.courseId && !p.courseId.deletedAt).slice(0, 5).map((p) => ({ courseId: p.courseId?._id ? String(p.courseId._id) : String(p.courseId), courseTitle: p.courseId?.title || 'Unknown Course', lessonId: p.lessonId?._id ? String(p.lessonId._id) : (p.lessonId ? String(p.lessonId) : null), lessonTitle: p.lessonId?.title || 'Unknown Lesson', status: p.status, updatedAt: p.updatedAt }));
+    const recentActivity = progressRecords.filter((p) => p.courseId?.status === COURSE_STATUS.PUBLIC && !p.courseId.deletedAt).slice(0, 5).map((p) => ({ courseId: p.courseId?._id ? String(p.courseId._id) : String(p.courseId), courseTitle: p.courseId?.title || 'Unknown Course', lessonId: p.lessonId?._id ? String(p.lessonId._id) : (p.lessonId ? String(p.lessonId) : null), lessonTitle: p.lessonId?.title || 'Unknown Lesson', status: p.status, updatedAt: p.updatedAt }));
     return { dashboard: { enrolledCourses: enrollments.length, activeCourses: enrollments.filter((e) => e.status === 'active').length, completedCourses: enrollments.filter((e) => e.status === 'completed').length, courses, recentActivity } };
   }
   async getLearningHistory(userId) {
@@ -70,7 +70,7 @@ class StudentService {
   async enroll(userId, courseId) {
     const course = await this.courseRepository.findById(courseId);
     if (!course) throw new ServiceError(404, 'Course not found.');
-    if (![COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED].includes(course.status)) throw new ServiceError(400, 'This course is not open for enrollment.');
+    if (course.status !== COURSE_STATUS.PUBLIC || course.deletedAt) throw new ServiceError(400, 'This course is not open for enrollment.');
     if (await this.enrollmentRepository.findActiveEnrollment(userId, courseId)) throw new ServiceError(409, 'You are already enrolled in this course.');
     const enrollment = await this.enrollmentRepository.createEnrollment(userId, courseId);
     await this.courseRepository.incrementStudents(courseId);
@@ -87,7 +87,7 @@ class StudentService {
     const enrollments = await this.enrollmentRepository.findByUserId(userId); const seen = new Set(); const courses = [];
     for (const enrollment of enrollments) {
       const course = enrollment.courseId;
-      if (!course?._id || course.deletedAt || seen.has(String(course._id))) continue;
+      if (!course?._id || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC || seen.has(String(course._id))) continue;
       seen.add(String(course._id));
       const [totalLessons, completedLessons] = await Promise.all([this.lessonRepository.countByCourseId(course._id), this.progressRepository.countByUserAndCourse(userId, course._id)]);
       courses.push({ id: String(course._id), _id: String(course._id), courseId: String(course._id), enrollmentId: String(enrollment._id), title: course.title, description: course.description, thumbnail: course.thumbnail, category: course.category, enrollmentStatus: enrollment.status, enrolledAt: enrollment.enrolledAt, completedAt: enrollment.completedAt, totalLessons, completedLessons, progressPercent: totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0 });
@@ -121,6 +121,7 @@ class StudentService {
     const userId = user._id; const course = await this.courseRepository.findById(courseId);
     if (!course || course.deletedAt) throw new ServiceError(404, 'Course not found.');
     const elevated = user.role === 'admin' || String(course.teacherId) === String(userId) || String(course.instructorId) === String(userId);
+    if (!elevated && course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(userId, courseId);
     if (!enrollment && !elevated) throw new ServiceError(403, 'You must be enrolled to view lessons.');
     const [lessons, progressList] = await Promise.all([elevated ? this.lessonRepository.findByCourseId(courseId) : this.lessonRepository.findPublishedByCourseId(courseId), this.progressRepository.findByUserAndCourse(userId, courseId)]);

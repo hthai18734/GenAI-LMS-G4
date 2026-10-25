@@ -4,7 +4,7 @@
     "path": "/api/student/vouchers/apply",
     "body": {
       "code": "test",
-      "courseId": "6adc7249ebd87e703fd59915"
+      "courseId": "6ade1e56032e13f80e506118"
     }
   },
   "response": {
@@ -15,7 +15,7 @@
       "success": true,
       "message": "Áp dụng voucher thành công!",
       "voucher": {
-        "voucherID": "6adc7249ebd87e703fd5992d",
+        "voucherID": "6ade1e58032e13f80e506130",
         "code": "TEST",
         "discountPercent": 20,
         "quantity": null,
@@ -28,7 +28,7 @@
         "maxDiscountValue": null
       },
       "discountAmount": 40,
-      "courseId": "6adc7249ebd87e703fd59915",
+      "courseId": "6ade1e56032e13f80e506118",
       "orderTotal": 199.99,
       "finalTotal": 159.99,
       "previewOnly": true

@@ -16,7 +16,7 @@ class CourseRepository {
 
   async findOpenById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
-    return Course.findOne({ _id: id, status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] }, deletedAt: null }).exec();
+    return Course.findOne({ _id: id, status: COURSE_STATUS.PUBLIC, deletedAt: null }).exec();
   }
 
   findPublicForCheckout(id, session = null) {
@@ -25,7 +25,7 @@ class CourseRepository {
   }
 
   async findAllOpen() {
-    return Course.find({ status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] }, deletedAt: null }).sort({ createdAt: -1 }).exec();
+    return Course.find({ status: COURSE_STATUS.PUBLIC, deletedAt: null }).sort({ createdAt: -1 }).exec();
   }
 
   async create(data) { return Course.create(data); }

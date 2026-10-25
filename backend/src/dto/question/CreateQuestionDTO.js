@@ -1,4 +1,4 @@
-const { text, unknownFields } = require('../common/DTOUtil');
+const { text, hasOwn, objectId, unknownFields } = require('../common/DTOUtil');
 
 class CreateQuestionDTO {
   constructor(body = {}) {
@@ -10,8 +10,12 @@ class CreateQuestionDTO {
 
   validate() {
     const errors = {};
-    const unknown = unknownFields(this.body, ['questionText', 'options', 'correctAnswer', 'explanation']);
+    const unknown = unknownFields(this.body, ['questionText', 'options', 'correctAnswer', 'explanation', 'categoryId']);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
+    if (hasOwn(this.body, 'categoryId') && this.body.categoryId !== null && this.body.categoryId !== ''
+      && (typeof this.body.categoryId !== 'string' || !objectId(this.body.categoryId))) {
+      errors.categoryId = 'Category ID is invalid.';
+    }
     if (!this.questionText) errors.questionText = 'Question text is required.';
     if (!Array.isArray(this.options) || this.options.length < 2 || this.options.some((option) => !option)) {
       errors.options = 'At least two non-empty options are required.';
@@ -28,6 +32,7 @@ class CreateQuestionDTO {
       questionText: this.questionText,
       options: this.options,
       correctAnswer: this.correctAnswer,
+      ...(hasOwn(this.body, 'categoryId') ? { categoryId: this.body.categoryId || null } : {}),
       ...(Object.prototype.hasOwnProperty.call(this.body, 'explanation') ? { explanation: text(this.body.explanation) || '' } : {}),
     };
   }

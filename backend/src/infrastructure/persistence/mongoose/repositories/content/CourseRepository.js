@@ -10,7 +10,7 @@ class CourseRepository {
     const numLimit = Math.max(1, parseInt(limit, 10) || 6);
     return Course.find({
       isFeatured: true,
-      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      status: COURSE_STATUS.PUBLIC,
       deletedAt: null,
     })
       .populate('teacherId', 'fullName email avatar')
@@ -29,7 +29,7 @@ class CourseRepository {
     const skip = (parsedPage - 1) * parsedLimit;
 
     return Course.find({
-      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      status: COURSE_STATUS.PUBLIC,
       deletedAt: null,
     })
       .sort({ createdAt: -1 })
@@ -43,7 +43,7 @@ class CourseRepository {
    */
   async countPublished() {
     return Course.countDocuments({
-      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      status: COURSE_STATUS.PUBLIC,
       deletedAt: null,
     }).exec();
   }
@@ -59,7 +59,7 @@ class CourseRepository {
     const safeRegex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
     const query = {
-      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      status: COURSE_STATUS.PUBLIC,
       deletedAt: null,
       $or: [
         { title: safeRegex },
@@ -89,7 +89,7 @@ class CourseRepository {
     const skip = (parsedPage - 1) * parsedLimit;
 
     const query = {
-      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      status: COURSE_STATUS.PUBLIC,
       deletedAt: null,
     };
 
@@ -156,7 +156,7 @@ class CourseRepository {
     if (!mongoose.isValidObjectId(id)) return null;
     return Course.findOne({
       _id: id,
-      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      status: COURSE_STATUS.PUBLIC,
       deletedAt: null,
     }).exec();
   }
@@ -171,7 +171,7 @@ class CourseRepository {
         { teacherId },
         { instructorId: teacherId },
       ],
-      status: { $in: [COURSE_STATUS.PUBLIC, COURSE_STATUS.APPROVED] },
+      status: COURSE_STATUS.PUBLIC,
       deletedAt: null,
     })
       .sort({ createdAt: -1 })

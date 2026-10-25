@@ -55,3 +55,26 @@ test('create assignment returns 201 and forwards persistence failures to ErrorFi
     AssignmentService.createAssignment = original;
   }
 });
+
+test('student assignment controller lists available assignments and submits assignment answers', async () => {
+  const StudentAssignmentController = require('../../src/composition/http').controllers.StudentAssignmentController;
+  const originalList = AssignmentService.listAvailableAssignments;
+  const originalSubmit = AssignmentService.submitAssignment;
+
+  try {
+    AssignmentService.listAvailableAssignments = async () => [{ _id: 'ass-1', title: 'Task 1' }];
+    const listRes = response();
+    await StudentAssignmentController.listAvailable({ params: { courseId: COURSE_ID }, user }, listRes, () => {});
+    assert.equal(listRes.statusCode, 200);
+    assert.equal(listRes.body.data.assignments.length, 1);
+
+    AssignmentService.submitAssignment = async (_id, _u, ans) => ({ _id: 'sub-1', answer: ans, status: 'submitted' });
+    const submitRes = response();
+    await StudentAssignmentController.submitAssignment({ params: { assignmentId: 'ass-1' }, user, body: { answer: 'My solution' } }, submitRes, () => {});
+    assert.equal(submitRes.statusCode, 200);
+    assert.equal(submitRes.body.data.submission.answer, 'My solution');
+  } finally {
+    AssignmentService.listAvailableAssignments = originalList;
+    AssignmentService.submitAssignment = originalSubmit;
+  }
+});

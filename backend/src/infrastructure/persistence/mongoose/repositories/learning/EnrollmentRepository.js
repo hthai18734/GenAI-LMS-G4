@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 require('../../../../../model/learning/Course');
 const Enrollment = require('../../../../../model/learning/Enrollment');
+const { COURSE_STATUS } = require('../../../../../domain/learning/CourseStatus');
 
 class EnrollmentRepository {
   async findActiveEnrollment(userId, courseId) {
@@ -13,7 +14,7 @@ class EnrollmentRepository {
   async findAccessibleEnrollment(userId, courseId) {
     if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(courseId)) return null;
     const enrollment = await Enrollment.findOne({ userId, courseId, status: { $in: ['active', 'completed'] } }).populate('courseId').exec();
-    if (!enrollment || (enrollment.courseId && enrollment.courseId.deletedAt)) return null;
+    if (!enrollment?.courseId || enrollment.courseId.deletedAt || enrollment.courseId.status !== COURSE_STATUS.PUBLIC) return null;
     return enrollment;
   }
 
@@ -46,7 +47,7 @@ class EnrollmentRepository {
     const enrollment = await Enrollment.findOne({ userId, courseId, status: { $in: ['active', 'completed'] } })
       .populate('courseId')
       .exec();
-    if (!enrollment || (enrollment.courseId && enrollment.courseId.deletedAt)) return null;
+    if (!enrollment?.courseId || enrollment.courseId.deletedAt || enrollment.courseId.status !== COURSE_STATUS.PUBLIC) return null;
     return enrollment;
   }
 

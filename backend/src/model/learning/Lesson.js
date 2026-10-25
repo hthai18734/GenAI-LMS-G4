@@ -6,6 +6,9 @@ const lessonSchema = new mongoose.Schema({
   content: { type: String, trim: true, default: '' },
   order: { type: Number, required: true, default: 0 },
   duration: { type: Number, default: 0 },
+  videoRef: { type: String, trim: true, default: null },
+  isPublished: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date, default: null, index: true },
 }, { timestamps: true, versionKey: false });
 
 lessonSchema.index({ courseId: 1, order: 1 });
