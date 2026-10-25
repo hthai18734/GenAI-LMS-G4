@@ -19,8 +19,17 @@ class ProgressRepository {
       .exec();
   }
 
-  async countByUserAndCourse(userId, courseId) {
-    return Progress.countDocuments({ userId, courseId, status: 'completed' });
+  async countByUserAndCourse(userId, courseId, { publishedOnly = false } = {}) {
+    if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(courseId)) return 0;
+    if (!publishedOnly) return Progress.countDocuments({ userId, courseId, status: 'completed' });
+    const [result] = await Progress.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId), courseId: new mongoose.Types.ObjectId(courseId), status: 'completed' } },
+      { $lookup: { from: 'lessons', localField: 'lessonId', foreignField: '_id', as: 'lesson' } },
+      { $unwind: '$lesson' },
+      { $match: { 'lesson.isPublished': true, 'lesson.deletedAt': null } },
+      { $count: 'total' },
+    ]);
+    return result?.total || 0;
   }
 
   async findLastAccessedLesson(userId, courseId) {

@@ -153,7 +153,8 @@ test('lesson, question bank and quiz workflow through HTTP and isolated MongoDB'
     assert.equal(detail.data.questions.length, 0);
     assert.equal((await request('/api/teacher/questions', teacher)).data.total, 2);
     await Course.updateOne({ _id: course._id }, { status: 'PUBLIC' });
-    expectStatus(await request(`/api/student/quizzes/${quiz._id}/attempts`, student, 'POST'), 409);
+    // The linked lesson was deleted above, so the quiz is no longer student-visible.
+    expectStatus(await request(`/api/student/quizzes/${quiz._id}/attempts`, student, 'POST'), 404);
     assert.equal(await QuizAttempt.countDocuments({ userId: student._id, quizId: quiz._id }), 1);
   });
 });

@@ -64,7 +64,13 @@ class QuizService {
     if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
-    const quizzes = await this.quizRepository.findByCourseId(courseId, { publishedOnly: true });
+    const publishedQuizzes = await this.quizRepository.findByCourseId(courseId, { publishedOnly: true });
+    const quizVisibility = await Promise.all(publishedQuizzes.map(async (quiz) => {
+      if (!quiz.lessonId) return true;
+      const lesson = await this.lessonRepository.findById(quiz.lessonId);
+      return Boolean(lesson?.isPublished && String(lesson.courseId) === String(courseId));
+    }));
+    const quizzes = publishedQuizzes.filter((_, index) => quizVisibility[index]);
     const attempts = await this.quizAttemptRepository.findLatestSubmittedByUserAndQuizIds(user._id, quizzes.map((quiz) => quiz._id));
     const latestAttemptByQuizId = new Map();
     for (const attempt of attempts) {
@@ -128,6 +134,12 @@ class QuizService {
     if (!course || course.deletedAt) throw new ServiceError(404, QUIZ_NOT_FOUND);
     if (course.status !== COURSE_STATUS.PUBLIC) {
       throw new ServiceError(409, 'This course is not published. The teacher must publish it before you can start this quiz.');
+    }
+    if (quiz.lessonId) {
+      const lesson = await this.lessonRepository.findById(quiz.lessonId);
+      if (!lesson?.isPublished || String(lesson.courseId) !== String(quiz.courseId)) {
+        throw new ServiceError(404, QUIZ_NOT_FOUND);
+      }
     }
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, quiz.courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');

@@ -7,6 +7,8 @@ import { useToast } from '../components/Toast';
 import { useChatContext } from '../components/chat/useChatContext';
 import ReviewsPanel from '../components/ReviewsPanel';
 import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function CourseLearnPage() {
   const { courseId } = useParams();
@@ -1743,7 +1745,7 @@ export default function CourseLearnPage() {
                   whiteSpace: 'pre-wrap',
                 }}
               >
-                {selectedAssignment.content}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedAssignment.content}</ReactMarkdown>
               </div>
             </div>
 

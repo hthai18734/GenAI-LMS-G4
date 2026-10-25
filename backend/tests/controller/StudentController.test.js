@@ -525,7 +525,7 @@ test('UC-10.4: startResumeCourse returns current lesson when progress exists', a
     courseId: { _id: VALID_COURSE_ID, title: 'Node.js' },
   });
   ProgressRepository.findLastAccessedLesson = async () => ({
-    lessonId: { _id: VALID_LESSON_ID, title: 'Lesson 3' },
+    lessonId: { _id: VALID_LESSON_ID, title: 'Lesson 3', isPublished: true },
     status: 'in_progress',
   });
 

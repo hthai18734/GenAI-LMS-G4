@@ -15,9 +15,11 @@ class LessonRepository {
     return Lesson.find({ courseId, isPublished: true, deletedAt: null }).sort({ order: 1 }).exec();
   }
 
-  async countByCourseId(courseId) {
+  async countByCourseId(courseId, { publishedOnly = false } = {}) {
     if (!mongoose.isValidObjectId(courseId)) return 0;
-    return Lesson.countDocuments({ courseId, deletedAt: null });
+    const filter = { courseId, deletedAt: null };
+    if (publishedOnly) filter.isPublished = true;
+    return Lesson.countDocuments(filter);
   }
 
   async countValidByCourseId(courseId) {
@@ -89,9 +91,11 @@ class LessonRepository {
     return this.findByCourseId(courseId);
   }
 
-  async findFirstLesson(courseId) {
+  async findFirstLesson(courseId, { publishedOnly = false } = {}) {
     if (!mongoose.isValidObjectId(courseId)) return null;
-    return Lesson.findOne({ courseId, deletedAt: null }).sort({ order: 1 }).exec();
+    const filter = { courseId, deletedAt: null };
+    if (publishedOnly) filter.isPublished = true;
+    return Lesson.findOne(filter).sort({ order: 1 }).exec();
   }
 }
 

@@ -54,6 +54,39 @@ test('missing configuration does not send a request', async () => {
   assert.equal(requests.length, 0);
 });
 
+test('transient first connection failure is retried once on the same model', async () => {
+  let attempts = 0;
+  const { client } = setup([], {
+    retryDelayMs: 0,
+    fetch: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } });
+      return { ok: true, status: 200, json: async () => ok };
+    },
+  });
+  assert.equal((await client.generateContent({ contents })).model, 'primary');
+  assert.equal(attempts, 2);
+});
+
+test('a timed-out model is skipped and the next configured model is used', async () => {
+  let attempts = 0;
+  const { client } = setup([], {
+    retryDelayMs: 0,
+    fetch: async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        const error = new Error('timed out');
+        error.name = 'TimeoutError';
+        throw error;
+      }
+      return { ok: true, status: 200, json: async () => ok };
+    },
+  });
+  const result = await client.generateContent({ contents });
+  assert.equal(result.model, 'fallback');
+  assert.equal(attempts, 2);
+});
+
 test('blocked content is not retried on another model', async () => {
   let count = 0;
   const { client } = setup([], { fetch: async () => {

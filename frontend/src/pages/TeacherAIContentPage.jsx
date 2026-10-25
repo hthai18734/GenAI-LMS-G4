@@ -55,13 +55,17 @@ export default function TeacherAIContentPage() {
   const [assignmentScope, setAssignmentScope] = useState('lesson');
   const [assignmentBatch, setAssignmentBatch] = useState([]);
   const [activeAssignmentIndex, setActiveAssignmentIndex] = useState(0);
-  const [target, setTarget] = useState({ courseId: '', lessonId: '', categoryId: '', title: '', lessonDuration: 60, timeLimit: 15, passingScore: 70, attemptLimit: 1 });
+  const [target, setTarget] = useState({ courseId: '', lessonId: '', categoryId: '', title: '', lessonDuration: 60, publishLesson: true, timeLimit: 15, passingScore: 70, attemptLimit: 1 });
   const generatedContent = useRef('');
   const previewDocument = useRef(null);
   const selected = useMemo(() => tools.find(([key]) => key === form.type), [form.type]);
   const isAssignment = form.type === 'supporting_content' && form.contentKind === 'assignment';
   const update = event => setForm(previous => ({ ...previous, [event.target.name]: event.target.type === 'number' ? Number(event.target.value) : event.target.value }));
-  const updateTarget = event => { setSaveError(''); setTarget(previous => ({ ...previous, [event.target.name]: event.target.value })); };
+  const updateTarget = event => {
+    setSaveError('');
+    const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    setTarget(previous => ({ ...previous, [event.target.name]: value }));
+  };
   const selectCourse = event => {
     const courseId = event.target.value;
     setLessons([]); setLessonsLoading(Boolean(courseId)); setSaveError('');
@@ -71,7 +75,7 @@ export default function TeacherAIContentPage() {
     const lessonId = event.target.value;
     const lesson = lessons.find(item => (item._id || item.id) === lessonId);
     setSaveError('');
-    setTarget(previous => ({ ...previous, lessonId, title: lesson?.title || '', lessonDuration: lesson?.duration || 60 }));
+    setTarget(previous => ({ ...previous, lessonId, title: lesson?.title || '', lessonDuration: lesson?.duration || 60, publishLesson: lesson?.isPublished !== false }));
     if (lesson) setForm(previous => ({ ...previous, source: `Lesson: ${lesson.title}\nDuration: ${lesson.duration || 0} minutes\n\nCurrent outline or content:\n${lesson.content || '(No content yet)'}` }));
   };
   const discardGeneratedDraft = () => {
@@ -151,6 +155,7 @@ export default function TeacherAIContentPage() {
     if (isAssignment && assignmentScope === 'lesson' && !target.lessonId) { setError('Select the lesson for this assignment.'); return; }
     if (content && content !== generatedContent.current && !await confirmToast('Regenerate and replace your unsaved edits?', { confirmLabel: 'Regenerate', cancelLabel: 'Keep editing' })) return;
     setError(''); setBusy(true);
+    let completedBatchCount = 0;
     try {
       if (isAssignment && assignmentScope === 'all_lessons') {
         const course = courses.find(item => (item._id || item.id) === target.courseId);
@@ -158,9 +163,16 @@ export default function TeacherAIContentPage() {
         const generated = [];
         for (let index = 0; index < plans.length; index += 1) {
           const plan = plans[index];
-          setGenerationProgress(`Generating assignment ${index + 1} of ${plans.length}: ${plan.lessonTitle}`);
+          setGenerationProgress(`Completed ${index} of ${plans.length}. Generating assignment ${index + 1}: ${plan.lessonTitle}`);
           const response = await teacherService.generateAIContent({ ...form, source: plan.source });
           generated.push({ ...plan, content: response.data.content, artifact: response.data.artifact });
+          completedBatchCount = generated.length;
+          setAssignmentBatch([...generated]);
+          if (index === 0) {
+            setActiveAssignmentIndex(0); setContent(generated[0].content); setArtifact(generated[0].artifact); setPreview(true);
+            setTarget(previous => ({ ...previous, lessonId: generated[0].lessonId, title: generated[0].title }));
+            generatedContent.current = generated[0].content;
+          }
         }
         setAssignmentBatch(generated); setActiveAssignmentIndex(0);
         setContent(generated[0].content); setArtifact(generated[0].artifact); setPreview(true); setSettingsChanged(false);
@@ -175,9 +187,16 @@ export default function TeacherAIContentPage() {
         const generated = [];
         for (let index = 0; index < plans.length; index += 1) {
           const plan = plans[index];
-          setGenerationProgress(`Generating quiz ${index + 1} of ${plans.length}: ${plan.lessonTitle}`);
+          setGenerationProgress(`Completed ${index} of ${plans.length}. Generating quiz ${index + 1}: ${plan.lessonTitle}`);
           const response = await teacherService.generateAIContent({ ...form, source: plan.source });
           generated.push({ ...plan, content: response.data.content, artifact: response.data.artifact });
+          completedBatchCount = generated.length;
+          setQuizBatch([...generated]);
+          if (index === 0) {
+            setActiveQuizIndex(0); setContent(generated[0].content); setArtifact(generated[0].artifact); setPreview(true);
+            setTarget(previous => ({ ...previous, lessonId: generated[0].lessonId, title: generated[0].title }));
+            generatedContent.current = generated[0].content;
+          }
         }
         setQuizBatch(generated); setActiveQuizIndex(0);
         setContent(generated[0].content); setArtifact(generated[0].artifact); setPreview(true); setSettingsChanged(false);
@@ -191,7 +210,12 @@ export default function TeacherAIContentPage() {
       generatedContent.current = response.data.content;
       setTarget(previous => ({ ...previous, title: form.type === 'lesson_content' && previous.lessonId ? previous.title : response.data.artifact?.title || firstHeading(response.data.content, selected[1]) }));
       addToast('AI draft generated. Review it before saving to the LMS.', 'success');
-    } catch (requestError) { setError(requestError.message); addToast(requestError.message, 'error'); }
+    } catch (requestError) {
+      const partialMessage = completedBatchCount > 0
+        ? `${completedBatchCount} item(s) were generated and kept. ${requestError.message}`
+        : requestError.message;
+      setError(partialMessage); addToast(partialMessage, 'error');
+    }
     finally { setBusy(false); setGenerationProgress(''); }
   }
 
@@ -268,8 +292,19 @@ export default function TeacherAIContentPage() {
     if (!target.title.trim()) { setSaveError('Enter a title before saving.'); return; }
     if (form.type === 'course_outline' && !target.categoryId) { setSaveError('Select a category for the new course.'); return; }
     if (form.type !== 'course_outline' && !target.courseId) { setSaveError('Select a destination course.'); return; }
+    const destinationCourse = courses.find(course => (course._id || course.id) === target.courseId);
+    const mustUnpublish = form.type !== 'course_outline' && destinationCourse?.status === 'PUBLIC';
+    if (mustUnpublish && !await confirmToast(
+      'This course is currently live. Unpublish it to save the generated content? Students will regain access after you publish it again.',
+      { confirmLabel: 'Unpublish and save', cancelLabel: 'Keep course live' },
+    )) return;
     setSaving(true); setSaveError('');
     try {
+      if (mustUnpublish) {
+        await teacherService.unpublish(target.courseId);
+        setCourses(previous => previous.map(course => (course._id || course.id) === target.courseId ? { ...course, status: 'APPROVED' } : course));
+        addToast('Course unpublished. Saving generated content now.', 'info');
+      }
       if (form.type === 'course_outline') {
         if (!artifact?.modules?.length) throw new Error('Regenerate the outline before saving; structured modules are missing.');
         const description = [artifact.description, artifact.prerequisites ? `Prerequisites: ${artifact.prerequisites}` : '', `Learning outcomes:\n${artifact.learningOutcomes.map(item => `- ${item}`).join('\n')}`].filter(Boolean).join('\n\n');
@@ -277,7 +312,7 @@ export default function TeacherAIContentPage() {
         const id = result.data?.course?._id;
         let order = 1;
         for (const module of artifact.modules) for (const lesson of module.lessons) {
-          await teacherService.createLesson(id, { title: lesson.title, content: `Module: ${module.title}\n\nModule objective: ${module.objective}\n\nLesson objective: ${lesson.objective}`, order, duration: lesson.durationMinutes });
+          await teacherService.createLesson(id, { title: lesson.title, content: `Module: ${module.title}\n\nModule objective: ${module.objective}\n\nLesson objective: ${lesson.objective}`, order, duration: lesson.durationMinutes, isPublished: true });
           order += 1;
         }
         addToast(`Draft course created with ${order - 1} lessons.`, 'success'); if (id) navigate(`/teacher/courses/${id}/edit#details`);
@@ -308,13 +343,13 @@ export default function TeacherAIContentPage() {
         }
         await teacherService.createAssignment(target.courseId, { title: target.title.trim(), content, lessonId: target.lessonId }); addToast('Assignment created.', 'success'); navigate(`/teacher/courses/${target.courseId}/edit#assessments`);
       } else if (form.type === 'lesson_content' && target.lessonId) {
-        await teacherService.updateLesson(target.courseId, target.lessonId, { title: target.title.trim(), content });
+        await teacherService.updateLesson(target.courseId, target.lessonId, { title: target.title.trim(), content, isPublished: Boolean(target.publishLesson) });
         addToast('Selected lesson updated with the AI draft.', 'success');
         generatedContent.current = content;
         return;
       } else {
         const existing = await teacherService.getLessons(target.courseId); const order = (existing.data?.lessons?.length || 0) + 1;
-        const result = await teacherService.createLesson(target.courseId, { title: target.title.trim(), content, order, duration: Number(target.lessonDuration) });
+        const result = await teacherService.createLesson(target.courseId, { title: target.title.trim(), content, order, duration: Number(target.lessonDuration), isPublished: Boolean(target.publishLesson) });
         const lessonId = result.data?.lesson?._id || ''; addToast('Lesson created in the selected course.', 'success'); navigate(`/teacher/courses/${target.courseId}/edit?lessonId=${lessonId}#lessons`);
       }
       generatedContent.current = content;
@@ -401,6 +436,7 @@ export default function TeacherAIContentPage() {
         {form.type !== 'quiz_questions' && !isAssignment && <div className="ai-author-save"><h3>Save to LMS</h3><label>Title<input name="title" value={target.title} maxLength={200} onChange={updateTarget} /></label>
           {form.type === 'course_outline' ? <label>Category<select name="categoryId" value={target.categoryId} onChange={updateTarget}><option value="">Select category</option>{categories.map(category => <option key={category._id || category.id} value={category._id || category.id}>{category.name}</option>)}</select></label> : form.type === 'lesson_content' ? <div className="ai-author-destination"><strong>Destination</strong><span>{courses.find(course => (course._id || course.id) === target.courseId)?.title || 'No course selected'} → {target.lessonId ? lessons.find(lesson => (lesson._id || lesson.id) === target.lessonId)?.title || 'Selected lesson' : 'New lesson'}</span><small>Change this selection in “Choose the lesson to update” above.</small></div> : <label>Course<select name="courseId" value={target.courseId} onChange={selectCourse}><option value="">Select course</option>{courses.map(course => <option key={course._id || course.id} value={course._id || course.id}>{course.title}</option>)}</select></label>}
           {form.type === 'lesson_content' && !target.lessonId && <label>Lesson duration (minutes)<input name="lessonDuration" type="number" min="1" value={target.lessonDuration} onChange={updateTarget} /></label>}
+          {form.type !== 'course_outline' && <label><input name="publishLesson" type="checkbox" checked={Boolean(target.publishLesson)} onChange={updateTarget} /> Publish lesson to students</label>}
           {saveError && <p className="ai-author-error" role="alert">{saveError}</p>}
           <button type="button" className="btn btn-primary" disabled={saving} onClick={saveToLms}>{saving ? 'Saving…' : form.type === 'course_outline' ? 'Create draft course' : form.type === 'quiz_questions' ? 'Create quiz and questions' : form.type === 'supporting_content' && form.contentKind === 'assignment' ? 'Create assignment' : form.type === 'lesson_content' && target.lessonId ? 'Update selected lesson' : 'Create lesson'}</button>
         </div>}</>}

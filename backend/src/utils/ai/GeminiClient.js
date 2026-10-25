@@ -1,11 +1,13 @@
 const ServiceError = require('../../service/common/ServiceError');
+const LoggerUtil = require('../common/LoggerUtil');
 
 // Keep credentials server-side. Callers supply only authorized lesson/document context.
 class GeminiClient {
-  constructor({ env = process.env, fetch = globalThis.fetch, timeoutMs = 15000 } = {}) {
+  constructor({ env = process.env, fetch = globalThis.fetch, timeoutMs = 15000, retryDelayMs = 300 } = {}) {
     this.env = env;
     this.fetch = fetch;
     this.timeoutMs = timeoutMs;
+    this.retryDelayMs = retryDelayMs;
   }
 
   async generateContent({ contents, systemInstruction, generationConfig } = {}) {
@@ -19,27 +21,49 @@ class GeminiClient {
 
     const body = JSON.stringify({ contents, systemInstruction, generationConfig });
     const hasPdf = contents.some(content => content.parts?.some(part => part.inlineData?.mimeType === 'application/pdf'));
+    let providerTimedOut = false;
     // A bounded pass: each configured model is attempted at most once per request.
     for (const model of models) {
       // Gemma's hosted API supports text/images, not native PDF documents.
       if (hasPdf && model.startsWith('gemma-')) continue;
       let response;
       let data;
-      try {
-        response = await this.fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-            body,
-            signal: AbortSignal.timeout(this.timeoutMs),
-          },
-        );
-        data = await response.json();
-      } catch {
-        // Network errors/timeouts can be ambiguous; do not multiply requests.
-        throw new ServiceError(502, 'Unable to connect to AI. Please try again later.');
+      let skipTimedOutModel = false;
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          response = await this.fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+              body,
+              signal: AbortSignal.timeout(this.timeoutMs),
+            },
+          );
+          data = await response.json();
+          break;
+        } catch (error) {
+          const timedOut = ['AbortError', 'TimeoutError'].includes(error?.name);
+          const retryableConnectionFailure = error?.name === 'TypeError' && !timedOut && attempt === 1;
+          LoggerUtil.warn('AI provider connection failed', {
+            model,
+            attempt,
+            errorName: error?.name || 'Error',
+            causeCode: error?.cause?.code || null,
+            retrying: retryableConnectionFailure,
+          });
+          if (timedOut) {
+            providerTimedOut = true;
+            skipTimedOutModel = true;
+            break;
+          }
+          if (!retryableConnectionFailure) {
+            throw new ServiceError(502, 'Unable to connect to AI. Please try again later.');
+          }
+          await new Promise(resolve => setTimeout(resolve, this.retryDelayMs));
+        }
       }
+      if (skipTimedOutModel) continue;
 
       if (!response.ok) {
         if ([429, 404, 500, 502, 503, 504].includes(response.status)) continue;
@@ -58,7 +82,9 @@ class GeminiClient {
       if (!text) throw new ServiceError(502, 'AI returned no answer. Please try again.');
       return { text, model };
     }
-    throw new ServiceError(503, 'AI models are unavailable or their quota has been exceeded. Please try again later.');
+    throw new ServiceError(503, providerTimedOut
+      ? 'AI models took too long to respond. Please try again.'
+      : 'AI models are unavailable or their quota has been exceeded. Please try again later.');
   }
 }
 

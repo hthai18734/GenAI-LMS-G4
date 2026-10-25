@@ -1,4 +1,5 @@
 const path = require('path');
+const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class LessonVideoService {
@@ -21,6 +22,7 @@ class LessonVideoService {
     const isAdmin = user.role === 'admin';
     const isOwner = user.role === 'teacher' && String(course.teacherId) === String(user._id);
     const enrollment = user.role === 'student' && lesson.isPublished === true
+      && course.status === COURSE_STATUS.PUBLIC
       ? await this.enrollmentRepository.findAccessibleEnrollment(user._id, course._id)
       : null;
     if (!isAdmin && !isOwner && !enrollment) throw new ServiceError(403, 'You do not have access to this lesson video.');

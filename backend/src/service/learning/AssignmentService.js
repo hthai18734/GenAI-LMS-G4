@@ -27,12 +27,33 @@ class AssignmentService {
     return this.assignmentRepository.findByCourseId(course._id);
   }
 
+  async updateAssignment(assignmentId, user, dto) {
+    const assignment = await this.assignmentRepository.findById(assignmentId);
+    if (!assignment) throw new ServiceError(404, 'Assignment not found.');
+    const course = await this.courseService.getOwnedCourse(assignment.courseId, user);
+    this.courseService.assertContentEditable(course);
+    const data = dto.toObject();
+    if (data.lessonId) {
+      const lesson = await this.lessonRepository.findById(data.lessonId);
+      if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
+    }
+    const updated = await this.assignmentRepository.update(assignment._id, data);
+    if (!updated) throw new ServiceError(409, 'The assignment changed while the request was being processed. Please try again.');
+    return updated;
+  }
+
   async listAvailableAssignments(courseId, user) {
     const course = await this.courseRepository.findById(courseId);
     if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
-    const assignments = await this.assignmentRepository.findByCourseId(courseId);
+    const allAssignments = await this.assignmentRepository.findByCourseId(courseId);
+    const assignmentVisibility = await Promise.all(allAssignments.map(async (assignment) => {
+      if (!assignment.lessonId) return true;
+      const lesson = await this.lessonRepository.findById(assignment.lessonId);
+      return Boolean(lesson?.isPublished && String(lesson.courseId) === String(courseId));
+    }));
+    const assignments = allAssignments.filter((_, index) => assignmentVisibility[index]);
     if (!this.assignmentSubmissionRepository || !assignments || !assignments.length) return assignments || [];
     const submissions = await this.assignmentSubmissionRepository.findByStudentAndCourse(user._id, courseId);
     const submissionMap = new Map((submissions || []).map((s) => [String(s.assignmentId), s]));
@@ -46,6 +67,14 @@ class AssignmentService {
   async submitAssignment(assignmentId, user, answer) {
     const assignment = await this.assignmentRepository.findById(assignmentId);
     if (!assignment) throw new ServiceError(404, 'Assignment not found.');
+    const course = await this.courseRepository.findById(assignment.courseId);
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Assignment not found.');
+    if (assignment.lessonId) {
+      const lesson = await this.lessonRepository.findById(assignment.lessonId);
+      if (!lesson?.isPublished || String(lesson.courseId) !== String(assignment.courseId)) {
+        throw new ServiceError(404, 'Assignment not found.');
+      }
+    }
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, assignment.courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
     if (!String(answer || '').trim()) throw new ServiceError(400, 'Assignment answer is required.');

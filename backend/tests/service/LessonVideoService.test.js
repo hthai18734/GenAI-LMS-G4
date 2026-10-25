@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const LessonVideoService = require('../../src/service/learning/LessonVideoService');
 
-function service({ enrollment = null, teacherId = 'teacher-1', isPublished = true } = {}) {
+function service({ enrollment = null, teacherId = 'teacher-1', isPublished = true, courseStatus = 'PUBLIC' } = {}) {
   return new LessonVideoService({
     lessonRepository: { findByVideoRef: async () => ({ courseId: 'course-1', isPublished }) },
-    courseRepository: { findById: async () => ({ _id: 'course-1', teacherId }) },
+    courseRepository: { findById: async () => ({ _id: 'course-1', teacherId, status: courseStatus }) },
     enrollmentRepository: { findAccessibleEnrollment: async () => enrollment },
     videoDirectory: path.resolve('test-videos'),
   });
@@ -37,6 +37,14 @@ test('lesson video hides unpublished lessons from enrolled students', async () =
   await assert.rejects(
     service({ enrollment: { _id: 'enrollment-1' }, isPublished: false })
       .authorize('draft.mp4', { _id: 'student-1', role: 'student' }),
+    error => error.status === 403,
+  );
+});
+
+test('lesson video is unavailable to students while the course is not public', async () => {
+  await assert.rejects(
+    service({ enrollment: { _id: 'enrollment-1' }, courseStatus: 'APPROVED' })
+      .authorize('lesson.mp4', { _id: 'student-1', role: 'student' }),
     error => error.status === 403,
   );
 });

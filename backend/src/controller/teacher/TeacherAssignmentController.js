@@ -29,6 +29,16 @@ class TeacherAssignmentController {
     } catch (error) { return next(error); }
   }
 
+  async update(req, res, next) {
+    try {
+      const dto = new CreateAssignmentDTO(req.body);
+      const errors = dto.validate();
+      if (Object.keys(errors).length) return this.validationError(res, errors);
+      const assignment = await AssignmentService.updateAssignment(req.params.assignmentId, req.user, dto);
+      return ResponseUtil.success(res, { message: 'Assignment updated successfully.', data: { assignment } });
+    } catch (error) { return next(error); }
+  }
+
   async grade(req, res, next) {
     try {
       if (typeof req.body?.passed !== 'boolean') return ResponseUtil.error(res, { status: 400, message: 'passed must be a boolean.' });

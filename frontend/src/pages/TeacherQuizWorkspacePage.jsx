@@ -4,6 +4,7 @@ import { teacherService } from '../features/teacher/api.js';
 import { useToast } from '../components/Toast';
 
 const blankQuestion = { questionText: '', options: ['', ''], correctAnswer: '', explanation: '', categoryId: '' };
+const relationId = (value) => String(value?._id || value || '');
 
 const normalizeQuestion = (question) => {
   if (question.explanation || !question.questionText?.includes('\n\nExplanation:')) return question;
@@ -49,6 +50,7 @@ export default function TeacherQuizWorkspacePage() {
   const [quiz, setQuiz] = useState(null);
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
+  const [courseQuizzes, setCourseQuizzes] = useState([]);
   const [categories, setCategories] = useState([]);
   const [quizForm, setQuizForm] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -85,7 +87,7 @@ export default function TeacherQuizWorkspacePage() {
         setQuestions((quizResult.data?.questions || []).map(normalizeQuestion));
         setQuizForm({
           title: loadedQuiz.title || '',
-          lessonId: loadedQuiz.lessonId || '',
+          lessonId: relationId(loadedQuiz.lessonId),
           timeLimit: String(loadedQuiz.timeLimit ?? ''),
           passingScore: String(loadedQuiz.passingScore ?? ''),
           attemptLimit: String(loadedQuiz.attemptLimit ?? '1'),
@@ -102,6 +104,9 @@ export default function TeacherQuizWorkspacePage() {
         const lessonResult = await teacherService.getLessons(loadedQuiz.courseId);
         setLessons(lessonResult.data?.lessons || []);
 
+        const quizzesResult = await teacherService.listQuizzes(loadedQuiz.courseId);
+        setCourseQuizzes(quizzesResult.data?.quizzes || []);
+
         const catResult = await teacherService.getCategories();
         setCategories(catResult.data?.categories || []);
       } catch (err) {
@@ -116,6 +121,16 @@ export default function TeacherQuizWorkspacePage() {
     const { name, value } = event.target;
     setQuizForm((current) => ({ ...current, [name]: value }));
     setQuizErrors((current) => ({ ...current, [name]: null }));
+  };
+
+  const selectRelatedLesson = (event) => {
+    const lessonId = event.target.value;
+    const matchingQuiz = courseQuizzes.find(courseQuiz => relationId(courseQuiz.lessonId) === lessonId);
+    if (matchingQuiz && matchingQuiz._id !== quizId) {
+      navigate(`/teacher/quizzes/${matchingQuiz._id}`);
+      return;
+    }
+    updateQuiz(event);
   };
 
   const saveQuiz = async (event) => {
@@ -137,7 +152,7 @@ export default function TeacherQuizWorkspacePage() {
       setQuiz(updated);
       setQuizForm({
         title: updated.title || '',
-        lessonId: updated.lessonId || '',
+        lessonId: relationId(updated.lessonId),
         timeLimit: String(updated.timeLimit),
         passingScore: String(updated.passingScore),
         attemptLimit: String(updated.attemptLimit),
@@ -403,6 +418,13 @@ export default function TeacherQuizWorkspacePage() {
       <form className="assessment-form" onSubmit={saveQuiz} noValidate style={{ background: 'var(--panel)', padding: '24px', borderRadius: '14px', border: '1px solid var(--line)', marginBottom: '32px' }}>
         <h2 style={{ marginTop: 0, fontSize: '18px', marginBottom: '18px' }}>⚙️ Quiz Configuration</h2>
         <label style={{ display: 'block', marginBottom: '16px' }}>
+          Switch quiz
+          <select value={quizId} onChange={(event) => navigate(`/teacher/quizzes/${event.target.value}`)} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }}>
+            {courseQuizzes.map((courseQuiz) => <option key={courseQuiz._id} value={courseQuiz._id}>{courseQuiz.title}</option>)}
+          </select>
+          <small style={{ display: 'block', color: 'var(--muted)', marginTop: '5px' }}>Selecting another quiz loads that quiz and its own questions.</small>
+        </label>
+        <label style={{ display: 'block', marginBottom: '16px' }}>
           Quiz title *
           <input name="title" value={quizForm.title} onChange={updateQuiz} maxLength="200" disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }} />
           {quizErrors.title && <small style={{ color: 'red' }}>{quizErrors.title}</small>}
@@ -410,7 +432,7 @@ export default function TeacherQuizWorkspacePage() {
 
         <label style={{ display: 'block', marginBottom: '16px' }}>
           Related lesson
-          <select name="lessonId" value={quizForm.lessonId} onChange={updateQuiz} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }}>
+          <select name="lessonId" value={quizForm.lessonId} onChange={selectRelatedLesson} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }}>
             <option value="">Course-level quiz</option>
             {lessons.map((lesson) => (
               <option key={lesson._id} value={lesson._id}>
@@ -418,6 +440,7 @@ export default function TeacherQuizWorkspacePage() {
               </option>
             ))}
           </select>
+          <small style={{ display: 'block', color: 'var(--muted)', marginTop: '5px' }}>If the selected lesson already has a quiz, its questions are loaded automatically.</small>
           {quizErrors.lessonId && <small style={{ color: 'red' }}>{quizErrors.lessonId}</small>}
         </label>
 

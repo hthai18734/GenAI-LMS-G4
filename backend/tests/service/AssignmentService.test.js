@@ -116,3 +116,27 @@ test('create assignment links only a lesson belonging to the selected course', a
     AssignmentRepository.create = createOriginal;
   }
 });
+
+test('update assignment verifies ownership and persists only editable assignment fields', async () => {
+  const assignmentId = '507f1f77bcf86cd799439077';
+  const assignmentOriginals = { findById: AssignmentRepository.findById, update: AssignmentRepository.update };
+  const courseOriginals = { getOwnedCourse: CourseService.getOwnedCourse, assertContentEditable: CourseService.assertContentEditable };
+  let updated;
+  AssignmentRepository.findById = async (id) => ({ _id: id, courseId: COURSE_ID });
+  CourseService.getOwnedCourse = async (id, user) => {
+    assert.equal(String(id), COURSE_ID);
+    assert.equal(user, teacher);
+    return course;
+  };
+  CourseService.assertContentEditable = (value) => assert.equal(value, course);
+  AssignmentRepository.update = async (id, data) => { updated = { id, data }; return { _id: id, ...data }; };
+
+  try {
+    const result = await AssignmentService.updateAssignment(assignmentId, teacher, dto);
+    assert.equal(result.title, 'Analysis report');
+    assert.deepEqual(updated, { id: assignmentId, data: { title: 'Analysis report', content: 'Submit your analysis.' } });
+  } finally {
+    restore(AssignmentRepository, assignmentOriginals);
+    restore(CourseService, courseOriginals);
+  }
+});
