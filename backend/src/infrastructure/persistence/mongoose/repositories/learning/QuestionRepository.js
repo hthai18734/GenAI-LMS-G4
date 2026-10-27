@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Question = require('../../../../../model/learning/Question');
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 class QuestionRepository {
   async create(data) {
@@ -32,19 +33,21 @@ class QuestionRepository {
       filter.categoryId = categoryId;
     }
     if (keyword && typeof keyword === 'string' && keyword.trim()) {
-      filter.questionText = { $regex: keyword.trim(), $options: 'i' };
+      filter.questionText = { $regex: new RegExp(escapeRegex(keyword.trim().slice(0, 100)), 'i') };
     }
 
     const total = await Question.countDocuments(filter);
-    const skip = (Math.max(1, page) - 1) * limit;
+    const safePage = Number.isSafeInteger(Number(page)) && Number(page) >= 1 ? Number(page) : 1;
+    const safeLimit = Number.isSafeInteger(Number(limit)) && Number(limit) >= 1 ? Math.min(Number(limit), 100) : 50;
+    const skip = (safePage - 1) * safeLimit;
     const items = await Question.find(filter)
       .populate('categoryId', 'name')
       .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
-      .limit(limit)
+      .limit(safeLimit)
       .exec();
 
-    return { items, total, page: Number(page), limit: Number(limit) };
+    return { items, total, page: safePage, limit: safeLimit };
   }
 
   async update(id, updates) {

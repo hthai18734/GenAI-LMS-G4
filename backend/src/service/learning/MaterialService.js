@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
+const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class MaterialService {
@@ -61,6 +62,7 @@ class MaterialService {
     const isOwner = user && (user.role === 'admin' || String(course.teacherId) === String(user._id) || String(course.instructorId) === String(user._id));
 
     if (!isOwner) {
+      if (course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
       if (!lesson.isPublished) throw new ServiceError(404, 'Lesson not accessible.');
       const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, course._id);
       if (!enrollment) throw new ServiceError(403, 'You must be enrolled to view materials.');
@@ -119,6 +121,13 @@ class MaterialService {
 
     const isOwner = user && (user.role === 'admin' || String(course.teacherId) === String(user._id) || String(course.instructorId) === String(user._id));
     if (!isOwner) {
+      if (course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Material not found or no longer available.');
+      const lesson = await this.lessonRepository.findById(material.lessonId);
+      if (!lesson || lesson.deletedAt
+        || String(lesson.courseId) !== String(course._id)
+        || !lesson.isPublished) {
+        throw new ServiceError(404, 'Material not found or no longer available.');
+      }
       const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, course._id);
       if (!enrollment) throw new ServiceError(403, 'You must be enrolled to download this material.');
     }

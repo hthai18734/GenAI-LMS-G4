@@ -2,6 +2,7 @@ module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 const { assignmentService: AssignmentService } = UseCases;
 const CreateAssignmentDTO = require('../../dto/assignment/CreateAssignmentDTO');
+const UpdateAssignmentDTO = require('../../dto/assignment/UpdateAssignmentDTO');
 
 class TeacherAssignmentController {
   validationError(res, errors) {
@@ -13,7 +14,7 @@ class TeacherAssignmentController {
       const dto = new CreateAssignmentDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const assignment = await AssignmentService.createAssignment(req.params.courseId, req.user, dto);
+      const assignment = await AssignmentService.createAssignment(req.params.courseId, req.user, dto.toObject());
       return ResponseUtil.success(res, {
         status: 201,
         message: 'Assignment created successfully.',
@@ -29,13 +30,27 @@ class TeacherAssignmentController {
     } catch (error) { return next(error); }
   }
 
+  async getById(req, res, next) {
+    try {
+      const assignment = await AssignmentService.getAssignment(req.params.assignmentId, req.user);
+      return ResponseUtil.success(res, { data: { assignment } });
+    } catch (error) { return next(error); }
+  }
+
   async update(req, res, next) {
     try {
-      const dto = new CreateAssignmentDTO(req.body);
+      const dto = new UpdateAssignmentDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const assignment = await AssignmentService.updateAssignment(req.params.assignmentId, req.user, dto);
+      const assignment = await AssignmentService.updateAssignment(req.params.assignmentId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Assignment updated successfully.', data: { assignment } });
+    } catch (error) { return next(error); }
+  }
+
+  async remove(req, res, next) {
+    try {
+      await AssignmentService.deleteAssignment(req.params.assignmentId, req.user);
+      return ResponseUtil.success(res, { message: 'Assignment deleted successfully.' });
     } catch (error) { return next(error); }
   }
 

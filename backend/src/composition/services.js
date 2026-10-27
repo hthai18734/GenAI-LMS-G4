@@ -13,6 +13,11 @@ const ContentGenerationService = require('../service/ai/ContentGenerationService
 const path = require('path');
 const createVoucherService = require('../service/voucher/VoucherService');
 const createVoucherCheckoutService = require('../service/voucher/VoucherCheckoutService');
+const StudentProfileService = require('../service/student/StudentProfileService');
+const StudentLearningService = require('../service/student/StudentLearningService');
+const StudentNotificationService = require('../service/student/StudentNotificationService');
+const StudentTeacherApplicationService = require('../service/student/StudentTeacherApplicationService');
+const StudentService = require('../service/student/StudentService');
 
 const create = (path, dependencies = repositories) => {
   const Service = require(path);
@@ -54,6 +59,16 @@ const voucherService = createVoucherService(repositories);
 const voucherCheckoutService = createVoucherCheckoutService({
   ...repositories,
   voucherService,
+});
+const studentProfileService = new StudentProfileService(repositories);
+const studentLearningService = new StudentLearningService(repositories);
+const studentNotificationService = new StudentNotificationService(repositories);
+const studentTeacherApplicationService = new StudentTeacherApplicationService(repositories);
+const studentService = new StudentService({
+  profileService: studentProfileService,
+  learningService: studentLearningService,
+  notificationService: studentNotificationService,
+  teacherApplicationService: studentTeacherApplicationService,
 });
 
 const services = {
@@ -99,7 +114,7 @@ const services = {
   questionService,
   quizService,
   reviewService: create('../service/engagement/ReviewService'),
-  studentService: create('../service/student/StudentService'),
+  studentService,
   teacherApplicationService: create('../service/admin/TeacherApplicationService', {
     ...repositories,
     emailGateway: EmailUtil,

@@ -1,10 +1,11 @@
-const { text, hasOwn, objectId, unknownFields } = require('../common/DTOUtil');
+const { text, hasOwn, objectId, unknownFields, isObjectPayload } = require('../common/DTOUtil');
 
 class UpdateQuestionDTO {
-  constructor(body = {}) { this.body = body; }
+  constructor(body = {}) { this.payloadIsObject = isObjectPayload(body); this.body = this.payloadIsObject ? body : {}; }
 
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const unknown = unknownFields(this.body, ['questionText', 'options', 'correctAnswer', 'explanation', 'categoryId']);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (hasOwn(this.body, 'categoryId') && this.body.categoryId !== null && this.body.categoryId !== ''

@@ -8,6 +8,23 @@ require('../../../../../model/identity/User');
 const Course = require('../../../../../model/learning/Course');
 const { COURSE_STATUS } = require('../../../../../domain/learning/CourseStatus');
 
+const COURSE_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'title', 'status']);
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function normalizeListQuery(query = {}) {
+  const pageNumber = Number(query.page);
+  const limitNumber = Number(query.limit);
+  const validSort = COURSE_SORT_FIELDS.has(query.sortBy);
+  return {
+    ...query,
+    page: Number.isSafeInteger(pageNumber) && pageNumber >= 1 && pageNumber <= 1000000 ? pageNumber : 1,
+    limit: Number.isSafeInteger(limitNumber) && limitNumber >= 1 ? Math.min(limitNumber, 100) : 20,
+    sortBy: validSort ? query.sortBy : 'updatedAt',
+    sortOrder: validSort && ['asc', 'desc'].includes(query.sortOrder) ? query.sortOrder : 'desc',
+    search: typeof query.search === 'string' ? query.search.trim().slice(0, 100) : '',
+  };
+}
+
 class CourseRepository {
   async findById(id) {
     if (!mongoose.isValidObjectId(id)) return null;
@@ -84,10 +101,14 @@ class CourseRepository {
   }
 
   async findAllByTeacher(teacherId, query) {
+    query = normalizeListQuery(query);
     const filter = { teacherId, deletedAt: null };
     if (query.status) filter.status = query.status;
     if (query.category) filter.category = query.category;
-    if (query.search) filter.$or = [{ title: { $regex: query.search, $options: 'i' } }, { description: { $regex: query.search, $options: 'i' } }];
+    if (query.search) {
+      const search = new RegExp(escapeRegex(query.search), 'i');
+      filter.$or = [{ title: { $regex: search } }, { description: { $regex: search } }];
+    }
     const sort = { [query.sortBy]: query.sortOrder === 'asc' ? 1 : -1 };
     const [courses, total] = await Promise.all([
       Course.find(filter).sort(sort).skip((query.page - 1) * query.limit).limit(query.limit).exec(),
@@ -97,9 +118,13 @@ class CourseRepository {
   }
 
   async findModerationQueue(query) {
+    query = normalizeListQuery(query);
     const filter = { deletedAt: null };
     if (query.status) filter.status = query.status;
-    if (query.search) filter.$or = [{ title: { $regex: query.search, $options: 'i' } }, { description: { $regex: query.search, $options: 'i' } }];
+    if (query.search) {
+      const search = new RegExp(escapeRegex(query.search), 'i');
+      filter.$or = [{ title: { $regex: search } }, { description: { $regex: search } }];
+    }
     const sort = { [query.sortBy]: query.sortOrder === 'asc' ? 1 : -1 };
     const [courses, total] = await Promise.all([
       Course.find(filter).populate('teacherId', 'fullName email').sort(sort).skip((query.page - 1) * query.limit).limit(query.limit).exec(),

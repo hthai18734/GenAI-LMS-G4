@@ -35,7 +35,7 @@ class StudentQuizController {
       const dto = new SubmitQuizDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const result = await QuizService.submitQuiz(req.params.attemptId, req.user, dto);
+      const result = await QuizService.submitQuiz(req.params.attemptId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Quiz submitted successfully.', data: { result } });
     } catch (error) { return next(error); }
   }

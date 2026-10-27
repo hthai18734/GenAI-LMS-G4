@@ -1,11 +1,13 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const PaginationUtil = require('../../utils/common/PaginationUtil');
 const ServiceError = require('../common/ServiceError');
+const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 
 class ReviewService {
-  constructor({ reviewRepository, courseRepository } = {}) {
+  constructor({ reviewRepository, courseRepository, enrollmentRepository } = {}) {
     this.reviewRepository = reviewRepository;
     this.courseRepository = courseRepository;
+    this.enrollmentRepository = enrollmentRepository;
   }
   async persistence(action) {
     try { return await action(); }
@@ -33,8 +35,7 @@ class ReviewService {
   }
   isCoursePublic(course) {
     if (!course) return false;
-    const st = String(course.status || '').toUpperCase();
-    return st === 'PUBLIC' || st === 'APPROVED' || st === 'PUBLISHED' || st === 'OPEN';
+    return course.status === COURSE_STATUS.PUBLIC;
   }
   async list(query, user, courseId) {
     const criteria = { search: query.search, status: query.status, courseId: query.courseId };
@@ -64,17 +65,19 @@ class ReviewService {
     if (user?.role === 'teacher' && String(course.teacherId) !== String(user._id)) throw new ServiceError(403, 'You do not have permission to view this review.');
     return this.reviewRepository.findDetail(id);
   }
-  async create(courseId, dto, user) {
+  async create(courseId, input, user) {
     if (user.role !== 'student') throw new ServiceError(403, 'Only students can create reviews.');
     const course = await this.getCourse(courseId);
     if (!this.isCoursePublic(course)) throw new ServiceError(404, 'Course not found.');
-    const { review } = await this.persistence(() => this.reviewRepository.mutateWithRating(course._id, (session) => this.reviewRepository.create({ ...dto.toObject(), courseId: course._id, userId: user._id }, session), { publicOnly: true }));
+    const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, course._id);
+    if (!enrollment) throw new ServiceError(403, 'You must be enrolled in this course to review it.');
+    const { review } = await this.persistence(() => this.reviewRepository.mutateWithRating(course._id, (session) => this.reviewRepository.create({ ...input, courseId: course._id, userId: user._id }, session), { publicOnly: true }));
     return this.reviewRepository.findDetail(review._id);
   }
-  async update(id, dto, user) {
+  async update(id, input, user) {
     const current = await this.getReview(id);
     if (user.role !== 'student' || String(current.userId) !== String(user._id)) throw new ServiceError(403, 'You can only update your own reviews.');
-    await this.persistence(() => this.reviewRepository.mutateWithRating(current.courseId, (session) => this.reviewRepository.update(id, { userId: user._id }, dto.toObject(), session)));
+    await this.persistence(() => this.reviewRepository.mutateWithRating(current.courseId, (session) => this.reviewRepository.update(id, { userId: user._id }, { ...input }, session)));
     return this.reviewRepository.findDetail(id);
   }
   async moderate(id, status, user) {
@@ -83,11 +86,11 @@ class ReviewService {
     await this.persistence(() => this.reviewRepository.mutateWithRating(current.courseId, (session) => this.reviewRepository.update(id, {}, { status, moderatedBy: user._id, moderatedAt: new Date() }, session)));
     return this.reviewRepository.findDetail(id);
   }
-  async reply(id, dto, user) {
+  async reply(id, input, user) {
     const review = await this.getReview(id);
     const course = await this.getCourse(review.courseId);
     if (user.role !== 'teacher' || String(course.teacherId) !== String(user._id)) throw new ServiceError(403, 'Only the course teacher can reply to this review.');
-    const updated = await this.reviewRepository.update(id, {}, { reply: { ...dto.toObject(), userId: user._id, repliedAt: new Date() } });
+    const updated = await this.reviewRepository.update(id, {}, { reply: { ...input, userId: user._id, repliedAt: new Date() } });
     if (!updated) throw new ServiceError(404, 'Review not found.');
     return this.reviewRepository.findDetail(id);
   }

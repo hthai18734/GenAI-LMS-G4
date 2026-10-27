@@ -29,7 +29,7 @@ class StudentController {
     catch (error) { return handleError(res, next, error); }
   }
   async getProfile(req, res, next) {
-    const input = this.parse(res, ViewProfileDTO, { user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, ViewProfileDTO, { userId: req.user._id }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.getProfile(input.userId));
   }
   async updateProfile(req, res, next) {
@@ -37,19 +37,19 @@ class StudentController {
     return this.respond(res, next, () => StudentService.updateProfile(req.user._id, input), { message: 'Profile updated successfully.' });
   }
   async getDashboard(req, res, next) {
-    const input = this.parse(res, DashboardQueryDTO, { user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, DashboardQueryDTO, { userId: req.user._id }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.getDashboard(input.userId));
   }
   async getLearningHistory(req, res, next) {
-    const input = this.parse(res, LearningHistoryQueryDTO, { user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, LearningHistoryQueryDTO, { userId: req.user._id }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.getLearningHistory(input.userId));
   }
   async getCertificates(req, res, next) {
-    const input = this.parse(res, CertificateQueryDTO, { user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, CertificateQueryDTO, { userId: req.user._id }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.getCertificates(input.userId));
   }
   async getNotificationPreferences(req, res, next) {
-    const input = this.parse(res, NotificationPreferencesQueryDTO, { user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, NotificationPreferencesQueryDTO, { userId: req.user._id }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.getNotificationPreferences(input.userId));
   }
   async updateNotificationPreferences(req, res, next) {
@@ -57,16 +57,16 @@ class StudentController {
     return this.respond(res, next, () => StudentService.updateNotificationPreferences(req.user._id, input.preferences), { message: 'Notification preferences updated.' });
   }
   async enrollCourse(req, res, next) {
-    const input = this.parse(res, EnrollCourseDTO, { params: req.params, body: req.body }); if (!input) return undefined;
+    const input = this.parse(res, EnrollCourseDTO, { courseId: req.params.courseId || req.body?.courseId }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.enroll(req.user._id, input.courseId), { status: 201, message: 'Enrolled successfully.' });
   }
   async getEnrollmentStatus(req, res, next) { return this.respond(res, next, () => StudentService.getEnrollmentStatus(req.user._id, req.params.courseId)); }
   async getEnrolledCourses(req, res, next) {
-    const input = this.parse(res, EnrolledCoursesQueryDTO, { user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, EnrolledCoursesQueryDTO, { userId: req.user._id }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.getEnrolledCourses(input.userId));
   }
   async startResumeCourse(req, res, next) {
-    const input = this.parse(res, CourseResumeDTO, { params: req.params, user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, CourseResumeDTO, { userId: req.user._id, courseId: req.params.courseId }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.resume(req.user, input.courseId));
   }
   async getCatalog(req, res, next) {
@@ -74,11 +74,11 @@ class StudentController {
     return this.respond(res, next, () => StudentService.getCatalog(req.user._id));
   }
   async getCourseLessons(req, res, next) {
-    const input = this.parse(res, CourseLessonsQueryDTO, { params: req.params, user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, CourseLessonsQueryDTO, { userId: req.user._id, courseId: req.params.courseId }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.getCourseLessons(req.user, input.courseId));
   }
   async completeLesson(req, res, next) {
-    const input = this.parse(res, CompleteLessonDTO, { params: req.params, user: req.user }); if (!input) return undefined;
+    const input = this.parse(res, CompleteLessonDTO, { userId: req.user._id, courseId: req.params.courseId, lessonId: req.params.lessonId }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.completeLesson(input.userId, input.courseId, input.lessonId), { message: 'Lesson marked as completed.' });
   }
   async getTeacherApplicationStatus(req, res, next) { return this.respond(res, next, () => StudentService.getTeacherApplication(req.user._id)); }

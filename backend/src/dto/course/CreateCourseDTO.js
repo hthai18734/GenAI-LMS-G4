@@ -1,8 +1,10 @@
-const { text, objectId, unknownFields } = require('../common/DTOUtil');
+const { text, objectId, unknownFields, isObjectPayload, strictNumber } = require('../common/DTOUtil');
 
 class CreateCourseDTO {
   constructor(body = {}) {
-    this.body = body;
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
+    body = this.body;
     this.title = text(body.title);
     this.description = text(body.description);
     this.thumbnail = text(body.thumbnail);
@@ -13,6 +15,7 @@ class CreateCourseDTO {
 
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const unknown = unknownFields(this.body, ['title', 'description', 'thumbnail', 'category', 'categoryId', 'duration']);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (!this.title) errors.title = 'Course title is required.';
@@ -23,7 +26,7 @@ class CreateCourseDTO {
     if (this.category && this.category.length > 100) errors.category = 'Category must not exceed 100 characters.';
     if (!objectId(this.categoryId)) errors.categoryId = 'Category ID is invalid.';
     if (this.duration !== undefined && this.duration !== null && this.duration !== ''
-      && (!Number.isFinite(Number(this.duration)) || Number(this.duration) < 0)) {
+      && (strictNumber(this.duration) === null || strictNumber(this.duration) < 0)) {
       errors.duration = 'Duration must be a non-negative number.';
     }
     return errors;
@@ -36,7 +39,7 @@ class CreateCourseDTO {
       thumbnail: this.thumbnail || null,
       category: this.category || null,
       categoryId: this.categoryId || null,
-      ...(this.duration !== undefined && this.duration !== null && this.duration !== '' ? { duration: Number(this.duration) } : {}),
+      ...(this.duration !== undefined && this.duration !== null && this.duration !== '' ? { duration: strictNumber(this.duration) } : {}),
     };
   }
 }

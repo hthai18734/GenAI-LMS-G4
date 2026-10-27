@@ -1,5 +1,5 @@
 const ServiceError = require("../common/ServiceError");
-const { subtractDiscount } = require("./VoucherMoney");
+const { subtractDiscount } = require("../../domain/voucher/VoucherMoney");
 
 function createVoucherCheckoutService({
   transactionRepository: TransactionRepository,

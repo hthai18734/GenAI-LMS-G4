@@ -10,7 +10,7 @@ const COURSE_ID = '507f1f77bcf86cd799439011';
 const TEACHER_ID = '507f1f77bcf86cd799439012';
 const teacher = { _id: TEACHER_ID, role: 'teacher' };
 const course = { _id: COURSE_ID, teacherId: TEACHER_ID, status: 'DRAFT' };
-const dto = { toObject: () => ({ title: 'Analysis report', content: 'Submit your analysis.' }) };
+const input = { title: 'Analysis report', content: 'Submit your analysis.' };
 
 function restore(target, originals) {
   Object.assign(target, originals);
@@ -29,7 +29,7 @@ test('create assignment derives its course from the owned route context', async 
   AssignmentRepository.create = async (data) => { created = data; return { _id: '507f1f77bcf86cd799439013', ...data }; };
 
   try {
-    const assignment = await AssignmentService.createAssignment(COURSE_ID, teacher, dto);
+    const assignment = await AssignmentService.createAssignment(COURSE_ID, teacher, input);
     assert.equal(assignment.courseId, COURSE_ID);
     assert.deepEqual(created, { title: 'Analysis report', content: 'Submit your analysis.', courseId: COURSE_ID });
     assert.equal(created.teacherId, undefined);
@@ -41,7 +41,7 @@ test('create assignment derives its course from the owned route context', async 
 
 test('create assignment rejects invalid course IDs before a database operation', async () => {
   await assert.rejects(
-    AssignmentService.createAssignment('not-an-object-id', teacher, dto),
+    AssignmentService.createAssignment('not-an-object-id', teacher, input),
     (error) => error instanceof ServiceError && error.status === 400 && error.publicMessage === 'Course ID is invalid.',
   );
 });
@@ -75,12 +75,12 @@ test('create assignment preserves course-not-found and ownership authorization f
   try {
     CourseService.getOwnedCourse = async () => { throw new ServiceError(404, 'Course not found.'); };
     await assert.rejects(
-      AssignmentService.createAssignment(COURSE_ID, teacher, dto),
+      AssignmentService.createAssignment(COURSE_ID, teacher, input),
       (error) => error.status === 404 && error.publicMessage === 'Course not found.',
     );
     CourseService.getOwnedCourse = async () => { throw new ServiceError(403, 'You do not have permission to perform this action.'); };
     await assert.rejects(
-      AssignmentService.createAssignment(COURSE_ID, teacher, dto),
+      AssignmentService.createAssignment(COURSE_ID, teacher, input),
       (error) => error.status === 403 && error.publicMessage === 'You do not have permission to perform this action.',
     );
     assert.equal(persisted, false);
@@ -92,7 +92,7 @@ test('create assignment preserves course-not-found and ownership authorization f
 
 test('create assignment links only a lesson belonging to the selected course', async () => {
   const lessonId = '507f1f77bcf86cd799439099';
-  const linkedDto = { toObject: () => ({ title: 'Practice', content: 'Complete it.', lessonId }) };
+  const linkedInput = { title: 'Practice', content: 'Complete it.', lessonId };
   const courseOriginals = { getOwnedCourse: CourseService.getOwnedCourse, assertContentEditable: CourseService.assertContentEditable };
   const findLessonOriginal = LessonRepository.findById;
   const createOriginal = AssignmentRepository.create;
@@ -103,11 +103,11 @@ test('create assignment links only a lesson belonging to the selected course', a
   AssignmentRepository.create = async (data) => { created = data; return data; };
 
   try {
-    await AssignmentService.createAssignment(COURSE_ID, teacher, linkedDto);
+    await AssignmentService.createAssignment(COURSE_ID, teacher, linkedInput);
     assert.equal(created.lessonId, lessonId);
     LessonRepository.findById = async () => ({ _id: lessonId, courseId: '507f1f77bcf86cd799439088' });
     await assert.rejects(
-      AssignmentService.createAssignment(COURSE_ID, teacher, linkedDto),
+      AssignmentService.createAssignment(COURSE_ID, teacher, linkedInput),
       (error) => error instanceof ServiceError && error.status === 404 && error.publicMessage === 'Lesson not found.',
     );
   } finally {
@@ -132,9 +132,30 @@ test('update assignment verifies ownership and persists only editable assignment
   AssignmentRepository.update = async (id, data) => { updated = { id, data }; return { _id: id, ...data }; };
 
   try {
-    const result = await AssignmentService.updateAssignment(assignmentId, teacher, dto);
+    const result = await AssignmentService.updateAssignment(assignmentId, teacher, input);
     assert.equal(result.title, 'Analysis report');
     assert.deepEqual(updated, { id: assignmentId, data: { title: 'Analysis report', content: 'Submit your analysis.' } });
+  } finally {
+    restore(AssignmentRepository, assignmentOriginals);
+    restore(CourseService, courseOriginals);
+  }
+});
+
+test('get and delete assignment enforce ownership and editable course status', async () => {
+  const assignmentId = '507f1f77bcf86cd799439077';
+  const assignmentOriginals = { findById: AssignmentRepository.findById, softDelete: AssignmentRepository.softDelete };
+  const courseOriginals = { getOwnedCourse: CourseService.getOwnedCourse, assertContentEditable: CourseService.assertContentEditable };
+  const assignment = { _id: assignmentId, courseId: COURSE_ID, title: 'Owned assignment' };
+  let deletedId = null;
+  AssignmentRepository.findById = async () => assignment;
+  AssignmentRepository.softDelete = async (id) => { deletedId = id; return { ...assignment, deletedAt: new Date() }; };
+  CourseService.getOwnedCourse = async () => course;
+  CourseService.assertContentEditable = (value) => assert.equal(value, course);
+
+  try {
+    assert.equal(await AssignmentService.getAssignment(assignmentId, teacher), assignment);
+    await AssignmentService.deleteAssignment(assignmentId, teacher);
+    assert.equal(deletedId, assignmentId);
   } finally {
     restore(AssignmentRepository, assignmentOriginals);
     restore(CourseService, courseOriginals);

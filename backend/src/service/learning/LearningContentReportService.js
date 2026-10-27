@@ -1,11 +1,13 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const { ISSUE_TYPES } = require('../../domain/learning/LearningContentReportPolicy');
+const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class LearningContentReportService {
-  constructor({ learningContentReportRepository, lessonRepository, courseRepository, enrollmentRepository } = {}) {
+  constructor({ learningContentReportRepository, lessonRepository, materialRepository, courseRepository, enrollmentRepository } = {}) {
     this.learningContentReportRepository = learningContentReportRepository;
     this.lessonRepository = lessonRepository;
+    this.materialRepository = materialRepository;
     this.courseRepository = courseRepository;
     this.enrollmentRepository = enrollmentRepository;
   }
@@ -20,7 +22,21 @@ class LearningContentReportService {
     if (materialId) this.assertValidId(materialId, 'Material ID');
 
     const lesson = await this.lessonRepository.findById(lessonId);
-    if (!lesson || lesson.deletedAt) throw new ServiceError(404, 'Lesson not found.');
+    if (!lesson || lesson.deletedAt || !lesson.isPublished) throw new ServiceError(404, 'Lesson not found.');
+
+    const course = await this.courseRepository.findById(lesson.courseId);
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) {
+      throw new ServiceError(404, 'Course not found.');
+    }
+
+    if (materialId) {
+      const material = await this.materialRepository.findById(materialId);
+      if (!material || material.deletedAt
+        || String(material.lessonId) !== String(lesson._id)
+        || String(material.courseId) !== String(lesson.courseId)) {
+        throw new ServiceError(404, 'Material not found in this lesson.');
+      }
+    }
 
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, lesson.courseId);
     if (!enrollment) {
@@ -64,9 +80,13 @@ class LearningContentReportService {
 
   // ─── I3-08: Resolve Learning Content Report ───────────────────────
   async listReportsForTeacher(teacherUser, { status, courseId, page = 1, limit = 15 } = {}) {
+    if (courseId) this.assertValidId(courseId, 'Course ID');
     // Find courses owned by teacher
     const courses = await this.courseRepository.findByTeacherId(teacherUser._id);
-    const courseIds = courses.map((c) => c._id);
+    const ownedCourseIds = courses.map((c) => c._id);
+    const courseIds = courseId
+      ? ownedCourseIds.filter((ownedId) => String(ownedId) === String(courseId))
+      : ownedCourseIds;
 
     if (courseIds.length === 0) {
       return { reports: [], pagination: { page: 1, limit, total: 0, totalPages: 1 } };

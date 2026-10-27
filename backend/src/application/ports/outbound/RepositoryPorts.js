@@ -3,7 +3,7 @@ const port = (...methods) => Object.freeze(methods);
 // These are application-owned structural ports. Mongoose adapters are validated
 // against them only in the composition root; use cases never import adapters.
 module.exports = Object.freeze({
-  assignmentRepository: port('create', 'findByCourseId', 'findById'),
+  assignmentRepository: port('create', 'findByCourseId', 'findById', 'softDelete', 'update'),
   assignmentSubmissionRepository: port('findById', 'findPassedAssignmentIds', 'grade', 'submit'),
   categoryRepository: port('countActiveRecords', 'create', 'findActiveById', 'findAll', 'findAllActive', 'findById', 'findByNameCaseInsensitive', 'isUsedByActiveCourse', 'softDelete', 'update'),
   certificateRepository: port('findByUserId', 'findOneByCourse', 'issueCertificate'),
@@ -14,7 +14,7 @@ module.exports = Object.freeze({
   courseRepository: port('countByStatus', 'create', 'findAllByTeacher', 'findAllOpen', 'findById', 'findByIdForModeration', 'findByTeacherId', 'findDashboardCourses', 'findIdsByTeacher', 'findModerationQueue', 'findRecentByStatus', 'incrementStudents', 'softDelete', 'transitionStatus', 'update', 'updateCategoryName'),
   discussionPostRepository: port('create', 'findById', 'findReplies', 'findThreadsByCourse', 'softDelete', 'updateBody'),
   enrollmentRepository: port('cancelEnrollment', 'countByCourseIdsAndStatus', 'createEnrollment', 'findAccessibleEnrollment', 'findActiveEnrollment', 'findById', 'findByUserId', 'findForResume', 'findRecentByCourseIds', 'markCompleted'),
-  learningActivityLogRepository: port('countActivities', 'findStudentIntervals', 'logActivity'),
+  learningActivityLogRepository: port('countActivities', 'findStudentIntervals', 'logActivity', 'recordActivityOnce'),
   learningContentReportRepository: port('create', 'findByCourses', 'findById', 'findByReporter', 'updateStatus'),
   learningGoalRepository: port('create', 'deleteById', 'findById', 'findByStudent', 'findInProgressByCourse', 'findOwned', 'markCancelled', 'updateProgress', 'updateRule'),
   lessonRepository: port('countByCourseId', 'countValidByCourseId', 'create', 'findByCourseId', 'findById', 'findByVideoRef', 'findFirstLesson', 'findPublishedByCourseId', 'maxActiveOrder', 'normalizeOrder', 'reorderLessons', 'softDelete', 'update'),
@@ -24,7 +24,7 @@ module.exports = Object.freeze({
   oAuthAccountRepository: port('linkGoogleAccount'),
   oAuthLoginTicketRepository: port('consume', 'create'),
   otpVerificationRepository: port('clear', 'find', 'incrementWrongAttempts', 'save'),
-  progressRepository: port('countByUserAndCourse', 'findByUserAndCourse', 'findByUserId', 'findLastAccessedLesson', 'upsertProgress'),
+  progressRepository: port('countByUserAndCourse', 'findByUserAndCourse', 'findByUserId', 'findCompletedInRange', 'findLastAccessedLesson', 'upsertProgress'),
   publicCategoryRepository: port('findAllActive'),
   publicCourseRepository: port('countPublished', 'findByFilterAndSort', 'findById', 'findCoursesByTeacherId', 'findFeaturedCourses', 'findPublishedWithPaging', 'searchByKeyword'),
   questionRepository: port('create', 'findById', 'findByIds', 'findByOwner', 'findByQuizId', 'softDelete', 'update'),
@@ -38,6 +38,6 @@ module.exports = Object.freeze({
   userRepository: port('changePassword', 'clearPasswordReset', 'countAccounts', 'countByRole', 'createUser', 'deleteUser', 'findAccounts', 'findActiveVerifiedStudent', 'findByEmail', 'findById', 'findPublicTeacherById', 'findRecent', 'findTeacherSummaryById', 'findTeachers', 'findTopTeachers', 'isEmailExists', 'recordLoginSuccess', 'resetPassword', 'savePasswordReset', 'updateProfile', 'updateRole', 'updateStatus', 'updateUser', 'verifyEmail'),
   videoProgressRepository: port('findByStudentAndVideo', 'saveProgress'),
   voucherRedemptionRepository: port('countAllUsed', 'countUsed', 'create', 'findByTransactionId', 'hasUsed', 'history'),
-  voucherRepository: port('count', 'create', 'existsCode', 'expireBefore', 'findAllActiveRecords', 'findByCode', 'findById', 'findCurrentlyActive', 'findPage', 'lockByCode', 'softDeleteAtRevision', 'toggle', 'update'),
+  voucherRepository: port('countList', 'create', 'existsCode', 'expireBefore', 'findAllActiveRecords', 'findByCode', 'findById', 'findCurrentlyActive', 'findPageByCriteria', 'lockByCode', 'softDeleteAtRevision', 'toggle', 'update'),
   wishlistRepository: port('add', 'findByStudent', 'remove'),
 });

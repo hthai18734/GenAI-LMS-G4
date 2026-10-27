@@ -1,6 +1,16 @@
 const Voucher = require('../../../../../model/voucher/Voucher');
 
 class VoucherRepository {
+  listFilter({ keyword = '', status = null } = {}) {
+    const filter = { is_deleted: false };
+    if (keyword) {
+      const escaped = String(keyword).replace(/[^a-zA-Z0-9\u00c0-\u1ef9 ]/g, (character) => `\\${character}`);
+      filter.code = { $regex: escaped, $options: 'i' };
+    }
+    if (status) filter.status = status;
+    return filter;
+  }
+
   expireBefore(now) {
     return Voucher.updateMany(
       { end_date: { $ne: null, $lt: now }, status: { $ne: 'expired' }, is_deleted: false },
@@ -8,9 +18,9 @@ class VoucherRepository {
     ).exec();
   }
 
-  count(filter) { return Voucher.countDocuments(filter).exec(); }
-  findPage(filter, page, limit = 10) {
-    return Voucher.find(filter).sort({ _id: -1 }).skip((page - 1) * limit).limit(limit).lean().exec();
+  countList(criteria) { return Voucher.countDocuments(this.listFilter(criteria)).exec(); }
+  findPageByCriteria(criteria, page, limit = 10) {
+    return Voucher.find(this.listFilter(criteria)).sort({ _id: -1 }).skip((page - 1) * limit).limit(limit).lean().exec();
   }
   findAllActiveRecords() { return Voucher.find({ is_deleted: false }).lean().exec(); }
   findById(id, { includeRevision = false } = {}) {
@@ -23,7 +33,10 @@ class VoucherRepository {
   }
   create(data) { return Voucher.create(data); }
   update(id, data) { return Voucher.updateOne({ _id: id, is_deleted: false }, { $set: data }).exec(); }
-  softDeleteAtRevision(id, versionFilter) {
+  softDeleteAtRevision(id, revision) {
+    const versionFilter = revision == null
+      ? { $or: [{ usageRevision: { $exists: false } }, { usageRevision: null }] }
+      : { usageRevision: revision };
     return Voucher.updateOne(
       { _id: id, is_deleted: false, ...versionFilter },
       { $set: { is_deleted: true }, $inc: { usageRevision: 1 } },

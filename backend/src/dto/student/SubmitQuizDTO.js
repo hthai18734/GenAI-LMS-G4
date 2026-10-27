@@ -1,9 +1,11 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
-const { text, unknownFields } = require('../common/DTOUtil');
+const { text, unknownFields, isObjectPayload } = require('../common/DTOUtil');
 
 class SubmitQuizDTO {
   constructor(body = {}) {
-    this.body = body;
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
+    body = this.body;
     this.answers = Array.isArray(body.answers)
       ? body.answers.map((answer) => ({ questionId: answer?.questionId, answer: text(answer?.answer) }))
       : body.answers;
@@ -11,6 +13,7 @@ class SubmitQuizDTO {
 
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const unknown = unknownFields(this.body, ['answers']);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (!Array.isArray(this.answers)) {

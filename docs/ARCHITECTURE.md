@@ -83,6 +83,8 @@ backend/src/
 | `model` | Schema, index, DB constraint | Là DTO hoặc application service |
 | `composition` | Khởi tạo và inject dependencies | Chứa business rule |
 
+Ghi chú tương thích: thư mục `model/` giữ tên cũ để tránh một migration cơ học phạm vi lớn. Về kiến trúc, đây là persistence schema thuộc outbound adapter, không phải domain model. Chỉ `infrastructure` và `composition` được import các schema này.
+
 ### Composition root
 
 Chỉ `composition` được biết cả service và implementation cụ thể:
@@ -95,6 +97,8 @@ bootstrap.js:    Startup dependency và development seed
 ```
 
 Controller không được import `composition/services` như service locator. Route nhận controller đã được cấu hình từ `composition/http.js`.
+
+Chỉ composition root được khởi tạo application service. Controller, route và infrastructure không tự `new` service. Service lớn phải được tách theo nhóm use case; facade chỉ được giữ khi cần tương thích với caller cũ.
 
 ### DTO, Repository và Model
 
@@ -157,6 +161,8 @@ Quy tắc:
 4. Logic dùng chung thật sự mới đặt trong `shared`; logic nghiệp vụ vẫn thuộc feature.
 5. Provider toàn cục được ghép trong `App.jsx`.
 6. Media bảo vệ phải đi qua authenticated client; không dùng URL static trực tiếp.
+
+Với form phức tạp, mapping, validation và serialization nằm trong feature model. Page chỉ điều phối state, event và render.
 
 ## 4. Quy trình thêm một chức năng
 

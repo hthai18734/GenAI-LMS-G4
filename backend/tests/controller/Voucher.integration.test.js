@@ -10,11 +10,11 @@ const JWT = require("../../src/utils/auth/JWTUtil");
 const {
   validateVoucherInput,
   parseDate,
-} = require("../../src/service/voucher/VoucherValidation");
+} = require("../../src/dto/voucher/VoucherWriteDTO");
 const {
   percentageDiscount,
   subtractDiscount,
-} = require("../../src/service/voucher/VoucherMoney");
+} = require("../../src/domain/voucher/VoucherMoney");
 const { app } = require("../../src/index");
 const valid = { code: " TEST ", discountPercent: 20 };
 

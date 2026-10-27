@@ -5,8 +5,8 @@ Description: UC-4.6 Get Notification Preferences
  */
 
 class NotificationPreferencesQueryDTO {
-  constructor({ user = {} } = {}) {
-    this.userId = user._id || null;
+  constructor({ userId = null } = {}) {
+    this.userId = userId;
   }
 
   validate() {

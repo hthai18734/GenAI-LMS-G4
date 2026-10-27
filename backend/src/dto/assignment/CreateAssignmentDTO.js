@@ -1,8 +1,10 @@
-const { text, objectId, unknownFields } = require('../common/DTOUtil');
+const { text, objectId, unknownFields, isObjectPayload } = require('../common/DTOUtil');
 
 class CreateAssignmentDTO {
   constructor(body = {}) {
-    this.body = body;
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
+    body = this.body;
     this.title = text(body.title);
     this.content = text(body.content);
     this.lessonId = body.lessonId === undefined || body.lessonId === null || body.lessonId === '' ? null : body.lessonId;
@@ -10,6 +12,7 @@ class CreateAssignmentDTO {
 
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const unknown = unknownFields(this.body, ['title', 'content', 'lessonId']);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (!this.title) errors.title = 'Assignment title is required.';

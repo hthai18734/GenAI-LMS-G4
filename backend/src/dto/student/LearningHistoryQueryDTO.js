@@ -5,8 +5,8 @@ Description: UC-4.4 View Learning History
  */
 
 class LearningHistoryQueryDTO {
-  constructor({ user = {} } = {}) {
-    this.userId = user._id || null;
+  constructor({ userId = null } = {}) {
+    this.userId = userId;
   }
 
   validate() {

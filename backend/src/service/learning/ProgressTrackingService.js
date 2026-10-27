@@ -1,4 +1,5 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
+const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 const DEFAULT_WEIGHTS = { LESSON: 40, QUIZ: 30, ASSIGNMENT: 30 };
@@ -57,9 +58,22 @@ class ProgressTrackingService {
     if (!lesson || lesson.deletedAt) throw new ServiceError(404, 'Lesson not found.');
     if (!lesson.isPublished) throw new ServiceError(404, 'Lesson is not published.');
 
+    const course = await this.courseRepository.findById(lesson.courseId);
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) {
+      throw new ServiceError(404, 'Course is not available for learning.');
+    }
+
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, lesson.courseId);
     if (!enrollment) {
       throw new ServiceError(403, 'You must be enrolled in this course to complete this lesson.');
+    }
+
+    if (lesson.videoRef) {
+      const videoProgress = await this.videoProgressRepository.findByStudentAndVideo(user._id, String(lesson._id));
+      const watchedPercent = Number(videoProgress?.watchedPercent) || 0;
+      if (!videoProgress?.completed && watchedPercent < VIDEO_COMPLETION_THRESHOLD) {
+        throw new ServiceError(400, 'Please watch at least 90% of the lesson video before completing this lesson.');
+      }
     }
 
     // Upsert lesson completion
@@ -114,12 +128,20 @@ class ProgressTrackingService {
   // ─── I3-05: Track Video Progress (Medium) ─────────────────────────
   async trackVideoProgress(videoId, user, payload = {}) {
     if (!videoId) throw new ServiceError(400, 'videoId is required.');
-    const effectiveLessonId = payload.lessonId || (isValidIdentifier(videoId) ? videoId : null);
-    if (!effectiveLessonId) throw new ServiceError(400, 'lessonId is required.');
+    this.assertValidId(videoId, 'Video ID');
+    if (payload.lessonId !== undefined && String(payload.lessonId) !== String(videoId)) {
+      throw new ServiceError(400, 'lessonId must match the requested video lesson.');
+    }
 
-    this.assertValidId(effectiveLessonId, 'Lesson ID');
-    const lesson = await this.lessonRepository.findById(effectiveLessonId);
-    if (!lesson || lesson.deletedAt) throw new ServiceError(404, 'Lesson not found.');
+    const lesson = await this.lessonRepository.findById(videoId);
+    if (!lesson || lesson.deletedAt || !lesson.isPublished || !lesson.videoRef) {
+      throw new ServiceError(404, 'Lesson video not found.');
+    }
+
+    const course = await this.courseRepository.findById(lesson.courseId);
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) {
+      throw new ServiceError(404, 'Course is not available for learning.');
+    }
 
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, lesson.courseId);
     if (!enrollment) {
@@ -141,7 +163,8 @@ class ProgressTrackingService {
     const pos = Math.max(0, Math.min(rawPos, duration));
     const prevPos = Math.max(0, Math.min(rawPrevPos, duration));
 
-    let record = await this.videoProgressRepository.findByStudentAndVideo(user._id, videoId);
+    const canonicalVideoId = String(lesson._id);
+    let record = await this.videoProgressRepository.findByStudentAndVideo(user._id, canonicalVideoId);
     const existingSegments = record?.watchedSegments || [];
 
     // Deduplication check for same session and non-monotonic seq
@@ -176,7 +199,7 @@ class ProgressTrackingService {
 
     const saved = await this.videoProgressRepository.saveProgress({
       studentId: user._id,
-      videoId,
+      videoId: canonicalVideoId,
       lessonId: lesson._id,
       courseId: lesson.courseId,
       durationSec: duration,

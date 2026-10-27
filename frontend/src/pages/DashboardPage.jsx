@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
+import { learningStatsService } from '../features/learning/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
 import { useToast } from '../components/Toast';
 
@@ -466,6 +467,7 @@ export default function DashboardPage() {
   const [enrollingId, setEnrollingId] = useState(null);
   const [courseFilter, setCourseFilter] = useState('all');
   const [headerVisible, setHeaderVisible] = useState(false);
+  const [learningStreak, setLearningStreak] = useState(0);
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -473,12 +475,16 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [dashRes, catRes] = await Promise.all([
+      const [dashRes, catRes, statsRes] = await Promise.all([
         studentService.getDashboard(),
         studentService.getCatalog().catch(() => ({ data: { courses: [] } })),
+        learningStatsService.getStatistics('week').catch(() => ({ data: null })),
       ]);
       setData(dashRes.data?.dashboard || null);
       setCatalog(catRes.data?.courses || []);
+      const summary = statsRes.data?.stats?.summary || statsRes.data?.summary || null;
+      const streak = Number(summary?.currentStreak ?? summary?.currentStreakDays ?? 0);
+      setLearningStreak(Number.isFinite(streak) && streak > 0 ? Math.floor(streak) : 0);
     } catch (err) {
       addToast(err.message || 'Unable to load your learning data.', 'error');
     } finally {
@@ -683,7 +689,7 @@ export default function DashboardPage() {
                 border: '1px solid rgba(255,255,255,0.12)',
                 color: '#fff', fontSize: '13px', fontWeight: 600,
               }}>
-                🔥 Learning Streak: <strong style={{ color: '#fbbf24' }}>3 days</strong>
+                🔥 Learning Streak: <strong style={{ color: '#fbbf24' }}>{learningStreak} {learningStreak === 1 ? 'day' : 'days'}</strong>
               </div>
               <div
                 style={{

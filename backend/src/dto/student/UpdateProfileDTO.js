@@ -3,15 +3,17 @@ Author: ThienDDN - CE182101
 Created at: 01/10/2026
 Description: Student Profile Management
  */
-const { text, hasOwn, unknownFields } = require('../common/DTOUtil');
+const { text, hasOwn, unknownFields, isObjectPayload } = require('../common/DTOUtil');
 
 class UpdateProfileDTO {
   constructor(body = {}) {
-    this.body = body;
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
   }
 
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const allowed = ['fullName', 'phone', 'avatar'];
     const unknown = unknownFields(this.body, allowed);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;

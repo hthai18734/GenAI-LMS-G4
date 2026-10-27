@@ -106,6 +106,7 @@ export default function AppRoutes() {
         <Route path="/teacher/quizzes/new" element={<TeacherQuizFormPage />} />
         <Route path="/teacher/quizzes/:quizId" element={<TeacherQuizWorkspacePage />} />
         <Route path="/teacher/assignments/new" element={<TeacherAssignmentFormPage />} />
+        <Route path="/teacher/assignments/:assignmentId/edit" element={<TeacherAssignmentFormPage />} />
         <Route path="/teacher/ai-content" element={<TeacherAIContentPage />} />
         <Route path="/teacher/questions" element={<TeacherQuestionBankPage />} />
         <Route path="/teacher/reviews" element={<ReviewsPage />} />

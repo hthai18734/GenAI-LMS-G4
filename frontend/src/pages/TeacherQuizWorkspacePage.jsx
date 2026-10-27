@@ -2,46 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
 import { useToast } from '../components/Toast';
-
-const blankQuestion = { questionText: '', options: ['', ''], correctAnswer: '', explanation: '', categoryId: '' };
-const relationId = (value) => String(value?._id || value || '');
-
-const normalizeQuestion = (question) => {
-  if (question.explanation || !question.questionText?.includes('\n\nExplanation:')) return question;
-  const [questionText, ...explanation] = question.questionText.split('\n\nExplanation:');
-  return { ...question, questionText, explanation: explanation.join('\n\nExplanation:').trim() };
-};
-
-const toDateTimeLocal = (dateStr) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  const yyyy = date.getFullYear();
-  const mm = pad(date.getMonth() + 1);
-  const dd = pad(date.getDate());
-  const hh = pad(date.getHours());
-  const min = pad(date.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-};
-
-function validateQuiz(form) {
-  const errors = {};
-  if (!form.title.trim()) errors.title = 'Quiz title is required.';
-  if (!Number.isInteger(Number(form.timeLimit)) || Number(form.timeLimit) < 1) errors.timeLimit = 'Enter a whole number greater than zero.';
-  if (!Number.isFinite(Number(form.passingScore)) || Number(form.passingScore) < 0 || Number(form.passingScore) > 100) errors.passingScore = 'Enter a score from 0 to 100.';
-  if (!form.attemptLimit || !Number.isInteger(Number(form.attemptLimit)) || Number(form.attemptLimit) < 1) errors.attemptLimit = 'Attempt limit is required (at least 1).';
-  return errors;
-}
-
-function validateQuestion(question) {
-  const errors = {};
-  const options = question.options.map((option) => option.trim()).filter(Boolean);
-  if (!question.questionText.trim()) errors.questionText = 'Question text is required.';
-  if (options.length < 2 || options.length !== question.options.length) errors.options = 'Provide at least two non-empty options.';
-  if (!question.correctAnswer || !options.includes(question.correctAnswer)) errors.correctAnswer = 'Choose a correct answer from the options.';
-  return { errors, options };
-}
+import {
+  BLANK_QUESTION,
+  normalizeQuestion,
+  quizPayload,
+  quizToForm,
+  relationId,
+  validateQuestion,
+  validateQuiz,
+} from '../features/teacher/quizModel.js';
 
 export default function TeacherQuizWorkspacePage() {
   const { quizId } = useParams();
@@ -54,7 +23,7 @@ export default function TeacherQuizWorkspacePage() {
   const [categories, setCategories] = useState([]);
   const [quizForm, setQuizForm] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [questionForm, setQuestionForm] = useState(blankQuestion);
+  const [questionForm, setQuestionForm] = useState(BLANK_QUESTION);
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
   const [questionUsageCount, setQuestionUsageCount] = useState(0);
@@ -85,13 +54,7 @@ export default function TeacherQuizWorkspacePage() {
         if (!loadedQuiz) throw new Error('Quiz not found.');
         setQuiz(loadedQuiz);
         setQuestions((quizResult.data?.questions || []).map(normalizeQuestion));
-        setQuizForm({
-          title: loadedQuiz.title || '',
-          lessonId: relationId(loadedQuiz.lessonId),
-          timeLimit: String(loadedQuiz.timeLimit ?? ''),
-          passingScore: String(loadedQuiz.passingScore ?? ''),
-          attemptLimit: String(loadedQuiz.attemptLimit ?? '1'),
-        });
+        setQuizForm(quizToForm(loadedQuiz));
 
         // Load Course info for default category
         try {
@@ -123,16 +86,6 @@ export default function TeacherQuizWorkspacePage() {
     setQuizErrors((current) => ({ ...current, [name]: null }));
   };
 
-  const selectRelatedLesson = (event) => {
-    const lessonId = event.target.value;
-    const matchingQuiz = courseQuizzes.find(courseQuiz => relationId(courseQuiz.lessonId) === lessonId);
-    if (matchingQuiz && matchingQuiz._id !== quizId) {
-      navigate(`/teacher/quizzes/${matchingQuiz._id}`);
-      return;
-    }
-    updateQuiz(event);
-  };
-
   const saveQuiz = async (event) => {
     event.preventDefault();
     const errors = validateQuiz(quizForm);
@@ -140,23 +93,11 @@ export default function TeacherQuizWorkspacePage() {
     if (Object.keys(errors).length) return;
     setSavingQuiz(true);
     try {
-      const payload = {
-        title: quizForm.title.trim(),
-        lessonId: quizForm.lessonId || null,
-        timeLimit: Number(quizForm.timeLimit),
-        passingScore: Number(quizForm.passingScore),
-        attemptLimit: Number(quizForm.attemptLimit),
-      };
+      const payload = quizPayload(quizForm);
       const result = await teacherService.updateQuiz(quizId, payload);
       const updated = result.data?.quiz;
       setQuiz(updated);
-      setQuizForm({
-        title: updated.title || '',
-        lessonId: relationId(updated.lessonId),
-        timeLimit: String(updated.timeLimit),
-        passingScore: String(updated.passingScore),
-        attemptLimit: String(updated.attemptLimit),
-      });
+      setQuizForm(quizToForm(updated));
       addToast(result.message || 'Quiz updated successfully.', 'success');
     } catch (err) {
       setError(err.message || 'Unable to update quiz.');
@@ -207,7 +148,7 @@ export default function TeacherQuizWorkspacePage() {
     }));
 
   const resetQuestion = () => {
-    setQuestionForm({ ...blankQuestion, categoryId: course?.categoryId || '' });
+    setQuestionForm({ ...BLANK_QUESTION, options: [...BLANK_QUESTION.options], categoryId: course?.categoryId || '' });
     setEditingQuestionId(null);
     setQuestionUsageCount(0);
     setQuestionErrors({});
@@ -432,7 +373,7 @@ export default function TeacherQuizWorkspacePage() {
 
         <label style={{ display: 'block', marginBottom: '16px' }}>
           Related lesson
-          <select name="lessonId" value={quizForm.lessonId} onChange={selectRelatedLesson} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }}>
+          <select name="lessonId" value={quizForm.lessonId} onChange={updateQuiz} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }}>
             <option value="">Course-level quiz</option>
             {lessons.map((lesson) => (
               <option key={lesson._id} value={lesson._id}>

@@ -32,7 +32,7 @@ test('HTTP controllers depend on use cases, never persistence', () => {
   const files = javascriptFiles(path.join(sourceRoot, 'controller'));
   assert.deepEqual(findImports(files, [
     /require\(['"][^'"]*composition\//,
-    /require\(['"][^'"]*(?:dao|model|infrastructure)\//,
+    /require\(['"][^'"]*(?:dao|model|infrastructure|service)\//,
     /require\(['"]mongoose['"]\)/,
     /new\s+\w*Service\s*\(/,
     /common\/UseCases/,
@@ -70,6 +70,21 @@ test('application services are independent from HTTP and Mongoose', () => {
     /require\(['"](?:express|mongoose)['"]\)/,
     /require\(['"][^'"]*utils\/(?:email\/EmailUtil|ai\/GeminiClient|auth\/(?:JWTUtil|OAuthUtil))['"]\)/,
     /\b(?:req|res)\.(?:body|params|query|user|status|json|redirect|setHeader)\b/,
+  ]), []);
+});
+
+test('application services consume plain inputs rather than transport DTOs', () => {
+  const files = javascriptFiles(path.join(sourceRoot, 'service'));
+  assert.deepEqual(findImports(files, [
+    /require\(['"][^'"]*dto\//,
+    /\b(?:dto|queryDto)\.toObject\s*\(/,
+  ]), []);
+});
+
+test('application services express repository queries without database operators', () => {
+  const files = javascriptFiles(path.join(sourceRoot, 'service'));
+  assert.deepEqual(findImports(files, [
+    /\$(?:and|or|nor|regex|options|where|set|inc|ne|lt|lte|gt|gte|exists)\b/,
   ]), []);
 });
 
@@ -112,6 +127,16 @@ test('only the composition root wires use cases to infrastructure adapters', () 
   ]), []);
 });
 
+test('only the composition root constructs application services', () => {
+  const files = javascriptFiles(sourceRoot).filter(file => {
+    const name = relative(file);
+    return !name.startsWith('composition/') && !name.startsWith('service/');
+  });
+  assert.deepEqual(findImports(files, [
+    /new\s+(?!ServiceError\b)\w*Service\s*\(/,
+  ]), []);
+});
+
 test('legacy DAO modules are fully removed', () => {
   assert.equal(fs.existsSync(path.join(sourceRoot, 'dao')), false);
   const files = javascriptFiles(sourceRoot);
@@ -134,6 +159,14 @@ test('DTOs are boundary objects without persistence or use-case dependencies', (
   assert.deepEqual(findImports(files, [
     /require\(['"][^'"]*(?:controller|dao|filter|infrastructure|model|routes|service)\//,
     /require\(['"](?:express|mongoose)['"]\)/,
+  ]), []);
+});
+
+test('DTOs accept protocol-neutral values instead of Express request envelopes', () => {
+  const files = javascriptFiles(path.join(sourceRoot, 'dto'));
+  assert.deepEqual(findImports(files, [
+    /constructor\s*\(\s*\{\s*(?:params|body|query|user)\b/,
+    /\breq\.(?:body|params|query|user)\b/,
   ]), []);
 });
 

@@ -1,4 +1,4 @@
-const { percentageDiscount } = require("./VoucherMoney");
+const { percentageDiscount, subtractDiscount } = require("../../domain/voucher/VoucherMoney");
 function createVoucherService({
   voucherRepository: VoucherRepository,
   voucherRedemptionRepository: VoucherRedemptionRepository,
@@ -28,20 +28,11 @@ async function autoExpire(now = new Date()) {
 }
 async function list(keyword, status, page = 1) {
   await autoExpire();
-  const filter = { is_deleted: false };
-  if (keyword)
-    filter.code = {
-      $regex: String(keyword).replace(
-        /[^a-zA-Z0-9\u00c0-\u1ef9 ]/g,
-        (c) => "\\" + c,
-      ),
-      $options: "i",
-    };
-  if (status) filter.status = status;
-  const count = await VoucherRepository.count(filter),
+  const criteria = { keyword: keyword ? String(keyword).trim() : '', status: status || null };
+  const count = await VoucherRepository.countList(criteria),
     totalPages = Math.max(1, Math.ceil(count / 10));
   page = Math.min(totalPages, Math.max(1, Number.isInteger(+page) ? +page : 1));
-  const docs = await VoucherRepository.findPage(filter, page);
+  const docs = await VoucherRepository.findPageByCriteria(criteria, page);
   const vouchers = await Promise.all(
     docs.map(async (v) =>
       publicDoc({ ...v, usedCount: await usedCount(v._id) }),
@@ -109,16 +100,7 @@ async function remove(id) {
     if (!voucher) return 0;
     if ((await usedCount(id)) > 0) return -1;
     const revision = voucher.usageRevision;
-    const versionFilter =
-      revision == null
-        ? {
-            $or: [
-              { usageRevision: { $exists: false } },
-              { usageRevision: null },
-            ],
-          }
-        : { usageRevision: revision };
-    const result = await VoucherRepository.softDeleteAtRevision(id, versionFilter);
+    const result = await VoucherRepository.softDeleteAtRevision(id, revision);
     if (result.modifiedCount) return 1;
   }
   throw new (require("../common/ServiceError"))(
@@ -193,7 +175,12 @@ async function preview(code, customerId, courseId) {
   const total = course.price;
   if (!Number.isFinite(total) || total < 0) return { error: { status: 422, message: 'Invalid stored course price.' } };
   const result = await validateApply(code, customerId, total);
-  return { course, total, result };
+  return {
+    course,
+    total,
+    result,
+    finalTotal: result.success ? subtractDiscount(total, result.discountAmount) : null,
+  };
 }
 
 return Object.freeze({

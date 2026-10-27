@@ -2,18 +2,27 @@ const DTOValidationError = require('../common/DTOValidationError');
 const LearningDTO = require('./ChatLearningDTO');
 
 class ChatDTO {
+  static payload(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new DTOValidationError('Request payload must be an object.');
+    }
+    return value;
+  }
+
   static id(value) {
     if (typeof value !== 'string' || !/^[a-f\d]{24}$/i.test(value)) throw new DTOValidationError('Invalid ID.');
     return value;
   }
 
   static create(body = {}) {
+    body = this.payload(body);
     const { courseId, lessonId } = body;
     if (!courseId && !lessonId) return {};
     return { courseId: this.id(courseId), lessonId: this.id(lessonId) };
   }
 
   static message(body = {}) {
+    body = this.payload(body);
     let { text = '', mode = 'ask', style = 'friendly', requestId } = body;
     const learning = LearningDTO.modes.includes(mode) ? LearningDTO.parse(mode, body.details) : null;
     if (learning) text = learning.text;
@@ -24,6 +33,7 @@ class ChatDTO {
   }
 
   static list(query = {}) {
+    query = this.payload(query);
     return { context: this.create(query), before: query.before ? this.id(query.before) : null };
   }
 }

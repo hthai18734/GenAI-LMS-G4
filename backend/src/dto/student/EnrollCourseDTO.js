@@ -6,8 +6,8 @@ Description: Student Course Enrollment
 const { objectId } = require('../common/DTOUtil');
 
 class EnrollCourseDTO {
-  constructor({ params = {}, body = {} } = {}) {
-    this.courseId = params.courseId || body.courseId || null;
+  constructor({ courseId = null } = {}) {
+    this.courseId = courseId;
   }
 
   validate() {

@@ -31,18 +31,18 @@ class QuestionService {
     });
   }
 
-  async createQuestion(quizId, user, dto) {
+  async createQuestion(quizId, user, input) {
     const { quiz, course } = await this.quizService.getOwnedQuiz(quizId, user, { includeCourse: true });
     this.courseService.assertContentEditable(course);
-    const data = dto.toObject();
+    const data = { ...input };
     const categoryId = data.categoryId || course.categoryId || null;
     const question = await this.persistQuestion(user, data, { quizId: quiz._id, categoryId });
     await this.quizQuestionRepository.linkQuestion(quiz._id, question._id);
     return question;
   }
 
-  async createBankQuestion(user, dto) {
-    const data = dto.toObject();
+  async createBankQuestion(user, input) {
+    const data = { ...input };
     return this.persistQuestion(user, data, { quizId: null, categoryId: data.categoryId || null });
   }
 
@@ -57,7 +57,7 @@ class QuestionService {
     return { ...qObj, usageCount };
   }
 
-  async updateQuestion(questionId, user, dto) {
+  async updateQuestion(questionId, user, input) {
     const question = await this.getOwnedQuestion(questionId, user);
     if (question.quizId) {
       try {
@@ -67,7 +67,7 @@ class QuestionService {
         if (err.status !== 404) throw err;
       }
     }
-    const updates = dto.toObject();
+    const updates = { ...input };
     this.assertQuestionContent({
       questionText: question.questionText,
       options: question.options,

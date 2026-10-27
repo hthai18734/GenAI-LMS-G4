@@ -7,7 +7,7 @@ class CourseRepository {
    * UC-1.1: Find featured courses for homepage
    */
   async findFeaturedCourses(limit = 6) {
-    const numLimit = Math.max(1, parseInt(limit, 10) || 6);
+    const numLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 6));
     return Course.find({
       isFeatured: true,
       status: COURSE_STATUS.PUBLIC,
@@ -25,7 +25,7 @@ class CourseRepository {
    */
   async findPublishedWithPaging(page = 1, limit = 10) {
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
-    const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
+    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (parsedPage - 1) * parsedLimit;
 
     return Course.find({
@@ -53,7 +53,7 @@ class CourseRepository {
    */
   async searchByKeyword(keyword, page = 1, limit = 10) {
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
-    const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
+    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (parsedPage - 1) * parsedLimit;
 
     const safeRegex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
@@ -85,7 +85,7 @@ class CourseRepository {
    */
   async findByFilterAndSort({ categoryId = null, category = null, minPrice = null, maxPrice = null, sortBy = 'newest', page = 1, limit = 10 } = {}) {
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
-    const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
+    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (parsedPage - 1) * parsedLimit;
 
     const query = {
@@ -96,7 +96,8 @@ class CourseRepository {
     if (categoryId && mongoose.isValidObjectId(categoryId)) {
       query.categoryId = categoryId;
     } else if (category) {
-      query.category = new RegExp(`^${category.trim()}$`, 'i');
+      const safeCategory = category.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.category = new RegExp(`^${safeCategory}$`, 'i');
     }
 
     if (minPrice !== null && minPrice !== undefined && minPrice !== '') {

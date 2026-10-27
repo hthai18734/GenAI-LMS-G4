@@ -130,7 +130,7 @@ test('admin approval stops at APPROVED and rejection records moderation fields',
     assert.equal(approved.rejectionReason, null);
 
     current = course(COURSE_STATUS.PENDING_REVIEW);
-    const rejected = await CourseModerationService.rejectCourse(courseId, { _id: adminId }, { toObject: () => ({ reason: 'Add more examples.' }) });
+    const rejected = await CourseModerationService.rejectCourse(courseId, { _id: adminId }, { reason: 'Add more examples.' });
     assert.equal(rejected.status, COURSE_STATUS.REJECTED);
     assert.equal(rejected.rejectionReason, 'Add more examples.');
     assert.equal(rejected.moderatedBy, adminId);

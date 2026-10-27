@@ -34,7 +34,7 @@ test('create quiz derives course ownership from the authenticated teacher and ve
 
   try {
     const quiz = await QuizService.createQuiz(COURSE_ID, teacher, {
-      toObject: () => ({ title: 'Quiz', lessonId: LESSON_ID, timeLimit: 10, passingScore: 60, attemptLimit: 2 }),
+      title: 'Quiz', lessonId: LESSON_ID, timeLimit: 10, passingScore: 60, attemptLimit: 2,
     });
     assert.equal(quiz.courseId, COURSE_ID);
     assert.deepEqual(created, {
@@ -58,7 +58,7 @@ test('create quiz rejects a lesson that belongs to another course', async () => 
 
   try {
     await assert.rejects(
-      QuizService.createQuiz(COURSE_ID, teacher, { toObject: () => ({ title: 'Quiz', lessonId: LESSON_ID, timeLimit: 10, passingScore: 60 }) }),
+      QuizService.createQuiz(COURSE_ID, teacher, { title: 'Quiz', lessonId: LESSON_ID, timeLimit: 10, passingScore: 60 }),
       (error) => error instanceof ServiceError && error.status === 404 && error.publicMessage === 'Lesson not found.',
     );
   } finally {
@@ -120,7 +120,7 @@ test('update and delete persist only after owned quiz and editable course checks
   CourseService.assertContentEditable = () => {};
 
   try {
-    const updated = await QuizService.updateQuiz(QUIZ_ID, teacher, { toObject: () => ({ timeLimit: 25, attemptLimit: 3 }) });
+    const updated = await QuizService.updateQuiz(QUIZ_ID, teacher, { timeLimit: 25, attemptLimit: 3 });
     assert.equal(updated.timeLimit, 25);
     assert.deepEqual(updateData, { id: QUIZ_ID, data: { timeLimit: 25, attemptLimit: 3 } });
     await QuizService.deleteQuiz(QUIZ_ID, teacher);

@@ -21,7 +21,7 @@ class TeacherCourseController {
       const dto = new CreateCourseDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const course = await CourseService.createCourse(req.user, dto);
+      const course = await CourseService.createCourse(req.user, dto.toObject());
       return ResponseUtil.success(res, { status: 201, message: 'Course created successfully.', data: { course } });
     } catch (error) { return next(error); }
   }
@@ -31,7 +31,7 @@ class TeacherCourseController {
       const dto = new CourseQueryDTO(req.query);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const result = await CourseService.getTeacherCourses(req.user, dto);
+      const result = await CourseService.getTeacherCourses(req.user, dto.toObject());
       return ResponseUtil.success(res, { data: result });
     } catch (error) { return next(error); }
   }
@@ -55,7 +55,7 @@ class TeacherCourseController {
       const dto = new UpdateCourseDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const course = await CourseService.updateCourse(req.params.courseId, req.user, dto);
+      const course = await CourseService.updateCourse(req.params.courseId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Course updated successfully.', data: { course } });
     } catch (error) { return next(error); }
   }
@@ -114,7 +114,7 @@ class TeacherCourseController {
       const dto = new LessonDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const lesson = await CourseService.createLesson(req.params.courseId, req.user, dto);
+      const lesson = await CourseService.createLesson(req.params.courseId, req.user, dto.toObject());
       return ResponseUtil.success(res, { status: 201, message: 'Lesson created successfully.', data: { lesson } });
     } catch (error) { return next(error); }
   }
@@ -124,7 +124,7 @@ class TeacherCourseController {
       const dto = new LessonDTO(req.body, { partial: true });
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const lesson = await CourseService.updateLesson(req.params.courseId, req.params.lessonId, req.user, dto);
+      const lesson = await CourseService.updateLesson(req.params.courseId, req.params.lessonId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Lesson updated successfully.', data: { lesson } });
     } catch (error) { return next(error); }
   }

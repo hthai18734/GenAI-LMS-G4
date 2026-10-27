@@ -5,8 +5,8 @@ Description: UC-4.3 View Dashboard
  */
 
 class DashboardQueryDTO {
-  constructor({ user = {} } = {}) {
-    this.userId = user._id || null;
+  constructor({ userId = null } = {}) {
+    this.userId = userId;
   }
 
   validate() {

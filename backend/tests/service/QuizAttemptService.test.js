@@ -174,7 +174,7 @@ test('submission auto-grades persisted answers and updates the existing lesson p
 
   try {
     const result = await QuizService.submitQuiz(ATTEMPT_ID, user, {
-      toObject: () => ({ answers: [{ questionId: QUESTION_ONE_ID, answer: 'A' }, { questionId: QUESTION_TWO_ID, answer: 'C' }] }),
+      answers: [{ questionId: QUESTION_ONE_ID, answer: 'A' }, { questionId: QUESTION_TWO_ID, answer: 'C' }],
     });
     assert.equal(result.score, 50);
     assert.equal(result.passed, true);
@@ -194,7 +194,7 @@ test('submission rejects a duplicate or expired attempt', async () => {
   QuizAttemptRepository.findByIdForUser = async () => activeAttempt({ status: 'submitted', submittedAt: new Date() });
   try {
     await assert.rejects(
-      QuizService.submitQuiz(ATTEMPT_ID, user, { toObject: () => ({ answers: [] }) }),
+      QuizService.submitQuiz(ATTEMPT_ID, user, { answers: [] }),
       (error) => error instanceof ServiceError && error.status === 409 && error.publicMessage === 'This quiz attempt has already been submitted.',
     );
   } finally {
@@ -204,7 +204,7 @@ test('submission rejects a duplicate or expired attempt', async () => {
   QuizAttemptRepository.findByIdForUser = async () => activeAttempt({ expiresAt: new Date(Date.now() - 1000) });
   try {
     await assert.rejects(
-      QuizService.submitQuiz(ATTEMPT_ID, user, { toObject: () => ({ answers: [] }) }),
+      QuizService.submitQuiz(ATTEMPT_ID, user, { answers: [] }),
       (error) => error instanceof ServiceError && error.status === 409 && error.publicMessage === 'The quiz attempt is invalid or no longer active.',
     );
   } finally {

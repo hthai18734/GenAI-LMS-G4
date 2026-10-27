@@ -43,7 +43,7 @@ const titles = {
 export default function Layout() {
   const location = useLocation();
   const { user } = useAuth();
-  const currentTitle = titles[location.pathname] || (location.pathname.startsWith('/teacher/courses/') ? 'Edit Course' : location.pathname.startsWith('/teacher/quizzes/') ? 'Quiz Workspace' : location.pathname.startsWith('/quizzes/') ? 'Start Quiz' : location.pathname.startsWith('/quiz-attempts/') ? 'Quiz' : user?.role === 'admin' ? 'Admin Portal' : user?.role === 'teacher' ? 'Teacher Portal' : 'Student Portal');
+  const currentTitle = titles[location.pathname] || (location.pathname.startsWith('/teacher/courses/') ? 'Edit Course' : location.pathname.startsWith('/teacher/quizzes/') ? 'Quiz Workspace' : location.pathname.startsWith('/teacher/assignments/') ? 'Edit Assignment' : location.pathname.startsWith('/quizzes/') ? 'Start Quiz' : location.pathname.startsWith('/quiz-attempts/') ? 'Quiz' : user?.role === 'admin' ? 'Admin Portal' : user?.role === 'teacher' ? 'Teacher Portal' : 'Student Portal');
 
   return (
     <ChatProvider><div className="student-layout">

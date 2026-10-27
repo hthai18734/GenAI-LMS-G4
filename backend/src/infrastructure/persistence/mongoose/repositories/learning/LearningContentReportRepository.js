@@ -36,10 +36,10 @@ class LearningContentReportRepository {
   }
 
   async findByCourses(courseIds, { status, courseId, page = 1, limit = 15 } = {}) {
-    const filter = { courseId: { $in: courseIds } };
-    if (courseId && mongoose.isValidObjectId(courseId)) {
-      filter.courseId = courseId;
-    }
+    const scopedCourseIds = courseId && mongoose.isValidObjectId(courseId)
+      ? courseIds.filter((ownedId) => String(ownedId) === String(courseId))
+      : courseIds;
+    const filter = { courseId: { $in: scopedCourseIds } };
     if (status) {
       filter.status = status;
     }

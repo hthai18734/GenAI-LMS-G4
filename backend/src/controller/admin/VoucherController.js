@@ -2,9 +2,8 @@ module.exports = function createController(UseCases) {
 const { voucherService: service } = UseCases;
 const {
   validateVoucherInput,
-} = require("../../service/voucher/VoucherValidation");
+} = require("../../dto/voucher/VoucherWriteDTO");
 const Response = require("../../utils/common/ResponseUtil");
-const { subtractDiscount } = require("../../service/voucher/VoucherMoney");
 const fail = (res, message, status = 400) =>
   Response.error(res, { status, message });
 const validId = (id) => typeof id === "string" && /^[a-f\d]{24}$/i.test(id);
@@ -144,7 +143,7 @@ return  {
     if (!validId(req.body.courseId)) return fail(res, "Course ID is invalid.");
     const preview = await service.preview(req.body.code, req.user._id, req.body.courseId);
     if (preview.error) return fail(res, preview.error.message, preview.error.status);
-    const { course, total, result } = preview;
+    const { course, total, result, finalTotal } = preview;
     if (!result.success) return fail(res, result.message);
     return Response.success(res, {
       message: result.message,
@@ -152,7 +151,7 @@ return  {
         ...result,
         courseId: String(course._id),
         orderTotal: total,
-        finalTotal: subtractDiscount(total, result.discountAmount),
+        finalTotal,
         previewOnly: true,
       },
     });

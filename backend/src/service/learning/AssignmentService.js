@@ -11,10 +11,10 @@ class AssignmentService {
     this.courseService = courseService;
     this.progressTrackingService = progressTrackingService;
   }
-  async createAssignment(courseId, user, dto) {
+  async createAssignment(courseId, user, input) {
     const course = await this.courseService.getOwnedCourse(courseId, user);
     this.courseService.assertContentEditable(course);
-    const data = dto.toObject();
+    const data = { ...input };
     if (data.lessonId) {
       const lesson = await this.lessonRepository.findById(data.lessonId);
       if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
@@ -27,12 +27,22 @@ class AssignmentService {
     return this.assignmentRepository.findByCourseId(course._id);
   }
 
-  async updateAssignment(assignmentId, user, dto) {
+  async getOwnedAssignment(assignmentId, user, { requireEditable = false } = {}) {
     const assignment = await this.assignmentRepository.findById(assignmentId);
     if (!assignment) throw new ServiceError(404, 'Assignment not found.');
     const course = await this.courseService.getOwnedCourse(assignment.courseId, user);
-    this.courseService.assertContentEditable(course);
-    const data = dto.toObject();
+    if (requireEditable) this.courseService.assertContentEditable(course);
+    return { assignment, course };
+  }
+
+  async getAssignment(assignmentId, user) {
+    const { assignment } = await this.getOwnedAssignment(assignmentId, user);
+    return assignment;
+  }
+
+  async updateAssignment(assignmentId, user, input) {
+    const { assignment, course } = await this.getOwnedAssignment(assignmentId, user, { requireEditable: true });
+    const data = { ...input };
     if (data.lessonId) {
       const lesson = await this.lessonRepository.findById(data.lessonId);
       if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
@@ -40,6 +50,13 @@ class AssignmentService {
     const updated = await this.assignmentRepository.update(assignment._id, data);
     if (!updated) throw new ServiceError(409, 'The assignment changed while the request was being processed. Please try again.');
     return updated;
+  }
+
+  async deleteAssignment(assignmentId, user) {
+    const { assignment } = await this.getOwnedAssignment(assignmentId, user, { requireEditable: true });
+    const deleted = await this.assignmentRepository.softDelete(assignment._id);
+    if (!deleted) throw new ServiceError(409, 'The assignment changed while the request was being processed. Please try again.');
+    return deleted;
   }
 
   async listAvailableAssignments(courseId, user) {

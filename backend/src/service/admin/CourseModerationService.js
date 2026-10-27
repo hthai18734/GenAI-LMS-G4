@@ -18,8 +18,8 @@ class CourseModerationService {
     if (!isValidIdentifier(id)) throw new ServiceError(400, 'Course ID is invalid.');
   }
 
-  async getModerationQueue(queryDto) {
-    return this.courseRepository.findModerationQueue(queryDto.toObject());
+  async getModerationQueue(query) {
+    return this.courseRepository.findModerationQueue(query);
   }
 
   async loadCourse(courseId) {
@@ -51,10 +51,10 @@ class CourseModerationService {
     return updated;
   }
 
-  async rejectCourse(courseId, adminUser, dto) {
+  async rejectCourse(courseId, adminUser, input) {
     const course = await this.loadCourse(courseId);
     this.courseService.assertTransition(course.status, COURSE_STATUS.REJECTED, 'reject');
-    const reason = dto.toObject().reason;
+    const reason = input.reason;
     const updated = await this.courseService.transitionCourse(course, COURSE_STATUS.REJECTED, {
       rejectionReason: reason,
       moderatedBy: adminUser._id,

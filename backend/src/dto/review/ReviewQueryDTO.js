@@ -1,15 +1,18 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const { REVIEW_STATUSES } = require('../../domain/engagement/ReviewPolicy');
 const PaginationUtil = require('../../utils/common/PaginationUtil');
-const { text } = require('../common/DTOUtil');
+const { text, isObjectPayload, strictInteger } = require('../common/DTOUtil');
 
 class ReviewQueryDTO {
-  constructor(query = {}) { this.query = query; }
+  constructor(query = {}) { this.payloadIsObject = isObjectPayload(query); this.query = this.payloadIsObject ? query : {}; }
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Query parameters must be an object.';
     if (this.query.search !== undefined && (typeof this.query.search !== 'string' || text(this.query.search).length > 100)) errors.search = 'Search must not exceed 100 characters.';
     if (this.query.status && !REVIEW_STATUSES.includes(this.query.status)) errors.status = 'Invalid review status.';
     if (this.query.courseId && !isValidIdentifier(this.query.courseId)) errors.courseId = 'Course ID is invalid.';
+    if (this.query.page !== undefined && strictInteger(this.query.page, { min: 1, max: 1000000 }) === null) errors.page = 'Invalid page.';
+    if (this.query.limit !== undefined && strictInteger(this.query.limit, { min: 1, max: 100 }) === null) errors.limit = 'Invalid limit.';
     return errors;
   }
   toObject() {

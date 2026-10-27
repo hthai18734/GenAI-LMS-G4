@@ -1,4 +1,4 @@
-const { text, hasOwn, unknownFields } = require('../common/DTOUtil');
+const { text, hasOwn, unknownFields, isObjectPayload, strictNumber } = require('../common/DTOUtil');
 
 function validVideoRef(value) {
   if (value === null || value === '') return true;
@@ -12,12 +12,14 @@ function validVideoRef(value) {
 
 class LessonDTO {
   constructor(body = {}, { partial = false } = {}) {
-    this.body = body;
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
     this.partial = partial;
   }
 
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const allowed = ['title', 'content', 'order', 'duration', 'videoRef', 'isPublished'];
     const unknown = unknownFields(this.body, allowed);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
@@ -32,11 +34,11 @@ class LessonDTO {
       if (!text(this.body.content)) errors.content = 'Lesson content is required.';
     }
     if (!this.partial || hasOwn(this.body, 'order')) {
-      const order = Number(this.body.order);
+      const order = strictNumber(this.body.order);
       if (!Number.isInteger(order) || order < 1) errors.order = 'Lesson order must be an integer greater than zero.';
     }
     if (hasOwn(this.body, 'duration')) {
-      const duration = Number(this.body.duration);
+      const duration = strictNumber(this.body.duration);
       if (!Number.isFinite(duration) || duration < 0) errors.duration = 'Lesson duration must be a non-negative number.';
     }
     if (hasOwn(this.body, 'videoRef') && !validVideoRef(this.body.videoRef)) {
@@ -52,8 +54,8 @@ class LessonDTO {
     const result = {};
     if (hasOwn(this.body, 'title')) result.title = text(this.body.title);
     if (hasOwn(this.body, 'content')) result.content = text(this.body.content);
-    if (hasOwn(this.body, 'order')) result.order = Number(this.body.order);
-    if (hasOwn(this.body, 'duration')) result.duration = Number(this.body.duration);
+    if (hasOwn(this.body, 'order')) result.order = strictNumber(this.body.order);
+    if (hasOwn(this.body, 'duration')) result.duration = strictNumber(this.body.duration);
     if (hasOwn(this.body, 'videoRef')) result.videoRef = text(this.body.videoRef) || null;
     if (hasOwn(this.body, 'isPublished')) result.isPublished = this.body.isPublished;
     return result;

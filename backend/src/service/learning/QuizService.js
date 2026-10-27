@@ -26,10 +26,10 @@ class QuizService {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} ID is invalid.`);
   }
 
-  async createQuiz(courseId, user, dto) {
+  async createQuiz(courseId, user, input) {
     const course = await this.courseService.getOwnedCourse(courseId, user);
     this.courseService.assertContentEditable(course);
-    const data = dto.toObject();
+    const data = { ...input };
     await this.assertLessonBelongsToCourse(data.lessonId, course._id);
     return this.quizRepository.create({ ...data, courseId: course._id });
   }
@@ -87,10 +87,10 @@ class QuizService {
     });
   }
 
-  async updateQuiz(quizId, user, dto) {
+  async updateQuiz(quizId, user, input) {
     const { quiz, course } = await this.getOwnedQuiz(quizId, user, { includeCourse: true });
     this.courseService.assertContentEditable(course);
-    const updates = dto.toObject();
+    const updates = { ...input };
     if (Object.prototype.hasOwnProperty.call(updates, 'lessonId')) {
       await this.assertLessonBelongsToCourse(updates.lessonId, course._id);
     }
@@ -176,7 +176,7 @@ class QuizService {
     };
   }
 
-  async submitQuiz(attemptId, user, dto) {
+  async submitQuiz(attemptId, user, input) {
     const attempt = await this.getActiveAttempt(attemptId, user);
     const quiz = await this.quizRepository.findById(attempt.quizId);
     if (!quiz) throw new ServiceError(409, INVALID_ATTEMPT);
@@ -187,7 +187,7 @@ class QuizService {
       questions = await this.getQuizQuestions(quiz._id);
     }
 
-    const submittedAnswers = dto.toObject().answers;
+    const submittedAnswers = input.answers;
     const answers = this.gradeAnswers(questions, submittedAnswers);
     const correctCount = answers.filter((answer) => answer.isCorrect).length;
     const score = questions.length ? Math.round((correctCount / questions.length) * 100) : 0;

@@ -5,8 +5,8 @@ Description: UC-4.5 View Certificates
  */
 
 class CertificateQueryDTO {
-  constructor({ user = {} } = {}) {
-    this.userId = user._id || null;
+  constructor({ userId = null } = {}) {
+    this.userId = userId;
   }
 
   validate() {

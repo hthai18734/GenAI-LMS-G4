@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const StudentService = require('../../src/service/student/StudentService');
+const StudentLearningService = require('../../src/service/student/StudentLearningService');
 
 const courseId = '507f1f77bcf86cd799439011';
 const lessonId = '507f1f77bcf86cd799439012';
@@ -27,13 +27,14 @@ function service(overrides = {}) {
       countByUserAndCourse: async () => 0,
       upsertProgress: async () => ({}),
     },
+    learningActivityLogRepository: { recordActivityOnce: async (key, data) => calls.push(['activity', key, data]) },
     videoProgressRepository: { findByStudentAndVideo: async () => null },
     certificateRepository: { issueCertificate: async () => null },
     notificationPreferenceRepository: { isEnabled: async () => false },
     notificationRepository: { create: async () => ({}) },
     ...overrides,
   };
-  return { instance: new StudentService(dependencies), calls, dependencies };
+  return { instance: new StudentLearningService(dependencies), calls, dependencies };
 }
 
 test('student resume and completion use published lessons only', async () => {
@@ -41,10 +42,53 @@ test('student resume and completion use published lessons only', async () => {
   const first = await instance.firstLesson(courseId);
   assert.equal(first.lessonId, lessonId);
   await instance.completeLesson(userId, courseId, lessonId);
-  assert.deepEqual(calls, [
-    ['first', courseId, { publishedOnly: true }],
-    ['count', courseId, { publishedOnly: true }],
+  assert.equal(calls[0][0], 'first');
+  assert.equal(calls[1][0], 'activity');
+  assert.equal(calls[1][1], `lesson-complete:${userId}:${lessonId}`);
+  assert.deepEqual(calls[1][2], {
+    studentId: userId,
+    courseId,
+    lessonId,
+    activityType: 'LESSON_ACTIVE',
+    startedAt: calls[1][2].startedAt,
+    endedAt: calls[1][2].endedAt,
+    activeSeconds: 0,
+    date: calls[1][2].date,
+  });
+  assert.equal(calls[1][2].startedAt.getTime(), calls[1][2].endedAt.getTime());
+  assert.deepEqual(calls[2], ['count', courseId, { publishedOnly: true }]);
+});
+
+test('repeating and concurrent lesson completion uses one deterministic activity key', async () => {
+  const keys = [];
+  const { instance } = service({
+    learningActivityLogRepository: { recordActivityOnce: async (key) => { keys.push(key); } },
+  });
+
+  await Promise.all([
+    instance.completeLesson(userId, courseId, lessonId),
+    instance.completeLesson(userId, courseId, lessonId),
   ]);
+  assert.deepEqual(keys, [
+    `lesson-complete:${userId}:${lessonId}`,
+    `lesson-complete:${userId}:${lessonId}`,
+  ]);
+});
+
+test('retry repairs a completion activity write that failed after progress was saved', async () => {
+  let attempts = 0;
+  const { instance } = service({
+    learningActivityLogRepository: {
+      recordActivityOnce: async () => {
+        attempts += 1;
+        if (attempts === 1) throw new Error('temporary database failure');
+      },
+    },
+  });
+
+  await assert.rejects(instance.completeLesson(userId, courseId, lessonId), /temporary database failure/);
+  await instance.completeLesson(userId, courseId, lessonId);
+  assert.equal(attempts, 2);
 });
 
 test('student resume ignores stale progress pointing at a draft lesson', async () => {

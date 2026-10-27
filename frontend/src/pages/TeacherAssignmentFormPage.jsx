@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
 import { useToast } from '../components/Toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-const initialForm = { courseId: '', lessonId: '', title: '', content: '' };
+import {
+  INITIAL_ASSIGNMENT_FORM,
+  assignmentPayload,
+  assignmentToForm,
+  validateAssignmentForm,
+} from '../features/teacher/assignmentModel.js';
 
 export default function TeacherAssignmentFormPage() {
+  const { assignmentId: routeAssignmentId = '' } = useParams();
   const [searchParams] = useSearchParams();
-  const requestedAssignmentId = searchParams.get('assignmentId') || '';
-  const [form, setForm] = useState({ ...initialForm, courseId: searchParams.get('courseId') || '' });
+  const requestedAssignmentId = routeAssignmentId || searchParams.get('assignmentId') || '';
+  const [form, setForm] = useState({ ...INITIAL_ASSIGNMENT_FORM, courseId: searchParams.get('courseId') || '' });
   const [courses, setCourses] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [lessons, setLessons] = useState([]);
@@ -39,19 +44,35 @@ export default function TeacherAssignmentFormPage() {
   }, []);
 
   useEffect(() => {
+    if (!requestedAssignmentId || form.courseId) return;
+    teacherService.getAssignment(requestedAssignmentId)
+      .then((result) => {
+        const assignment = result.data?.assignment;
+        if (!assignment) throw new Error('Assignment not found.');
+        setEditingId(assignment._id);
+        setForm(assignmentToForm(assignment));
+      })
+      .catch((err) => setError(err.message || 'Unable to load this assignment.'));
+  }, [requestedAssignmentId, form.courseId]);
+
+  useEffect(() => {
     if (!form.courseId) { setAssignments([]); setLessons([]); return; }
-    Promise.all([teacherService.listAssignments(form.courseId), teacherService.getLessons(form.courseId)])
-      .then(([assignmentResult, lessonResult]) => {
+    Promise.all([
+      teacherService.listAssignments(form.courseId),
+      teacherService.getLessons(form.courseId),
+      requestedAssignmentId ? teacherService.getAssignment(requestedAssignmentId) : Promise.resolve(null),
+    ])
+      .then(([assignmentResult, lessonResult, requestedResult]) => {
         const loadedAssignments = assignmentResult.data?.assignments || [];
         setAssignments(loadedAssignments); setLessons(lessonResult.data?.lessons || []);
-        const requested = loadedAssignments.find(assignment => assignment._id === requestedAssignmentId);
+        const requested = requestedResult?.data?.assignment;
         if (requested) {
           setEditingId(requested._id);
-          setForm({ courseId: form.courseId, lessonId: requested.lessonId ? String(requested.lessonId?._id || requested.lessonId) : '', title: requested.title || '', content: requested.content || '' });
+          setForm(assignmentToForm(requested, form.courseId));
         }
       })
       .catch((err) => { setAssignments([]); setLessons([]); setError(err.message || 'Unable to load assignments for this course.'); });
-  }, [form.courseId]);
+  }, [form.courseId, requestedAssignmentId]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -61,21 +82,14 @@ export default function TeacherAssignmentFormPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const errors = {};
-    if (!form.courseId) errors.courseId = 'Please select a course.';
-    if (!form.title.trim()) errors.title = 'Assignment title is required.';
-    if (!form.content.trim()) errors.content = 'Assignment content is required.';
+    const errors = validateAssignmentForm(form);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
     setSaving(true);
     setError('');
     try {
-      const payload = {
-        title: form.title.trim(),
-        content: form.content.trim(),
-        lessonId: form.lessonId || null,
-      };
+      const payload = assignmentPayload(form);
       const result = editingId
         ? await teacherService.updateAssignment(editingId, payload)
         : await teacherService.createAssignment(form.courseId, payload);
@@ -84,7 +98,7 @@ export default function TeacherAssignmentFormPage() {
       if (assignment) setAssignments((current) => editingId
         ? current.map(item => item._id === editingId ? assignment : item)
         : [assignment, ...current]);
-      setForm((current) => ({ ...initialForm, courseId: current.courseId }));
+      setForm((current) => ({ ...INITIAL_ASSIGNMENT_FORM, courseId: current.courseId }));
       setEditingId('');
       addToast(result.message || (editingId ? 'Assignment updated successfully!' : 'Assignment created successfully!'), 'success');
     } catch (err) {
@@ -95,34 +109,26 @@ export default function TeacherAssignmentFormPage() {
     }
   };
 
-  const editAssignment = (assignment) => {
-    setEditingId(assignment._id);
-    setCreated(null);
-    setError('');
-    setFieldErrors({});
-    setForm({
-      courseId: String(assignment.courseId?._id || assignment.courseId || form.courseId),
-      lessonId: assignment.lessonId ? String(assignment.lessonId?._id || assignment.lessonId) : '',
-      title: assignment.title || '',
-      content: assignment.content || '',
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const cancelEditing = () => {
     setEditingId('');
     setFieldErrors({});
-    setForm((current) => ({ ...initialForm, courseId: current.courseId }));
+    setForm((current) => ({ ...INITIAL_ASSIGNMENT_FORM, courseId: current.courseId }));
   };
 
-  const selectRelatedLesson = (event) => {
-    const lessonId = event.target.value;
-    const matchingAssignment = assignments.find(assignment => String(assignment.lessonId?._id || assignment.lessonId || '') === lessonId);
-    if (matchingAssignment && matchingAssignment._id !== editingId) {
-      editAssignment(matchingAssignment);
-      return;
+  const deleteAssignment = async (assignment) => {
+    if (!window.confirm(`Delete assignment "${assignment.title}"?`)) return;
+    setSaving(true);
+    setError('');
+    try {
+      const result = await teacherService.deleteAssignment(assignment._id);
+      setAssignments((current) => current.filter((item) => item._id !== assignment._id));
+      if (editingId === assignment._id) cancelEditing();
+      addToast(result.message || 'Assignment deleted successfully.', 'success');
+    } catch (err) {
+      setError(err.message || 'Unable to delete assignment.');
+    } finally {
+      setSaving(false);
     }
-    handleChange(event);
   };
 
   if (loading) {
@@ -252,11 +258,11 @@ export default function TeacherAssignmentFormPage() {
             <label htmlFor="lessonId" style={{ fontWeight: 600, fontSize: '13px', color: 'var(--ink)', marginBottom: '6px', display: 'block' }}>
               Related Lesson (Optional)
             </label>
-            <select id="lessonId" name="lessonId" value={form.lessonId} onChange={selectRelatedLesson} disabled={saving || !form.courseId} style={{ width: '100%', height: '44px', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '0 12px', fontSize: '14px' }}>
+            <select id="lessonId" name="lessonId" value={form.lessonId} onChange={handleChange} disabled={saving || !form.courseId} style={{ width: '100%', height: '44px', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '0 12px', fontSize: '14px' }}>
               <option value="">Course-level assignment</option>
               {lessons.map((lesson) => <option key={lesson._id || lesson.id} value={lesson._id || lesson.id}>{lesson.order}. {lesson.title}</option>)}
             </select>
-            <small style={{ display: 'block', color: 'var(--muted)', marginTop: '5px' }}>If the selected lesson already has an assignment, its title and content are loaded automatically.</small>
+            <small style={{ display: 'block', color: 'var(--muted)', marginTop: '5px' }}>This changes only the lesson linked to the current assignment.</small>
           </div>
 
           {/* Assignment Title */}
@@ -346,7 +352,10 @@ export default function TeacherAssignmentFormPage() {
           {assignments.map((assignment) => <article key={assignment._id} style={{ padding: '18px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
               <strong>{assignment.title}</strong>
-              <button type="button" className="btn btn-secondary" onClick={() => editAssignment(assignment)} disabled={saving} style={{ padding: '7px 14px', flexShrink: 0 }}>Edit</button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => navigate(`/teacher/assignments/${assignment._id}/edit?courseId=${form.courseId}`)} disabled={saving} style={{ padding: '7px 14px', flexShrink: 0 }}>Edit</button>
+                <button type="button" className="btn btn-secondary" onClick={() => deleteAssignment(assignment)} disabled={saving} style={{ padding: '7px 14px', flexShrink: 0, color: '#dc2626' }}>Delete</button>
+              </div>
             </div>
             <small style={{ display: 'block', marginBottom: '8px', color: '#4f46e5', fontWeight: 700 }}>{assignment.lessonId ? `Lesson: ${lessons.find((lesson) => (lesson._id || lesson.id) === String(assignment.lessonId))?.title || 'Linked lesson'}` : 'Course-level assignment'}</small>
             <div className="markdown-body" style={{ margin: 0, color: 'var(--muted)', maxHeight: '160px', overflow: 'auto' }}><ReactMarkdown remarkPlugins={[remarkGfm]}>{assignment.content}</ReactMarkdown></div>

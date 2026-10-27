@@ -1,8 +1,9 @@
-const { text, hasOwn, unknownFields } = require('../common/DTOUtil');
+const { text, hasOwn, unknownFields, isObjectPayload } = require('../common/DTOUtil');
 class UpdateCategoryDTO {
-  constructor(body = {}) { this.body = body; }
+  constructor(body = {}) { this.payloadIsObject = isObjectPayload(body); this.body = this.payloadIsObject ? body : {}; }
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const unknown = unknownFields(this.body, ['name', 'description']);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (!Object.keys(this.body).length) errors.payload = 'At least one editable field is required.';

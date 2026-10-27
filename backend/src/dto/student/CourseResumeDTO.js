@@ -6,9 +6,9 @@ Description: UC-10.4 Start/Resume Course
 const { objectId } = require('../common/DTOUtil');
 
 class CourseResumeDTO {
-  constructor({ params = {}, user = {} } = {}) {
-    this.userId = user._id || null;
-    this.courseId = params.courseId || null;
+  constructor({ userId = null, courseId = null } = {}) {
+    this.userId = userId;
+    this.courseId = courseId;
   }
 
   validate() {

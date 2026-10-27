@@ -20,14 +20,14 @@ class CourseService {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} ID is invalid.`);
   }
 
-  async createCourse(user, dto) {
-    const data = dto.toObject();
+  async createCourse(user, input) {
+    const data = { ...input };
     await this.resolveCategory(data);
     return this.courseRepository.create({ ...data, teacherId: user._id, status: COURSE_STATUS.DRAFT });
   }
 
-  async getTeacherCourses(user, queryDto) {
-    const result = await this.courseRepository.findAllByTeacher(user._id, queryDto.toObject());
+  async getTeacherCourses(user, query) {
+    const result = await this.courseRepository.findAllByTeacher(user._id, query);
     const courses = await Promise.all(result.courses.map(async (course) => {
       const lessonCount = await this.lessonRepository.countValidByCourseId(course._id);
       const serialized = typeof course.toObject === 'function' ? course.toObject() : course;
@@ -52,10 +52,10 @@ class CourseService {
     if (String(course.teacherId) !== String(user._id)) throw new ServiceError(403, 'You do not have permission to perform this action.');
   }
 
-  async updateCourse(courseId, user, dto) {
+  async updateCourse(courseId, user, input) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
-    const updates = dto.toObject();
+    const updates = { ...input };
     await this.resolveCategory(updates, course);
     return this.courseRepository.update(courseId, updates);
   }
@@ -150,19 +150,19 @@ class CourseService {
     return this.lessonRepository.findByCourseId(courseId);
   }
 
-  async createLesson(courseId, user, dto) {
+  async createLesson(courseId, user, input) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
-    return this.lessonRepository.create({ ...dto.toObject(), courseId });
+    return this.lessonRepository.create({ ...input, courseId });
   }
 
-  async updateLesson(courseId, lessonId, user, dto) {
+  async updateLesson(courseId, lessonId, user, input) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
     this.assertValidId(lessonId, 'Lesson');
     const lesson = await this.lessonRepository.findById(lessonId);
     if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
-    return this.lessonRepository.update(lessonId, dto.toObject());
+    return this.lessonRepository.update(lessonId, { ...input });
   }
 
   async deleteLesson(courseId, lessonId, user) {

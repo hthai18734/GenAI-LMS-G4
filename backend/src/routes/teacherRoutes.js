@@ -60,7 +60,9 @@ router.post('/courses/:courseId/quizzes', TeacherQuizController.create.bind(Teac
 router.get('/courses/:courseId/quizzes', TeacherQuizController.list.bind(TeacherQuizController));
 router.post('/courses/:courseId/assignments', TeacherAssignmentController.create.bind(TeacherAssignmentController));
 router.get('/courses/:courseId/assignments', TeacherAssignmentController.list.bind(TeacherAssignmentController));
+router.get('/assignments/:assignmentId', TeacherAssignmentController.getById.bind(TeacherAssignmentController));
 router.patch('/assignments/:assignmentId', TeacherAssignmentController.update.bind(TeacherAssignmentController));
+router.delete('/assignments/:assignmentId', TeacherAssignmentController.remove.bind(TeacherAssignmentController));
 router.patch('/assignment-submissions/:submissionId/grade', TeacherAssignmentController.grade.bind(TeacherAssignmentController));
 router.get('/quizzes/:quizId', TeacherQuizController.getById.bind(TeacherQuizController));
 router.patch('/quizzes/:quizId', TeacherQuizController.update.bind(TeacherQuizController));

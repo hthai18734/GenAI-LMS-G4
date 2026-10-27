@@ -1,5 +1,12 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
+const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
+
+const EDITABLE_COURSE_STATUSES = new Set([
+  COURSE_STATUS.DRAFT,
+  COURSE_STATUS.REJECTED,
+  COURSE_STATUS.APPROVED,
+]);
 
 class LessonManagementService {
   constructor({ lessonRepository, courseRepository, enrollmentRepository, progressRepository, materialRepository } = {}) {
@@ -23,11 +30,30 @@ class LessonManagementService {
     return course;
   }
 
-  async createLesson(courseId, user, payload) {
+  assertContentEditable(course) {
+    if (!EDITABLE_COURSE_STATUSES.has(course.status)) {
+      throw new ServiceError(409, 'Course content cannot be edited in the current course status.');
+    }
+  }
+
+  async getOwnedEditableCourse(courseId, user) {
     const course = await this.getOwnedActiveCourse(courseId, user);
+    this.assertContentEditable(course);
+    return course;
+  }
+
+  assertPublicationStatus(value) {
+    if (value !== undefined && typeof value !== 'boolean') {
+      throw new ServiceError(422, 'Lesson publication status must be a boolean.');
+    }
+  }
+
+  async createLesson(courseId, user, payload) {
+    const course = await this.getOwnedEditableCourse(courseId, user);
     const title = (payload.title || '').trim();
     if (!title) throw new ServiceError(422, 'Lesson title is required.');
     if (title.length > 200) throw new ServiceError(422, 'Lesson title must not exceed 200 characters.');
+    this.assertPublicationStatus(payload.isPublished);
 
     const nextOrder = (await this.lessonRepository.maxActiveOrder(course._id)) + 1;
     const lesson = await this.lessonRepository.create({
@@ -35,7 +61,7 @@ class LessonManagementService {
       title,
       content: (payload.content || '').trim(),
       videoRef: payload.videoRef ? String(payload.videoRef).trim() : null,
-      isPublished: payload.isPublished !== undefined ? Boolean(payload.isPublished) : false,
+      isPublished: payload.isPublished !== undefined ? payload.isPublished : false,
       order: payload.order && Number.isInteger(Number(payload.order)) ? Number(payload.order) : nextOrder,
       duration: payload.duration && Number(payload.duration) >= 0 ? Number(payload.duration) : 0,
     });
@@ -128,7 +154,8 @@ class LessonManagementService {
     const lesson = await this.lessonRepository.findById(lessonId);
     if (!lesson || lesson.deletedAt) throw new ServiceError(404, 'Lesson not found.');
 
-    await this.getOwnedActiveCourse(lesson.courseId, user);
+    await this.getOwnedEditableCourse(lesson.courseId, user);
+    this.assertPublicationStatus(payload.isPublished);
 
     const updates = {};
     if (payload.title !== undefined) {
@@ -139,7 +166,7 @@ class LessonManagementService {
     }
     if (payload.content !== undefined) updates.content = String(payload.content).trim();
     if (payload.videoRef !== undefined) updates.videoRef = payload.videoRef ? String(payload.videoRef).trim() : null;
-    if (payload.isPublished !== undefined) updates.isPublished = Boolean(payload.isPublished);
+    if (payload.isPublished !== undefined) updates.isPublished = payload.isPublished;
     if (payload.duration !== undefined) {
       const dur = Number(payload.duration);
       if (Number.isFinite(dur) && dur >= 0) updates.duration = dur;
@@ -154,7 +181,7 @@ class LessonManagementService {
     const lesson = await this.lessonRepository.findById(lessonId);
     if (!lesson || lesson.deletedAt) throw new ServiceError(404, 'Lesson not found.');
 
-    await this.getOwnedActiveCourse(lesson.courseId, user);
+    await this.getOwnedEditableCourse(lesson.courseId, user);
 
     await this.materialRepository.softDeleteByLessonId(lessonId);
     await this.lessonRepository.softDelete(lessonId);
@@ -163,7 +190,7 @@ class LessonManagementService {
   }
 
   async reorderLessons(courseId, user, orderedLessonIds) {
-    const course = await this.getOwnedActiveCourse(courseId, user);
+    const course = await this.getOwnedEditableCourse(courseId, user);
     if (!Array.isArray(orderedLessonIds) || orderedLessonIds.length < 2) {
       throw new ServiceError(422, 'orderedLessonIds must be an array with at least 2 lesson IDs.');
     }

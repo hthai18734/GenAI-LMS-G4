@@ -10,10 +10,10 @@ test('quiz workspace distinguishes switching quizzes from changing the related l
   assert.match(source, /Switch quiz/);
   assert.match(source, /navigate\(`\/teacher\/quizzes\/\$\{event\.target\.value\}`\)/);
   assert.match(source, /Selecting another quiz loads that quiz and its own questions/);
-  assert.match(source, /matchingQuiz.*courseQuizzes\.find/);
-  assert.match(source, /navigate\(`\/teacher\/quizzes\/\$\{matchingQuiz\._id\}`\)/);
+  assert.match(source, /name="lessonId" value=\{quizForm\.lessonId\} onChange=\{updateQuiz\}/);
+  assert.doesNotMatch(source, /matchingQuiz.*courseQuizzes\.find/);
 });
 
 test('course activity assignments open directly in edit mode', () => {
-  assert.match(courseSource, /assignmentId=\$\{assignment\._id\}/);
+  assert.match(courseSource, /assignments\/\$\{assignment\._id\}\/edit/);
 });

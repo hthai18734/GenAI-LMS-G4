@@ -1,11 +1,16 @@
 const { USER_ROLES } = require('../../domain/identity/UserPolicy');
 const PasswordUtil = require('../../utils/auth/PasswordUtil');
-const { text, hasOwn, unknownFields } = require('../common/DTOUtil');
+const { text, hasOwn, unknownFields, isObjectPayload } = require('../common/DTOUtil');
 
 class UserWriteDTO {
-  constructor(body = {}, creating = false) { this.body = body || {}; this.creating = creating; }
+  constructor(body = {}, creating = false) {
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
+    this.creating = creating;
+  }
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const allowed = this.creating ? ['fullName', 'email', 'phone', 'password', 'role'] : ['fullName', 'email', 'phone'];
     const unknown = unknownFields(this.body, allowed);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;

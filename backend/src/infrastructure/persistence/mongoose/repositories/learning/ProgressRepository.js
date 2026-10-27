@@ -19,6 +19,17 @@ class ProgressRepository {
       .exec();
   }
 
+  async findCompletedInRange(userId, { from, to, courseId } = {}) {
+    if (!mongoose.isValidObjectId(userId)) return [];
+    const filter = {
+      userId,
+      status: 'completed',
+      completedAt: { $gte: new Date(from), $lte: new Date(to) },
+    };
+    if (courseId && mongoose.isValidObjectId(courseId)) filter.courseId = courseId;
+    return Progress.find(filter).select('courseId lessonId completedAt').lean().exec();
+  }
+
   async countByUserAndCourse(userId, courseId, { publishedOnly = false } = {}) {
     if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(courseId)) return 0;
     if (!publishedOnly) return Progress.countDocuments({ userId, courseId, status: 'completed' });

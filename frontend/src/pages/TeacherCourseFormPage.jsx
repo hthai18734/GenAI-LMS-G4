@@ -1372,7 +1372,7 @@ export default function TeacherCourseFormPage() {
               <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 20px' }}>
                 Assign hands-on practical exercises, coding problems, or essay questions for enrolled students.
               </p>
-              {assignments.length > 0 && <div style={{ marginBottom: '16px' }}>{assignments.map((assignment) => <button key={assignment._id} type="button" className="btn btn-secondary btn-sm" style={{ margin: '0 8px 8px 0' }} onClick={() => navigate(`/teacher/assignments/new?courseId=${courseId}&assignmentId=${assignment._id}`)}>{assignment.title}</button>)}</div>}
+              {assignments.length > 0 && <div style={{ marginBottom: '16px' }}>{assignments.map((assignment) => <button key={assignment._id} type="button" className="btn btn-secondary btn-sm" style={{ margin: '0 8px 8px 0' }} onClick={() => navigate(`/teacher/assignments/${assignment._id}/edit?courseId=${courseId}`)}>{assignment.title}</button>)}</div>}
             </div>
             <button
               type="button"

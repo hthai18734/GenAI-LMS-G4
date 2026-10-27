@@ -8,6 +8,8 @@ test('ContentGenerationDTO validates quiz options', () => {
   assert.equal(value.count, 8);
   assert.equal(value.language, 'English');
   assert.throws(() => ContentGenerationDTO.parse({ type: 'quiz_questions', source: 'content', count: 21 }), /between 1 and 20/);
+  assert.throws(() => ContentGenerationDTO.parse({ type: 'quiz_questions', source: 'content', count: true }), /between 1 and 20/);
+  assert.throws(() => ContentGenerationDTO.parse({ type: 'quiz_questions', source: 'content', count: [] }), /between 1 and 20/);
 });
 
 test('ContentGenerationService sends bounded authoring prompt and returns editable content', async () => {

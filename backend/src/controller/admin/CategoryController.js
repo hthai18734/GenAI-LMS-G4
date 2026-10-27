@@ -16,7 +16,7 @@ class CategoryController {
       const dto = new CreateCategoryDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const category = await CategoryService.createCategory(dto);
+      const category = await CategoryService.createCategory(dto.toObject());
       return ResponseUtil.success(res, { status: 201, message: 'Category created successfully.', data: { category } });
     } catch (error) { return next(error); }
   }
@@ -31,7 +31,7 @@ class CategoryController {
       const dto = new UpdateCategoryDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const category = await CategoryService.updateCategory(req.params.categoryId, dto);
+      const category = await CategoryService.updateCategory(req.params.categoryId, dto.toObject());
       return ResponseUtil.success(res, { message: 'Category updated successfully.', data: { category } });
     } catch (error) { return next(error); }
   }
