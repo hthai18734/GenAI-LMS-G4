@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { learningReportService } from '../features/learning/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const ISSUE_TYPE_LABELS = {
   BROKEN_VIDEO: 'Broken Video / Playback Issue',
@@ -30,7 +30,7 @@ export default function TeacherContentReportsPage() {
   const [submitting, setSubmitting] = useState(false);
   const { addToast } = useToast();
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     try {
       const query = statusFilter ? `status=${statusFilter}` : '';
@@ -41,11 +41,11 @@ export default function TeacherContentReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, addToast]);
 
   useEffect(() => {
-    loadReports();
-  }, [statusFilter]);
+    void Promise.resolve().then(loadReports);
+  }, [loadReports]);
 
   const handleOpenResolve = (report) => {
     setSelectedReport(report);

@@ -151,7 +151,7 @@ class LearningContentReportService {
   }
 
   toReportDTO(report) {
-    const r = typeof report.toObject === 'function' ? report.toObject() : report;
+    const r = report;
     return {
       id: String(r._id),
       reporter: {

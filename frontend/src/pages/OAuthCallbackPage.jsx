@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService, clearSession, getToken, getUser } from '../features/auth/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();

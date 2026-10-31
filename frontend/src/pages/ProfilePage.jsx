@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -17,7 +17,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     setLoading(true); setError('');
     try {
       const res = await studentService.getProfile();
@@ -34,11 +34,11 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    void Promise.resolve().then(fetchProfile);
+  }, [fetchProfile]);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];

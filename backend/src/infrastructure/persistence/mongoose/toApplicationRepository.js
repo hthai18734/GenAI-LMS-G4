@@ -1,6 +1,17 @@
 function toApplicationValue(value) {
   if (Array.isArray(value)) return value.map(toApplicationValue);
-  if (value && typeof value.toObject === 'function') return value.toObject();
+  if (value && typeof value.toObject === 'function') {
+    return toApplicationValue(value.toObject());
+  }
+  if (value && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) {
+    let changed = false;
+    const entries = Object.entries(value).map(([key, entry]) => {
+      const converted = toApplicationValue(entry);
+      if (converted !== entry) changed = true;
+      return [key, converted];
+    });
+    return changed ? Object.fromEntries(entries) : value;
+  }
   return value;
 }
 

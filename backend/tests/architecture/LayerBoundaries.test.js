@@ -61,14 +61,15 @@ test('startup never exposes protected material storage or fixed privileged crede
     .join('\n');
   assert.doesNotMatch(source, /ADMIN_PASSWORD\s*=\s*['"]/);
   assert.doesNotMatch(source, /TEACHER_PASSWORD\s*=\s*['"]/);
+  assert.doesNotMatch(source, /req\.query\.token/);
 });
 
 test('application services are independent from HTTP and Mongoose', () => {
   const files = javascriptFiles(path.join(sourceRoot, 'service'));
   assert.deepEqual(findImports(files, [
     /require\(['"][^'"]*(?:controller|filter|model|routes|infrastructure)\//,
-    /require\(['"](?:express|mongoose)['"]\)/,
-    /require\(['"][^'"]*utils\/(?:email\/EmailUtil|ai\/GeminiClient|auth\/(?:JWTUtil|OAuthUtil))['"]\)/,
+    /require\(['"](?:express|mongoose|fs|node:fs|path|node:path)['"]\)/,
+    /require\(['"][^'"]*utils\/(?:email\/EmailUtil|ai\/GeminiClient|auth\/(?:JWTUtil|OAuthUtil|PasswordUtil)|common\/LoggerUtil|document\/ChatDocumentParser)['"]\)/,
     /\b(?:req|res)\.(?:body|params|query|user|status|json|redirect|setHeader)\b/,
   ]), []);
 });
@@ -94,6 +95,7 @@ test('controllers and services do not execute Mongoose document/query methods', 
     ...javascriptFiles(path.join(sourceRoot, 'service')),
   ];
   assert.deepEqual(findImports(files, [/(?<!Repository)\.save\s*\(/, /\.lean\s*\(/, /\.populate\s*\(/, /\.session\s*\(/]), []);
+  assert.deepEqual(findImports(javascriptFiles(path.join(sourceRoot, 'service')), [/\.toObject\s*\(/]), []);
 });
 
 test('domain policy modules are framework and infrastructure independent', () => {
@@ -117,6 +119,7 @@ test('application repository ports have no infrastructure dependency', () => {
   assert.deepEqual(findImports(files, [
     /require\(['"][^'"]*(?:composition|controller|filter|infrastructure|model|routes|service|utils)\//,
     /require\(['"](?:express|mongoose)['"]\)/,
+    /require\(['"][^'"]*utils\//,
   ]), []);
 });
 
@@ -152,6 +155,18 @@ test('repository boundary converts Mongoose documents to application records', a
   });
   assert.deepEqual(await repository.findOne(), { id: 'record-1', title: 'Plain record' });
   assert.deepEqual(await repository.findMany(), [{ id: 'record-1', title: 'Plain record' }]);
+});
+
+test('repository boundary recursively converts documents nested in paginated records', async () => {
+  const toApplicationRepository = require('../../src/infrastructure/persistence/mongoose/toApplicationRepository');
+  const document = { toObject: () => ({ id: 'record-1', title: 'Nested record' }) };
+  const repository = toApplicationRepository({
+    findPage: async () => ({ courses: [document], total: 1 }),
+  });
+  assert.deepEqual(await repository.findPage(), {
+    courses: [{ id: 'record-1', title: 'Nested record' }],
+    total: 1,
+  });
 });
 
 test('DTOs are boundary objects without persistence or use-case dependencies', () => {

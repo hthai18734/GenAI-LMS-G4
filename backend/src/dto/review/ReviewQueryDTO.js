@@ -1,6 +1,6 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const { REVIEW_STATUSES } = require('../../domain/engagement/ReviewPolicy');
-const PaginationUtil = require('../../utils/common/PaginationUtil');
+const PaginationUtil = require('../../domain/common/PaginationPolicy');
 const { text, isObjectPayload, strictInteger } = require('../common/DTOUtil');
 
 class ReviewQueryDTO {

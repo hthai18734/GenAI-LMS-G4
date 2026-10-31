@@ -1,57 +1,64 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import Layout from '../components/Layout';
 
-import LandingPage from '../pages/LandingPage';
-import LoginPage from '../pages/LoginPage';
-import RegisterPage from '../pages/RegisterPage';
-import OtpPage from '../pages/OtpPage';
-import OAuthCallbackPage from '../pages/OAuthCallbackPage';
-import DashboardPage from '../pages/DashboardPage';
-import CoursesPage from '../pages/CoursesPage';
-import CourseLearnPage from '../pages/CourseLearnPage';
-import LearningHistoryPage from '../pages/LearningHistoryPage';
-import CertificatesPage from '../pages/CertificatesPage';
-import ProfilePage from '../pages/ProfilePage';
-import SettingsPage from '../pages/SettingsPage';
-import TeacherCoursesPage from '../pages/TeacherCoursesPage';
-import TeacherCourseFormPage from '../pages/TeacherCourseFormPage';
-import TeacherDashboardPage from '../pages/TeacherDashboardPage';
-import TeacherQuizFormPage from '../pages/TeacherQuizFormPage';
-import TeacherQuizWorkspacePage from '../pages/TeacherQuizWorkspacePage';
-import TeacherAssignmentFormPage from '../pages/TeacherAssignmentFormPage';
-import TeacherAIContentPage from '../pages/TeacherAIContentPage';
-import AdminModerationPage from '../pages/AdminModerationPage';
-import CategoriesPage from '../pages/CategoriesPage';
-import PublicCoursesPage from '../pages/PublicCoursesPage';
-import PublicCourseDetailPage from '../pages/PublicCourseDetailPage';
-import TeacherProfilePage from '../pages/TeacherProfilePage';
-import AdminTeacherApplicationsPage from '../pages/AdminTeacherApplicationsPage';
-import AdminDashboardPage from '../pages/AdminDashboardPage';
-import TeacherApplicationPage from '../pages/TeacherApplicationPage';
-import TeacherQuestionBankPage from '../pages/TeacherQuestionBankPage';
-import TeacherContentReportsPage from '../pages/TeacherContentReportsPage';
-import StudentQuizStartPage from '../pages/StudentQuizStartPage';
-import StudentQuizAttemptPage from '../pages/StudentQuizAttemptPage';
-import StudentQuizResultPage from '../pages/StudentQuizResultPage';
-import StudentContentReportsPage from '../pages/StudentContentReportsPage';
-import LearningGoalsPage from '../pages/LearningGoalsPage';
-import WishlistPage from '../pages/WishlistPage';
-import ReviewsPage from '../pages/ReviewsPage';
-import NotificationsPage from '../pages/NotificationsPage';
-import ChangePasswordPage from '../pages/ChangePasswordPage';
-import RequestPasswordResetPage from '../pages/RequestPasswordResetPage';
-import ResetPasswordPage from '../pages/ResetPasswordPage';
-import AdminAccountsPage from '../pages/AdminAccountsPage';
-import AdminUserFormPage from '../pages/AdminUserFormPage';
-import AdminUserDetailPage from '../pages/AdminUserDetailPage';
-import AdminTeachersPage from '../pages/AdminTeachersPage';
-import AdminVouchersPage from '../pages/AdminVouchersPage';
-import NotFoundPage from '../pages/NotFoundPage';
+function lazyPage(name, loader) {
+  const Page = lazy(loader);
+  Page.displayName = name;
+  return Page;
+}
+
+const LandingPage = lazyPage('LandingPage', () => import('../pages/LandingPage'));
+const LoginPage = lazyPage('LoginPage', () => import('../pages/LoginPage'));
+const RegisterPage = lazyPage('RegisterPage', () => import('../pages/RegisterPage'));
+const OtpPage = lazyPage('OtpPage', () => import('../pages/OtpPage'));
+const OAuthCallbackPage = lazyPage('OAuthCallbackPage', () => import('../pages/OAuthCallbackPage'));
+const DashboardPage = lazyPage('DashboardPage', () => import('../pages/DashboardPage'));
+const CoursesPage = lazyPage('CoursesPage', () => import('../pages/CoursesPage'));
+const CourseLearnPage = lazyPage('CourseLearnPage', () => import('../pages/CourseLearnPage'));
+const LearningHistoryPage = lazyPage('LearningHistoryPage', () => import('../pages/LearningHistoryPage'));
+const CertificatesPage = lazyPage('CertificatesPage', () => import('../pages/CertificatesPage'));
+const ProfilePage = lazyPage('ProfilePage', () => import('../pages/ProfilePage'));
+const SettingsPage = lazyPage('SettingsPage', () => import('../pages/SettingsPage'));
+const TeacherCoursesPage = lazyPage('TeacherCoursesPage', () => import('../pages/TeacherCoursesPage'));
+const TeacherCourseFormPage = lazyPage('TeacherCourseFormPage', () => import('../pages/TeacherCourseFormPage'));
+const TeacherDashboardPage = lazyPage('TeacherDashboardPage', () => import('../pages/TeacherDashboardPage'));
+const TeacherQuizFormPage = lazyPage('TeacherQuizFormPage', () => import('../pages/TeacherQuizFormPage'));
+const TeacherQuizWorkspacePage = lazyPage('TeacherQuizWorkspacePage', () => import('../pages/TeacherQuizWorkspacePage'));
+const TeacherAssignmentFormPage = lazyPage('TeacherAssignmentFormPage', () => import('../pages/TeacherAssignmentFormPage'));
+const TeacherAIContentPage = lazyPage('TeacherAIContentPage', () => import('../pages/TeacherAIContentPage'));
+const AdminModerationPage = lazyPage('AdminModerationPage', () => import('../pages/AdminModerationPage'));
+const CategoriesPage = lazyPage('CategoriesPage', () => import('../pages/CategoriesPage'));
+const PublicCoursesPage = lazyPage('PublicCoursesPage', () => import('../pages/PublicCoursesPage'));
+const PublicCourseDetailPage = lazyPage('PublicCourseDetailPage', () => import('../pages/PublicCourseDetailPage'));
+const TeacherProfilePage = lazyPage('TeacherProfilePage', () => import('../pages/TeacherProfilePage'));
+const AdminTeacherApplicationsPage = lazyPage('AdminTeacherApplicationsPage', () => import('../pages/AdminTeacherApplicationsPage'));
+const AdminDashboardPage = lazyPage('AdminDashboardPage', () => import('../pages/AdminDashboardPage'));
+const TeacherApplicationPage = lazyPage('TeacherApplicationPage', () => import('../pages/TeacherApplicationPage'));
+const TeacherQuestionBankPage = lazyPage('TeacherQuestionBankPage', () => import('../pages/TeacherQuestionBankPage'));
+const TeacherContentReportsPage = lazyPage('TeacherContentReportsPage', () => import('../pages/TeacherContentReportsPage'));
+const StudentQuizStartPage = lazyPage('StudentQuizStartPage', () => import('../pages/StudentQuizStartPage'));
+const StudentQuizAttemptPage = lazyPage('StudentQuizAttemptPage', () => import('../pages/StudentQuizAttemptPage'));
+const StudentQuizResultPage = lazyPage('StudentQuizResultPage', () => import('../pages/StudentQuizResultPage'));
+const StudentContentReportsPage = lazyPage('StudentContentReportsPage', () => import('../pages/StudentContentReportsPage'));
+const LearningGoalsPage = lazyPage('LearningGoalsPage', () => import('../pages/LearningGoalsPage'));
+const WishlistPage = lazyPage('WishlistPage', () => import('../pages/WishlistPage'));
+const ReviewsPage = lazyPage('ReviewsPage', () => import('../pages/ReviewsPage'));
+const NotificationsPage = lazyPage('NotificationsPage', () => import('../pages/NotificationsPage'));
+const ChangePasswordPage = lazyPage('ChangePasswordPage', () => import('../pages/ChangePasswordPage'));
+const RequestPasswordResetPage = lazyPage('RequestPasswordResetPage', () => import('../pages/RequestPasswordResetPage'));
+const ResetPasswordPage = lazyPage('ResetPasswordPage', () => import('../pages/ResetPasswordPage'));
+const AdminAccountsPage = lazyPage('AdminAccountsPage', () => import('../pages/AdminAccountsPage'));
+const AdminUserFormPage = lazyPage('AdminUserFormPage', () => import('../pages/AdminUserFormPage'));
+const AdminUserDetailPage = lazyPage('AdminUserDetailPage', () => import('../pages/AdminUserDetailPage'));
+const AdminTeachersPage = lazyPage('AdminTeachersPage', () => import('../pages/AdminTeachersPage'));
+const AdminVouchersPage = lazyPage('AdminVouchersPage', () => import('../pages/AdminVouchersPage'));
+const NotFoundPage = lazyPage('NotFoundPage', () => import('../pages/NotFoundPage'));
 
 export default function AppRoutes() {
   return (
+    <Suspense fallback={<div className="page-loading" role="status">Loading...</div>}>
     <Routes>
       {/* Public Landing & Auth Routes */}
       <Route path="/" element={<LandingPage />} />
@@ -134,5 +141,6 @@ export default function AppRoutes() {
       {/* Catch-all */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </Suspense>
   );
 }

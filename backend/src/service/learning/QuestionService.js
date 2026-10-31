@@ -53,7 +53,7 @@ class QuestionService {
   async getQuestionDetails(questionId, user) {
     const question = await this.getOwnedQuestion(questionId, user);
     const usageCount = await this.quizQuestionRepository.countActiveByQuestionId(question._id);
-    const qObj = typeof question.toObject === 'function' ? question.toObject() : question;
+    const qObj = question;
     return { ...qObj, usageCount };
   }
 

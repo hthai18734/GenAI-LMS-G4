@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { publicService } from '../features/public/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function TeacherProfilePage() {
   const { teacherId } = useParams();
@@ -14,25 +14,28 @@ export default function TeacherProfilePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchTeacher() {
       setLoading(true);
       try {
-        const res = await publicService.getTeacherProfile(teacherId);
+        const res = await publicService.getTeacherProfile(teacherId, { signal: controller.signal });
         if (res.data) {
           setTeacher(res.data.teacher);
           setCourses(res.data.publishedCourses || []);
         }
       } catch (err) {
+        if (err.name === 'AbortError') return;
         addToast(err.message || 'Teacher profile not found', 'error');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
     if (teacherId) {
       fetchTeacher();
     }
-  }, [teacherId]);
+    return () => controller.abort();
+  }, [teacherId, addToast]);
 
   if (loading) {
     return (

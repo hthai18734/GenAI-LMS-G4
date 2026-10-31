@@ -11,16 +11,19 @@ export default function StudentQuizResultPage() {
   const session = getQuizAttemptSession(attemptId);
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
-        const response = await studentService.getQuizResult(attemptId);
+        const response = await studentService.getQuizResult(attemptId, { signal: controller.signal });
         setResult(response.data?.result || null);
       } catch (err) {
+        if (err.name === 'AbortError') return;
         setError(err.message || 'Unable to load the quiz result.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     })();
+    return () => controller.abort();
   }, [attemptId]);
 
   if (loading) return <div className="spinner" />;

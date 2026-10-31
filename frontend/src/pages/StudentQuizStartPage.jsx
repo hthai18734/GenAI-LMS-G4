@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { studentService, saveQuizAttemptSession } from '../features/student/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function StudentQuizStartPage() {
   const { quizId } = useParams();

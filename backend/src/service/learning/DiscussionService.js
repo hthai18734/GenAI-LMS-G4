@@ -131,7 +131,7 @@ class DiscussionService {
   }
 
   toThreadDTO(post) {
-    const p = typeof post.toObject === 'function' ? post.toObject() : post;
+    const p = post;
     return {
       id: String(p._id),
       courseId: String(p.courseId),
@@ -151,7 +151,7 @@ class DiscussionService {
   }
 
   toReplyDTO(reply) {
-    const r = typeof reply.toObject === 'function' ? reply.toObject() : reply;
+    const r = reply;
     return {
       id: String(r._id),
       parentId: String(r.parentId),

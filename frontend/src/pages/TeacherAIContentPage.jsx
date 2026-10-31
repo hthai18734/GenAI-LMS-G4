@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import { buildLessonQuizPlans, buildLessonQuizSource } from '../utils/quizSource';
 import { buildLessonAssignmentPlans, buildLessonAssignmentSource } from '../utils/assignmentSource';
 
@@ -135,15 +135,30 @@ export default function TeacherAIContentPage() {
     if (content) setSettingsChanged(true);
   };
 
-  useEffect(() => { Promise.all([teacherService.getCourses(), teacherService.getCategories()]).then(([courseResult, categoryResult]) => {
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([
+      teacherService.getCourses('', { signal: controller.signal }),
+      teacherService.getCategories({ signal: controller.signal }),
+    ]).then(([courseResult, categoryResult]) => {
     setCourses(courseResult.data?.courses || []); setCategories(categoryResult.data?.categories || []);
-  }).catch(requestError => setError(requestError.message)); }, []);
+    }).catch(requestError => {
+      if (requestError.name !== 'AbortError') setError(requestError.message);
+    });
+    return () => controller.abort();
+  }, []);
   useEffect(() => {
     if (!target.courseId) return;
-    teacherService.getLessons(target.courseId)
+    const controller = new AbortController();
+    teacherService.getLessons(target.courseId, { signal: controller.signal })
       .then(result => setLessons(result.data?.lessons || []))
-      .catch(requestError => setError(requestError.message))
-      .finally(() => setLessonsLoading(false));
+      .catch(requestError => {
+        if (requestError.name !== 'AbortError') setError(requestError.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLessonsLoading(false);
+      });
+    return () => controller.abort();
   }, [target.courseId]);
   useEffect(() => { const warn = event => { if (content && content !== generatedContent.current) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [content]);
 

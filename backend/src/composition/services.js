@@ -1,4 +1,5 @@
 const repositories = require('./repositories');
+const assertPort = require('../application/ports/outbound/assertPort');
 const crypto = require('crypto');
 const ChatContextService = require('../service/chat/ChatContextService');
 const ChatLearningService = require('../service/chat/ChatLearningService');
@@ -6,11 +7,14 @@ const ChatService = require('../service/chat/ChatService');
 const GeminiClient = require('../utils/ai/GeminiClient');
 const EmailUtil = require('../utils/email/EmailUtil');
 const PasswordUtil = require('../utils/auth/PasswordUtil');
+const LoggerUtil = require('../utils/common/LoggerUtil');
+const { parseDocument } = require('../utils/document/ChatDocumentParser');
 const OTPUtil = require('../utils/auth/OTPUtil');
 const JWTUtil = require('../utils/auth/JWTUtil');
 const OAuthUtil = require('../utils/auth/OAuthUtil');
 const ContentGenerationService = require('../service/ai/ContentGenerationService');
 const path = require('path');
+const LocalFileStorageGateway = require('../infrastructure/storage/LocalFileStorageGateway');
 const createVoucherService = require('../service/voucher/VoucherService');
 const createVoucherCheckoutService = require('../service/voucher/VoucherCheckoutService');
 const StudentProfileService = require('../service/student/StudentProfileService');
@@ -19,13 +23,35 @@ const StudentNotificationService = require('../service/student/StudentNotificati
 const StudentTeacherApplicationService = require('../service/student/StudentTeacherApplicationService');
 const StudentService = require('../service/student/StudentService');
 
+const loggerGateway = assertPort('LoggerGateway', {
+  error: LoggerUtil.error.bind(LoggerUtil),
+}, ['error']);
+const passwordGateway = assertPort('PasswordGateway', {
+  hash: PasswordUtil.hash.bind(PasswordUtil),
+  compare: PasswordUtil.compare.bind(PasswordUtil),
+  validate: PasswordUtil.validate.bind(PasswordUtil),
+}, ['hash', 'compare', 'validate']);
+const documentParserGateway = assertPort('DocumentParserGateway', { parse: parseDocument }, ['parse']);
+const materialStorageGateway = assertPort(
+  'MaterialStorageGateway',
+  new LocalFileStorageGateway(),
+  ['exists', 'removeBestEffort', 'extension'],
+);
+const videoStorageGateway = assertPort(
+  'VideoStorageGateway',
+  new LocalFileStorageGateway({
+    rootDirectory: path.resolve(__dirname, '../../uploads/lesson-videos'),
+  }),
+  ['resolveWithin'],
+);
+
 const create = (path, dependencies = repositories) => {
   const Service = require(path);
   return new Service(dependencies);
 };
 
 const progressTrackingService = create('../service/learning/ProgressTrackingService');
-const courseService = create('../service/learning/CourseService');
+const courseService = create('../service/learning/CourseService', { ...repositories, loggerGateway });
 const quizService = create('../service/learning/QuizService', { ...repositories, courseService });
 const questionService = create('../service/learning/QuestionService', {
   ...repositories,
@@ -54,6 +80,7 @@ const chatService = new ChatService({
   context: chatContextService,
   gemini: new GeminiClient(),
   learning: chatLearningService,
+  documentParser: documentParserGateway,
 });
 const voucherService = createVoucherService(repositories);
 const voucherCheckoutService = createVoucherCheckoutService({
@@ -72,14 +99,14 @@ const studentService = new StudentService({
 });
 
 const services = {
-  accountService: create('../service/admin/AccountService'),
+  accountService: create('../service/admin/AccountService', { ...repositories, passwordGateway }),
   adminDashboardService: create('../service/admin/AdminDashboardService'),
   adminTeacherService: create('../service/admin/AdminTeacherService'),
   assignmentService,
   authService: create('../service/auth/AuthService', {
     ...repositories,
     cryptoGateway: crypto,
-    passwordGateway: PasswordUtil,
+    passwordGateway,
     otpGateway: OTPUtil,
     tokenGateway: JWTUtil,
     oAuthGateway: OAuthUtil,
@@ -101,9 +128,12 @@ const services = {
   lessonManagementService: create('../service/learning/LessonManagementService'),
   lessonVideoService: create('../service/learning/LessonVideoService', {
     ...repositories,
-    videoDirectory: path.resolve(__dirname, '../../uploads/lesson-videos'),
+    videoStorageGateway,
   }),
-  materialService: create('../service/learning/MaterialService'),
+  materialService: create('../service/learning/MaterialService', {
+    ...repositories,
+    fileStorageGateway: materialStorageGateway,
+  }),
   notificationService: create('../service/engagement/NotificationService'),
   progressTrackingService,
   publicCatalogService: create('../service/public/PublicCatalogService', {

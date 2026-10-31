@@ -4,17 +4,17 @@ Created at: 29/09/2026
 Description: Course Management
  */
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
-const LoggerUtil = require('../../utils/common/LoggerUtil');
 const { COURSE_STATUS, canTransition } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class CourseService {
-  constructor({ courseRepository, categoryRepository, lessonRepository, materialRepository, courseCleanupRepository } = {}) {
+  constructor({ courseRepository, categoryRepository, lessonRepository, materialRepository, courseCleanupRepository, loggerGateway } = {}) {
     this.courseRepository = courseRepository;
     this.categoryRepository = categoryRepository;
     this.lessonRepository = lessonRepository;
     this.materialRepository = materialRepository;
     this.courseCleanupRepository = courseCleanupRepository;
+    this.logger = loggerGateway || { error() {} };
   }
   assertValidId(id, field = 'Course') {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} ID is invalid.`);
@@ -30,8 +30,7 @@ class CourseService {
     const result = await this.courseRepository.findAllByTeacher(user._id, query);
     const courses = await Promise.all(result.courses.map(async (course) => {
       const lessonCount = await this.lessonRepository.countValidByCourseId(course._id);
-      const serialized = typeof course.toObject === 'function' ? course.toObject() : course;
-      return { ...serialized, lessonCount, contentComplete: this.isMetadataComplete(course) && lessonCount > 0 };
+      return { ...course, lessonCount, contentComplete: this.isMetadataComplete(course) && lessonCount > 0 };
     }));
     return { ...result, courses };
   }
@@ -71,7 +70,7 @@ class CourseService {
     try {
       await this.courseCleanupRepository.removeAssociatedData(courseId);
     } catch (cleanupError) {
-      LoggerUtil.error('Cascading course deletion failed', cleanupError, { courseId });
+      this.logger.error('Cascading course deletion failed', cleanupError, { courseId });
     }
 
     return deletedCourse;

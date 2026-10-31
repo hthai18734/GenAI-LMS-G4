@@ -3,10 +3,10 @@
  * Created at: 01/10/2026
  * Description: Unified Admin Dashboard & Analytics Control Center
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminService } from '../features/admin/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import { useAuth } from '../features/auth/useAuth.js';
 
 export default function AdminDashboardPage() {
@@ -18,7 +18,7 @@ export default function AdminDashboardPage() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const loadDashboardData = async (isManualRefresh = false) => {
+  const loadDashboardData = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
     else setLoading(true);
     setError('');
@@ -65,18 +65,18 @@ export default function AdminDashboardPage() {
           recentPendingCourses: courses.slice(0, 5),
           recentUsers: [],
         });
-      } catch (fallbackErr) {
+      } catch {
         setError(err.message || 'Unable to load admin statistics.');
       }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    void Promise.resolve().then(loadDashboardData);
+  }, [loadDashboardData]);
 
   if (loading) {
     return (
@@ -145,7 +145,7 @@ export default function AdminDashboardPage() {
       {/* ─── 2. Top KPI Cards ──────────────────────────────────────── */}
       <section className="admin-kpi-grid">
         {/* KPI 1: Users */}
-        <div className="admin-kpi-card" onClick={() => navigate('/admin/categories')} style={{ cursor: 'pointer' }}>
+        <button type="button" className="admin-kpi-card" onClick={() => navigate('/admin/users')}>
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon purple">👥</div>
             <span className="admin-kpi-badge info">{users.students} Students</span>
@@ -158,13 +158,13 @@ export default function AdminDashboardPage() {
             <span>{users.teachers} Teachers · {users.admins} Admins</span>
             <span>→</span>
           </div>
-        </div>
+        </button>
 
         {/* KPI 2: Teacher Applications */}
-        <div
+        <button
+          type="button"
           className="admin-kpi-card"
           onClick={() => navigate('/admin/teacher-applications')}
-          style={{ cursor: 'pointer' }}
         >
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon amber">👨‍🏫</div>
@@ -180,13 +180,13 @@ export default function AdminDashboardPage() {
             <span>{applications.approved} Approved · {applications.rejected} Rejected</span>
             <span>Review →</span>
           </div>
-        </div>
+        </button>
 
         {/* KPI 3: Course Moderation */}
-        <div
+        <button
+          type="button"
           className="admin-kpi-card"
           onClick={() => navigate('/admin/moderation')}
-          style={{ cursor: 'pointer' }}
         >
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon emerald">🛡️</div>
@@ -202,13 +202,13 @@ export default function AdminDashboardPage() {
             <span>{courses.PUBLIC || 0} Published</span>
             <span>Moderate →</span>
           </div>
-        </div>
+        </button>
 
         {/* KPI 4: Categories */}
-        <div
+        <button
+          type="button"
           className="admin-kpi-card"
           onClick={() => navigate('/admin/categories')}
-          style={{ cursor: 'pointer' }}
         >
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon blue">🏷️</div>
@@ -222,7 +222,7 @@ export default function AdminDashboardPage() {
             <span>Organize Course Categories</span>
             <span>Manage →</span>
           </div>
-        </div>
+        </button>
       </section>
 
       {/* ─── 3. Quick Action Shortcuts ──────────────────────────────── */}

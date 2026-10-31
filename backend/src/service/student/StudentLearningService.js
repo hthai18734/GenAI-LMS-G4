@@ -78,6 +78,9 @@ class StudentLearningService {
     const records = await this.progressRepository.findByUserId(userId);
     return {
       history: records.filter((progress) => progress.courseId && !progress.courseId.deletedAt).map((progress) => ({
+        id: progress._id ? String(progress._id) : null,
+        courseId: progress.courseId?._id ? String(progress.courseId._id) : String(progress.courseId),
+        lessonId: progress.lessonId?._id ? String(progress.lessonId._id) : (progress.lessonId ? String(progress.lessonId) : null),
         courseTitle: progress.courseId?.title || 'Unknown Course',
         lessonTitle: progress.lessonId?.title || 'Unknown Lesson',
         status: progress.status,

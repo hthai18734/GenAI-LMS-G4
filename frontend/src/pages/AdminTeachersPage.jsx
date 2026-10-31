@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminService } from '../features/admin/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function AdminTeachersPage() {
   const { addToast } = useToast();

@@ -8,7 +8,9 @@ function service({ enrollment = null, teacherId = 'teacher-1', isPublished = tru
     lessonRepository: { findByVideoRef: async () => ({ courseId: 'course-1', isPublished }) },
     courseRepository: { findById: async () => ({ _id: 'course-1', teacherId, status: courseStatus }) },
     enrollmentRepository: { findAccessibleEnrollment: async () => enrollment },
-    videoDirectory: path.resolve('test-videos'),
+    videoStorageGateway: {
+      resolveWithin: filename => path.resolve('test-videos', filename),
+    },
   });
 }
 

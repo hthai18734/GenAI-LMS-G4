@@ -8,8 +8,6 @@ export default function VoucherRedemptionHistory({ voucherId }) {
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    setData(null);
-    setError("");
     voucherService
       .history(voucherId, page)
       .then((res) => {
@@ -28,7 +26,11 @@ export default function VoucherRedemptionHistory({ voucherId }) {
       {error ? (
         <p role="alert" className="page-error">
           {error}{" "}
-          <button className="ghost" onClick={() => setRetry((n) => n + 1)}>
+          <button className="ghost" onClick={() => {
+            setData(null);
+            setError("");
+            setRetry((n) => n + 1);
+          }}>
             Retry
           </button>
         </p>
@@ -76,7 +78,11 @@ export default function VoucherRedemptionHistory({ voucherId }) {
             <button
               className="ghost"
               disabled={data.page <= 1}
-              onClick={() => setPage(data.page - 1)}
+              onClick={() => {
+                setData(null);
+                setError("");
+                setPage(data.page - 1);
+              }}
             >
               Previous
             </button>
@@ -86,7 +92,11 @@ export default function VoucherRedemptionHistory({ voucherId }) {
             <button
               className="ghost"
               disabled={data.page >= data.totalPages}
-              onClick={() => setPage(data.page + 1)}
+              onClick={() => {
+                setData(null);
+                setError("");
+                setPage(data.page + 1);
+              }}
             >
               Next
             </button>

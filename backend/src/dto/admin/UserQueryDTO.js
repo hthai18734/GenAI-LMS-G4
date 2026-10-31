@@ -1,5 +1,5 @@
 const { USER_ROLES, USER_STATUSES } = require('../../domain/identity/UserPolicy');
-const PaginationUtil = require('../../utils/common/PaginationUtil');
+const PaginationUtil = require('../../domain/common/PaginationPolicy');
 const { text, isObjectPayload, strictInteger } = require('../common/DTOUtil');
 
 class UserQueryDTO {

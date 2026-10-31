@@ -1,5 +1,4 @@
-const prompt = require('../../utils/ai/ChatPrompt');
-const { parseDocument } = require('../../utils/document/ChatDocumentParser');
+const prompt = require('../../domain/chat/ChatPromptPolicy');
 const ServiceError = require('../common/ServiceError');
 
 class ChatService {
@@ -8,6 +7,7 @@ class ChatService {
     this.context = dependencies.context;
     this.gemini = dependencies.gemini;
     this.learning = dependencies.learning || { prepare: async () => null };
+    this.documentParser = dependencies.documentParser;
   }
   async owned(user, id) {
     const row = await this.chatRepository.get(user._id, id);
@@ -86,7 +86,7 @@ class ChatService {
     return this.locked(user, id, async () => {
       const documents = await this.chatRepository.documents(user._id, id, true);
       if (documents.length >= 3) throw new ServiceError(400, 'Each conversation supports up to 3 documents.');
-      const parsed = await parseDocument(file);
+      const parsed = await this.documentParser.parse(file);
       const pdfBytes = documents.filter(d => d.mimeType === 'application/pdf').reduce((sum, d) => sum + d.size, 0) + (parsed.data ? parsed.size : 0);
       if (pdfBytes > 12 * 1024 * 1024) throw new ServiceError(413, 'Combined PDFs must not exceed 12 MB per conversation.');
       return this.documentInfo(await this.chatRepository.addDocument(user._id, id, parsed));

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService, clearSession } from '../features/auth/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function ChangePasswordPage() {
   const [form, setForm] = useState({
@@ -25,7 +25,7 @@ export default function ChangePasswordPage() {
       upper: /[A-Z]/.test(pwd),
       lower: /[a-z]/.test(pwd),
       number: /[0-9]/.test(pwd),
-      special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(pwd),
+      special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pwd),
     };
   }, [form.newPassword]);
 

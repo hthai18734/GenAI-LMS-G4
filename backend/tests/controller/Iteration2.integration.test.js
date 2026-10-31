@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const mongoose = require('mongoose');
 const User = require('../../src/model/identity/User');
 const Course = require('../../src/model/learning/Course');
+const Enrollment = require('../../src/model/learning/Enrollment');
 const Review = require('../../src/model/engagement/Review');
 const Notification = require('../../src/model/engagement/Notification');
 const ReviewRepository = require('../../src/infrastructure/persistence/mongoose/repositories/engagement/ReviewRepository');
@@ -20,7 +21,7 @@ test('Iteration 2 HTTP and MongoDB workflows', { skip: !process.env.TEST_MONGODB
     if (secret === undefined) delete process.env.JWT_ACCESS_SECRET;
     else process.env.JWT_ACCESS_SECRET = secret;
   });
-  await Promise.all([User.init(), Course.init(), Review.init(), Notification.init()]);
+  await Promise.all([User.init(), Course.init(), Enrollment.init(), Review.init(), Notification.init()]);
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -35,6 +36,10 @@ test('Iteration 2 HTTP and MongoDB workflows', { skip: !process.env.TEST_MONGODB
     return { status: response.status, ...(await response.json()) };
   }
   const course = await Course.create({ title: 'Iteration 2 course', teacherId: teacher._id, status: 'PUBLIC' });
+  await Enrollment.create([
+    { userId: student._id, courseId: course._id, status: 'active' },
+    { userId: other._id, courseId: course._id, status: 'active' },
+  ]);
   const fakeId = new mongoose.Types.ObjectId();
 
   await t.test('teacher list/detail is admin-only, bounded, searchable and excludes secrets', async () => {

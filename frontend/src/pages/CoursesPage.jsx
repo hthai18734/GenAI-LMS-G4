@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { wishlistService, enrollmentService } from '../features/learning/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import ReviewsPanel from '../components/ReviewsPanel';
 
 export default function CoursesPage() {
@@ -17,7 +17,7 @@ export default function CoursesPage() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [enrolledRes, catalogRes, wishlistRes] = await Promise.all([
@@ -45,11 +45,11 @@ export default function CoursesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void Promise.resolve().then(loadData);
+  }, [loadData]);
 
   const handleEnroll = async (courseId) => {
     setEnrollingId(courseId);

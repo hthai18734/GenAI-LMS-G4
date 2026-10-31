@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { publicService } from '../features/public/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function PublicCoursesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,20 +26,23 @@ export default function PublicCoursesPage() {
 
   // Load categories once
   useEffect(() => {
-    publicService.getCategories()
+    const controller = new AbortController();
+    publicService.getCategories({ signal: controller.signal })
       .then(res => setCategories(res.data?.categories || []))
       .catch(() => {});
+    return () => controller.abort();
   }, []);
 
   // Fetch courses whenever query params change
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchCourses() {
       setLoading(true);
       try {
         let res;
         if (keyword.trim()) {
           // UC-1.3 Search
-          res = await publicService.searchCourses(keyword.trim(), currentPage, 12);
+          res = await publicService.searchCourses(keyword.trim(), currentPage, 12, { signal: controller.signal });
         } else if (selectedCategory || minPrice || maxPrice || selectedSort !== 'newest') {
           // UC-1.4 Filter & Sort
           res = await publicService.filterAndSortCourses({
@@ -49,10 +52,10 @@ export default function PublicCoursesPage() {
             sortBy: selectedSort,
             page: currentPage,
             limit: 12,
-          });
+          }, { signal: controller.signal });
         } else {
           // UC-1.2 Browse
-          res = await publicService.browseCourses(currentPage, 12);
+          res = await publicService.browseCourses(currentPage, 12, { signal: controller.signal });
         }
 
         if (res.data) {
@@ -60,14 +63,16 @@ export default function PublicCoursesPage() {
           setPagination(res.data.pagination || { page: currentPage, limit: 12, total: 0, totalPages: 1 });
         }
       } catch (err) {
+        if (err.name === 'AbortError') return;
         addToast(err.message || 'Failed to fetch courses', 'error');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
     fetchCourses();
-  }, [keyword, selectedCategory, selectedSort, minPrice, maxPrice, currentPage]);
+    return () => controller.abort();
+  }, [keyword, selectedCategory, selectedSort, minPrice, maxPrice, currentPage, addToast]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();

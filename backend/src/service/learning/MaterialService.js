@@ -1,15 +1,14 @@
-const fs = require('fs');
-const path = require('path');
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class MaterialService {
-  constructor({ materialRepository, lessonRepository, courseRepository, enrollmentRepository } = {}) {
+  constructor({ materialRepository, lessonRepository, courseRepository, enrollmentRepository, fileStorageGateway } = {}) {
     this.materialRepository = materialRepository;
     this.lessonRepository = lessonRepository;
     this.courseRepository = courseRepository;
     this.enrollmentRepository = enrollmentRepository;
+    this.fileStorage = fileStorageGateway;
   }
   assertValidId(id, field = 'ID') {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} is invalid.`);
@@ -101,12 +100,7 @@ class MaterialService {
     await this.assertTeacherOwnsLesson(material.lessonId, user);
     await this.materialRepository.softDelete(materialId);
 
-    // Optional physical cleanup
-    try {
-      if (material.filePath && fs.existsSync(material.filePath)) {
-        fs.unlinkSync(material.filePath);
-      }
-    } catch { /* best effort */ }
+    this.fileStorage.removeBestEffort(material.filePath);
 
     return true;
   }
@@ -132,11 +126,11 @@ class MaterialService {
       if (!enrollment) throw new ServiceError(403, 'You must be enrolled to download this material.');
     }
 
-    if (!fs.existsSync(material.filePath)) {
+    if (!this.fileStorage.exists(material.filePath)) {
       throw new ServiceError(410, 'Material file is missing on storage. Please contact the instructor.');
     }
 
-    const ext = path.extname(material.filePath);
+    const ext = this.fileStorage.extension(material.filePath);
     const downloadFileName = material.name.toLowerCase().endsWith(ext.toLowerCase())
       ? material.name
       : `${material.name}${ext}`;

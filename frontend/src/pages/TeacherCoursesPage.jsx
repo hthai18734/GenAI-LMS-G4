@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const statusConfig = {
   ALL: { label: 'All Courses' },
@@ -38,7 +38,7 @@ export default function TeacherCoursesPage() {
   };
 
   useEffect(() => {
-    loadCourses();
+    void Promise.resolve().then(loadCourses);
   }, []);
 
   const mutate = async (course, action, message, confirmation) => {

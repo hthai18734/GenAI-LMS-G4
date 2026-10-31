@@ -14,7 +14,9 @@ test('portal navigation and quiz links resolve to pages with the correct role gu
     server.ssrLoadModule('/src/features/auth/authContext.js'),
     server.ssrLoadModule('/src/components/PasswordInput.jsx'),
   ]);
-  const routes = createRoutesFromElements(AppRoutes().props.children);
+  const routesElement = AppRoutes().props.children;
+  const routes = createRoutesFromElements(routesElement.props.children);
+  const pageName = element => element.type.displayName || element.type.name;
   function resolve(path, role) {
     const matches = matchRoutes(routes, path);
     assert.ok(matches, path);
@@ -28,7 +30,7 @@ test('portal navigation and quiz links resolve to pages with the correct role gu
     } else {
       assert.equal(guard, undefined, `${path} must be public`);
     }
-    return leaf.element.type.name;
+    return pageName(leaf.element);
   }
 
   for (const role of ['student', 'teacher', 'admin']) {
@@ -48,7 +50,7 @@ test('portal navigation and quiz links resolve to pages with the correct role gu
     ['/quiz-attempts/attempt-id/result', 'StudentQuizResultPage'],
   ]) assert.equal(resolve(path, 'student'), name);
   for (const path of ['/admin/users/new', '/admin/users/user-id', '/admin/users/user-id/edit', '/admin/vouchers/new', '/admin/vouchers/voucher-id', '/admin/vouchers/voucher-id/edit']) resolve(path, 'admin');
-  assert.equal(matchRoutes(routes, '/missing-page').at(-1).route.element.type.name, 'NotFoundPage');
+  assert.equal(pageName(matchRoutes(routes, '/missing-page').at(-1).route.element), 'NotFoundPage');
 
   const passwordMarkup = renderToStaticMarkup(createElement(PasswordInput, { name: 'password', defaultValue: 'test' }));
   assert.match(passwordMarkup, /type="password"/);

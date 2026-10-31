@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -31,36 +31,44 @@ export default function TeacherAssignmentFormPage() {
   const courseBackPath = form.courseId ? `/teacher/courses/${form.courseId}/edit#activities` : '/teacher/courses';
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
-        const result = await teacherService.getCourses();
+        const result = await teacherService.getCourses('', { signal: controller.signal });
         setCourses(result.data?.courses || []);
       } catch (err) {
+        if (err.name === 'AbortError') return;
         setError(err.message || 'Unable to load your courses.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     })();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
     if (!requestedAssignmentId || form.courseId) return;
-    teacherService.getAssignment(requestedAssignmentId)
+    const controller = new AbortController();
+    teacherService.getAssignment(requestedAssignmentId, { signal: controller.signal })
       .then((result) => {
         const assignment = result.data?.assignment;
         if (!assignment) throw new Error('Assignment not found.');
         setEditingId(assignment._id);
         setForm(assignmentToForm(assignment));
       })
-      .catch((err) => setError(err.message || 'Unable to load this assignment.'));
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError(err.message || 'Unable to load this assignment.');
+      });
+    return () => controller.abort();
   }, [requestedAssignmentId, form.courseId]);
 
   useEffect(() => {
-    if (!form.courseId) { setAssignments([]); setLessons([]); return; }
+    if (!form.courseId) return;
+    const controller = new AbortController();
     Promise.all([
-      teacherService.listAssignments(form.courseId),
-      teacherService.getLessons(form.courseId),
-      requestedAssignmentId ? teacherService.getAssignment(requestedAssignmentId) : Promise.resolve(null),
+      teacherService.listAssignments(form.courseId, { signal: controller.signal }),
+      teacherService.getLessons(form.courseId, { signal: controller.signal }),
+      requestedAssignmentId ? teacherService.getAssignment(requestedAssignmentId, { signal: controller.signal }) : Promise.resolve(null),
     ])
       .then(([assignmentResult, lessonResult, requestedResult]) => {
         const loadedAssignments = assignmentResult.data?.assignments || [];
@@ -71,11 +79,19 @@ export default function TeacherAssignmentFormPage() {
           setForm(assignmentToForm(requested, form.courseId));
         }
       })
-      .catch((err) => { setAssignments([]); setLessons([]); setError(err.message || 'Unable to load assignments for this course.'); });
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+        setAssignments([]); setLessons([]); setError(err.message || 'Unable to load assignments for this course.');
+      });
+    return () => controller.abort();
   }, [form.courseId, requestedAssignmentId]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (name === 'courseId') {
+      setAssignments([]);
+      setLessons([]);
+    }
     setForm((current) => ({ ...current, [name]: value, ...(name === 'courseId' ? { lessonId: '' } : {}) }));
     setFieldErrors((current) => ({ ...current, [name]: null }));
   };

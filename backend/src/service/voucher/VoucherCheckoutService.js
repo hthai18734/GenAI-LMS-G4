@@ -52,7 +52,7 @@ function replay(redemption, input) {
       "Transaction ID has already been used for another purchase.",
     );
   return {
-    redemption: redemption.toObject ? redemption.toObject() : redemption,
+    redemption,
     replayed: true,
   };
 }

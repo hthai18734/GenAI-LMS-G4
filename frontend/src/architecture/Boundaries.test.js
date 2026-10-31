@@ -63,3 +63,28 @@ test('features do not reach into another feature implementation', () => {
   });
   assert.deepEqual(violations, []);
 });
+
+test('pages consume feature API facades instead of nested API implementation modules', () => {
+  const violations = sourceFiles(path.join(sourceRoot, 'pages')).flatMap((file) =>
+    importsFrom(file, [/from\s+['"][^'"]*features\/[^/'"]+\/api\//]).map((pattern) =>
+      `${path.relative(sourceRoot, file)} matches ${pattern}`));
+  assert.deepEqual(violations, []);
+});
+
+test('route pages are loaded lazily behind one suspense boundary', () => {
+  const source = fs.readFileSync(path.join(sourceRoot, 'routes', 'AppRoutes.jsx'), 'utf8');
+  assert.match(source, /import React, \{ lazy, Suspense \} from 'react'/);
+  assert.doesNotMatch(source, /import\s+\w+Page\s+from\s+['"]\.\.\/pages\//);
+  assert.match(source, /lazyPage\(['"]LandingPage['"],\s*\(\)\s*=>\s*import\(['"]\.\.\/pages\/LandingPage['"]\)\)/);
+  assert.match(source, /<Suspense\s+fallback=/);
+  const layout = fs.readFileSync(path.join(sourceRoot, 'components', 'Layout.jsx'), 'utf8');
+  assert.match(layout, /<Suspense[^>]*>[\s\S]*<Outlet\s*\/>[\s\S]*<\/Suspense>/);
+});
+
+test('protected material access never puts an access token in the URL', () => {
+  const materialApi = fs.readFileSync(path.join(sourceRoot, 'features', 'learning', 'api', 'materials.js'), 'utf8');
+  const materialAccess = fs.readFileSync(path.join(sourceRoot, 'features', 'learning', 'materialAccess.js'), 'utf8');
+  assert.doesNotMatch(materialApi, /getToken|[?&]token=/);
+  assert.match(materialApi, /authenticatedBlob/);
+  assert.match(materialAccess, /createDownloadObjectUrl/);
+});

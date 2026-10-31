@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function TeacherApplicationPage() {
   const { user } = useAuth();
@@ -42,7 +42,7 @@ export default function TeacherApplicationPage() {
   };
 
   useEffect(() => {
-    fetchApplicationStatus();
+    void Promise.resolve().then(fetchApplicationStatus);
   }, []);
 
   const handleSubmit = async (e) => {

@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { materialService, discussionService, enrollmentService, progressService, learningReportService } from '../features/learning/api.js';
 import { getUser } from '../features/auth/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import { useChatContext } from '../components/chat/useChatContext';
 import ReviewsPanel from '../components/ReviewsPanel';
+import DiscussionPostEditor from '../components/DiscussionPostEditor';
 import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
+import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -64,6 +66,8 @@ export default function CourseLearnPage() {
   const [threadRepliesMap, setThreadRepliesMap] = useState({}); // { [threadId]: reply[] }
   const [loadingRepliesMap, setLoadingRepliesMap] = useState({}); // { [threadId]: bool }
   const [expandedThreadId, setExpandedThreadId] = useState(null); // which thread's replies are visible
+  const [editingPost, setEditingPost] = useState(null);
+  const [savingPostEdit, setSavingPostEdit] = useState(false);
 
   // Video heartbeat refs & states
   const videoElementRef = React.useRef(null);
@@ -81,16 +85,16 @@ export default function CourseLearnPage() {
     return () => setLesson(null);
   }, [courseId, course, currentLesson, loading, setLesson]);
 
-  const loadCourseProgress = async () => {
+  const loadCourseProgress = useCallback(async () => {
     try {
       const res = await progressService.getCourseProgress(courseId);
       setCourseProgress(res.data?.progress || res.data || null);
     } catch {
       // ignore
     }
-  };
+  }, [courseId]);
 
-  const loadCourseAndLessons = async () => {
+  const loadCourseAndLessons = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Fetch lessons
@@ -131,9 +135,9 @@ export default function CourseLearnPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast, courseId, loadCourseProgress]);
 
-  const loadMaterials = async (lessonId) => {
+  const loadMaterials = useCallback(async (lessonId) => {
     if (!lessonId) return;
     setLoadingMaterials(true);
     try {
@@ -144,9 +148,9 @@ export default function CourseLearnPage() {
     } finally {
       setLoadingMaterials(false);
     }
-  };
+  }, []);
 
-  const loadDiscussions = async () => {
+  const loadDiscussions = useCallback(async () => {
     setLoadingDiscussions(true);
     try {
       const res = await discussionService.getThreads(courseId);
@@ -156,33 +160,33 @@ export default function CourseLearnPage() {
     } finally {
       setLoadingDiscussions(false);
     }
-  };
+  }, [courseId]);
 
-  const loadMyReports = async () => {
+  const loadMyReports = useCallback(async () => {
     try {
       const res = await learningReportService.getMyReports();
       setMyReports(res.data?.reports || res.reports || []);
     } catch {
       // ignore
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadCourseAndLessons();
-    loadMyReports();
-  }, [courseId]);
+    void Promise.resolve().then(loadCourseAndLessons);
+    void Promise.resolve().then(loadMyReports);
+  }, [loadCourseAndLessons, loadMyReports]);
 
   useEffect(() => {
     if (currentLesson?.id) {
-      loadMaterials(currentLesson.id);
+      void Promise.resolve().then(() => loadMaterials(currentLesson.id));
     }
-  }, [currentLesson?.id]);
+  }, [currentLesson?.id, loadMaterials]);
 
   useEffect(() => {
     if (activeTab === 'discussions') {
-      loadDiscussions();
+      void Promise.resolve().then(loadDiscussions);
     }
-  }, [activeTab, courseId]);
+  }, [activeTab, loadDiscussions]);
 
   const handleCreateThread = async (e) => {
     e.preventDefault();
@@ -262,16 +266,36 @@ export default function CourseLearnPage() {
     }
   };
 
+  const handleUpdatePost = async (event) => {
+    event.preventDefault();
+    const body = editingPost?.body.trim();
+    if (!body) return;
+    setSavingPostEdit(true);
+    try {
+      await discussionService.updatePost(editingPost.id, { body });
+      if (editingPost.parentId) await loadThreadReplies(editingPost.parentId);
+      else await loadDiscussions();
+      setEditingPost(null);
+      addToast('Discussion post updated.', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to update post.', 'error');
+    } finally {
+      setSavingPostEdit(false);
+    }
+  };
+
   // Video Heartbeat Lifecycle (I3-05)
   useEffect(() => {
     videoSessionIdRef.current = 'sess_' + Math.random().toString(36).substring(2, 9);
     prevPositionRef.current = 0;
     lastTimeRef.current = 0;
     seqRef.current = 1;
-    setVideoProgress(null);
-    setLocalWatchedSeconds(0);
-    setLocalWatchedPercent(0);
-    setVideoDuration(0);
+    queueMicrotask(() => {
+      setVideoProgress(null);
+      setLocalWatchedSeconds(0);
+      setLocalWatchedPercent(0);
+      setVideoDuration(0);
+    });
 
     if (currentLesson?.id) {
       progressService.getVideoProgress(currentLesson.id)
@@ -1172,25 +1196,25 @@ export default function CourseLearnPage() {
                           </div>
 
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <a
-                              href={materialService.getDownloadUrl(m.id, { view: true })}
-                              target="_blank"
-                              rel="noreferrer"
+                            <MaterialAccessButton
+                              materialId={m.id}
+                              mode="view"
+                              onError={(error) => addToast(error.message || 'Unable to view material.', 'error')}
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '13px', padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                             >
                               <span>👁️</span> View Material
-                            </a>
-                            <a
-                              href={materialService.getDownloadUrl(m.id)}
-                              target="_blank"
-                              rel="noreferrer"
+                            </MaterialAccessButton>
+                            <MaterialAccessButton
+                              materialId={m.id}
+                              filename={m.originalName || m.name}
+                              mode="download"
+                              onError={(error) => addToast(error.message || 'Unable to download material.', 'error')}
                               className="btn btn-primary btn-sm"
                               style={{ fontSize: '13px', padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                              download
                             >
                               <span>⬇️</span> Download Material
-                            </a>
+                            </MaterialAccessButton>
                           </div>
                         </div>
                       ))}
@@ -1249,16 +1273,31 @@ export default function CourseLearnPage() {
                                 <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}</span>
                               </div>
                               {isAuthor && t.status !== 'deleted' && (
-                                <button type="button" onClick={() => handleDeletePost(t.id)} className="ghost compact" style={{ color: '#ef4444', fontSize: '11px' }}>
-                                  Delete
-                                </button>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button type="button" onClick={() => setEditingPost({ id: t.id, parentId: null, body: t.body })} className="ghost compact" style={{ fontSize: '11px' }}>
+                                    Edit
+                                  </button>
+                                  <button type="button" onClick={() => handleDeletePost(t.id)} className="ghost compact" style={{ color: '#ef4444', fontSize: '11px' }}>
+                                    Delete
+                                  </button>
+                                </div>
                               )}
                             </div>
 
                             {t.title && <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '6px' }}>{t.title}</div>}
-                            <div style={{ fontSize: '14px', color: t.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: t.status === 'deleted' ? 'italic' : 'normal', marginBottom: '12px' }}>
-                              {t.status === 'deleted' ? '[This post has been removed]' : t.body}
-                            </div>
+                            {editingPost?.id === t.id ? (
+                              <DiscussionPostEditor
+                                body={editingPost.body}
+                                onBodyChange={(body) => setEditingPost((post) => ({ ...post, body }))}
+                                onSave={handleUpdatePost}
+                                onCancel={() => setEditingPost(null)}
+                                saving={savingPostEdit}
+                              />
+                            ) : (
+                              <div style={{ fontSize: '14px', color: t.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: t.status === 'deleted' ? 'italic' : 'normal', marginBottom: '12px' }}>
+                                {t.status === 'deleted' ? '[This post has been removed]' : t.body}
+                              </div>
+                            )}
 
                             {/* Toggle Replies Button */}
                             {t.status !== 'deleted' && (
@@ -1295,19 +1334,34 @@ export default function CourseLearnPage() {
                                             <span style={{ fontSize: '10px', color: 'var(--muted)' }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</span>
                                           </div>
                                           {isReplyAuthor && r.status !== 'deleted' && (
-                                            <button
-                                              type="button"
-                                              onClick={() => handleDeletePost(r.id, t.id)}
-                                              className="ghost compact"
-                                              style={{ color: '#ef4444', fontSize: '10px' }}
-                                            >
-                                              Delete
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                              <button type="button" onClick={() => setEditingPost({ id: r.id, parentId: t.id, body: r.body })} className="ghost compact" style={{ fontSize: '10px' }}>
+                                                Edit
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleDeletePost(r.id, t.id)}
+                                                className="ghost compact"
+                                                style={{ color: '#ef4444', fontSize: '10px' }}
+                                              >
+                                                Delete
+                                              </button>
+                                            </div>
                                           )}
                                         </div>
-                                        <div style={{ fontSize: '13px', color: r.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: r.status === 'deleted' ? 'italic' : 'normal' }}>
-                                          {r.status === 'deleted' ? '[Reply removed]' : r.body}
-                                        </div>
+                                        {editingPost?.id === r.id ? (
+                                          <DiscussionPostEditor
+                                            body={editingPost.body}
+                                            onBodyChange={(body) => setEditingPost((post) => ({ ...post, body }))}
+                                            onSave={handleUpdatePost}
+                                            onCancel={() => setEditingPost(null)}
+                                            saving={savingPostEdit}
+                                          />
+                                        ) : (
+                                          <div style={{ fontSize: '13px', color: r.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: r.status === 'deleted' ? 'italic' : 'normal' }}>
+                                            {r.status === 'deleted' ? '[Reply removed]' : r.body}
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })

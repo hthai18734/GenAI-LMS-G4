@@ -1,13 +1,12 @@
-const path = require('path');
 const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class LessonVideoService {
-  constructor({ lessonRepository, courseRepository, enrollmentRepository, videoDirectory } = {}) {
+  constructor({ lessonRepository, courseRepository, enrollmentRepository, videoStorageGateway } = {}) {
     this.lessonRepository = lessonRepository;
     this.courseRepository = courseRepository;
     this.enrollmentRepository = enrollmentRepository;
-    this.videoDirectory = videoDirectory;
+    this.videoStorage = videoStorageGateway;
   }
 
   async authorize(filename, user) {
@@ -27,8 +26,8 @@ class LessonVideoService {
       : null;
     if (!isAdmin && !isOwner && !enrollment) throw new ServiceError(403, 'You do not have access to this lesson video.');
 
-    const filePath = path.resolve(this.videoDirectory, filename);
-    if (path.dirname(filePath) !== path.resolve(this.videoDirectory)) {
+    const filePath = this.videoStorage.resolveWithin(filename);
+    if (!filePath) {
       throw new ServiceError(404, 'Lesson video not found.');
     }
     return filePath;

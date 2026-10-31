@@ -1,12 +1,12 @@
-const PasswordUtil = require('../../utils/auth/PasswordUtil');
-const PaginationUtil = require('../../utils/common/PaginationUtil');
+const PaginationUtil = require('../../domain/common/PaginationPolicy');
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const ServiceError = require('../common/ServiceError');
 
 class AccountService {
-  constructor({ userRepository, refreshSessionRepository } = {}) {
+  constructor({ userRepository, refreshSessionRepository, passwordGateway } = {}) {
     this.userRepository = userRepository;
     this.refreshSessionRepository = refreshSessionRepository;
+    this.passwordGateway = passwordGateway;
   }
   assertId(id) { if (!isValidIdentifier(id)) throw new ServiceError(400, 'User ID is invalid.'); }
   async list(paging) {
@@ -22,7 +22,7 @@ class AccountService {
   async create(data, password) {
     if (await this.userRepository.isEmailExists(data.email)) throw new ServiceError(409, 'This email is already in use.');
     try {
-      const created = await this.userRepository.createUser({ ...data, passwordHash: await PasswordUtil.hash(password) });
+      const created = await this.userRepository.createUser({ ...data, passwordHash: await this.passwordGateway.hash(password) });
       return { user: await this.userRepository.findById(created._id) };
     } catch (error) {
       if (error.code === 11000) throw new ServiceError(409, 'This email is already in use.');

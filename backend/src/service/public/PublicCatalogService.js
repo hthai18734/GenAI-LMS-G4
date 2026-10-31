@@ -1,4 +1,4 @@
-const PaginationUtil = require('../../utils/common/PaginationUtil');
+const PaginationUtil = require('../../domain/common/PaginationPolicy');
 const ServiceError = require('../common/ServiceError');
 
 const BANNER = Object.freeze({

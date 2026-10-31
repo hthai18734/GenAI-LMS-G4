@@ -1,4 +1,4 @@
-class PaginationUtil {
+class PaginationPolicy {
   /**
    * Parse and calculate pagination parameters
    * @param {number|string} page 
@@ -45,4 +45,4 @@ class PaginationUtil {
   }
 }
 
-module.exports = PaginationUtil;
+module.exports = PaginationPolicy;

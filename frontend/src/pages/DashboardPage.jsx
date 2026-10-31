@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { learningStatsService } from '../features/learning/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 /* ─── Animated Counter Hook ───────────────────────────────────── */
 function useCountUp(target, duration = 1200, delay = 0) {
@@ -160,7 +160,7 @@ function StatCard({ icon, label, value, gradient, delay = 0, suffix = '' }) {
 }
 
 /* ─── Course Card Component ───────────────────────────────────── */
-function CourseCard({ course, index, onAction, actionLabel, actionVariant = 'primary' }) {
+function CourseCard({ course, index, onAction }) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
   useEffect(() => {
@@ -468,6 +468,7 @@ export default function DashboardPage() {
   const [courseFilter, setCourseFilter] = useState('all');
   const [headerVisible, setHeaderVisible] = useState(false);
   const [learningStreak, setLearningStreak] = useState(0);
+  const [currentHour] = useState(() => new Date().getHours());
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -491,9 +492,9 @@ export default function DashboardPage() {
       setLoading(false);
       setTimeout(() => setHeaderVisible(true), 100);
     }
-  }, []);
+  }, [addToast]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { void Promise.resolve().then(loadData); }, [loadData]);
 
   const handleEnroll = async (courseId) => {
     setEnrollingId(courseId);
@@ -593,7 +594,7 @@ export default function DashboardPage() {
   const enrolledIds = new Set(courses.map(c => String(c.id || c._id || c.courseId)));
   const recommendedCourses = catalog.filter(c => !enrolledIds.has(String(c.id || c._id || c.courseId))).slice(0, 4);
 
-  const hour = new Date().getHours();
+  const hour = currentHour;
   const greeting = hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const greetingEmoji = hour < 5 ? '🌙' : hour < 12 ? '☀️' : hour < 18 ? '🌤️' : '🌙';
   const firstName = user?.fullName ? user.fullName.split(' ').slice(-1)[0] : 'there';
@@ -736,8 +737,8 @@ export default function DashboardPage() {
               { num: active, label: 'In Progress', icon: '📚', color: '#818cf8' },
               { num: completed, label: 'Completed', icon: '🏆', color: '#34d399' },
               { num: `${avgProgress}%`, label: 'Avg Progress', icon: '⚡', color: '#fbbf24' },
-            ].map((stat, i) => (
-              <div key={i} style={{
+            ].map((stat) => (
+              <div key={stat.label} style={{
                 background: 'rgba(255,255,255,0.07)',
                 backdropFilter: 'blur(16px)',
                 border: '1px solid rgba(255,255,255,0.12)',

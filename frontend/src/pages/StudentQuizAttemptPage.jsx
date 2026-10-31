@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { studentService, getQuizAttemptSession, saveQuizAttemptSession } from '../features/student/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 function remainingLabel(expiresAt) {
   const milliseconds = new Date(expiresAt).getTime() - Date.now();

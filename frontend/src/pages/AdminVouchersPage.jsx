@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { voucherService } from '../features/voucher/api.js';
-import { useToast } from "../components/Toast";
+import { useToast } from "../components/toastContext";
 import VoucherRedemptionHistory from "../components/VoucherRedemptionHistory";
 const empty = {
   code: "",
@@ -45,10 +45,12 @@ export default function AdminVouchersPage({ mode = "list" }) {
     [reload, setReload] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    setError("");
-    setLoading(true);
-    setData(null);
     async function load() {
+      await Promise.resolve();
+      if (cancelled) return;
+      setError("");
+      setLoading(true);
+      setData(null);
       try {
         if (mode === "new") {
           if (!cancelled) setForm({ ...empty });

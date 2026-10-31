@@ -221,7 +221,9 @@ test('UC-4.3: getDashboard returns empty when no data', async () => {
 test('UC-4.4: getLearningHistory returns records for authenticated user', async () => {
   const original = ProgressRepository.findByUserId;
   ProgressRepository.findByUserId = async () => [{
-    courseId: { title: 'Node.js' }, lessonId: { title: 'Lesson 1' },
+    _id: '507f1f77bcf86cd799439011',
+    courseId: { _id: '507f1f77bcf86cd799439012', title: 'Node.js' },
+    lessonId: { _id: '507f1f77bcf86cd799439013', title: 'Lesson 1' },
     status: 'completed', completedAt: new Date(), updatedAt: new Date(),
   }];
   try {
@@ -229,6 +231,9 @@ test('UC-4.4: getLearningHistory returns records for authenticated user', async 
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.data.history.length, 1);
     assert.equal(res.body.data.history[0].courseTitle, 'Node.js');
+    assert.equal(res.body.data.history[0].id, '507f1f77bcf86cd799439011');
+    assert.equal(res.body.data.history[0].courseId, '507f1f77bcf86cd799439012');
+    assert.equal(res.body.data.history[0].lessonId, '507f1f77bcf86cd799439013');
   } finally {
     ProgressRepository.findByUserId = original;
   }

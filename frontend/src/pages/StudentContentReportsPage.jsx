@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { learningReportService } from '../features/learning/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const ISSUE_TYPE_LABELS = {
   BROKEN_VIDEO: 'Broken Video / Playback Error',
@@ -26,7 +26,7 @@ export default function StudentContentReportsPage() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const { addToast } = useToast();
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const res = await learningReportService.getMyReports();
@@ -36,11 +36,11 @@ export default function StudentContentReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    fetchReports();
-  }, []);
+    void Promise.resolve().then(fetchReports);
+  }, [fetchReports]);
 
   const filtered = reports.filter((r) => {
     if (filterStatus === 'ALL') return true;

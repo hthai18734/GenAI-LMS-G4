@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { voucherService } from '../features/voucher/api.js';
-export default function VoucherPreview({ courseId }) {
+function VoucherPreviewForCourse({ courseId }) {
   const [code, setCode] = useState(""),
     [result, setResult] = useState(null),
     [error, setError] = useState(""),
@@ -10,19 +10,7 @@ export default function VoucherPreview({ courseId }) {
   const [retry, setRetry] = useState(0);
   const revision = useRef(0);
   useEffect(() => {
-    setResult(null);
-    setError("");
-    setCode("");
-    revision.current++;
-    setBusy(false);
-    return () => {
-      revision.current++;
-    };
-  }, [courseId]);
-  useEffect(() => {
     let cancelled = false;
-    setAvailable([]);
-    setAvailableError("");
     voucherService
       .available()
       .then((res) => {
@@ -102,7 +90,11 @@ export default function VoucherPreview({ courseId }) {
           <button
             type="button"
             className="ghost"
-            onClick={() => setRetry((n) => n + 1)}
+            onClick={() => {
+              setAvailable([]);
+              setAvailableError("");
+              setRetry((n) => n + 1);
+            }}
           >
             Retry
           </button>
@@ -142,4 +134,8 @@ export default function VoucherPreview({ courseId }) {
       </small>
     </form>
   );
+}
+
+export default function VoucherPreview({ courseId }) {
+  return <VoucherPreviewForCourse key={courseId} courseId={courseId} />;
 }

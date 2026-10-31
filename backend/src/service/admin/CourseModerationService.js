@@ -32,7 +32,7 @@ class CourseModerationService {
   async getCourseForModeration(courseId) {
     const course = await this.loadCourse(courseId);
     const lessons = await this.lessonRepository.findByCourseId(courseId);
-    const serialized = typeof course.toObject === 'function' ? course.toObject() : course;
+    const serialized = course;
     return { ...serialized, lessons };
   }
 

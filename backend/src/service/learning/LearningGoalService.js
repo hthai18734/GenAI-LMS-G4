@@ -167,7 +167,7 @@ class LearningGoalService {
   }
 
   toDTO(goal) {
-    const g = typeof goal.toObject === 'function' ? goal.toObject() : goal;
+    const g = goal;
     return {
       id: String(g._id),
       courseId: g.courseId?._id ? String(g.courseId._id) : String(g.courseId),

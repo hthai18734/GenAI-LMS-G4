@@ -1,4 +1,4 @@
-const PaginationUtil = require('../../utils/common/PaginationUtil');
+const PaginationUtil = require('../../domain/common/PaginationPolicy');
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const ServiceError = require('../common/ServiceError');
 

@@ -258,6 +258,7 @@ cd backend
 npm install
 npm run test:architecture
 npm test
+npm run test:integration
 
 cd ../frontend
 npm install
@@ -329,3 +330,16 @@ Không dùng `git add -A` nếu working tree chứa thay đổi của nhiều ch
 4. Sửa `docs/ARCHITECTURE.md` trong cùng PR với thay đổi kiến trúc.
 
 File này mô tả kiến trúc; test bảo vệ boundary; code thực thi hành vi.
+
+## 11. Chuẩn hóa frontend và gateway
+
+- Route page phải được tải bằng `React.lazy`; `Layout` giữ nguyên khi page chunk đang tải nhờ `Suspense` đặt quanh `Outlet`.
+- `features/<feature>/api.js` là public facade. API lớn được tách thành module con nhưng page không import trực tiếp module con.
+- Effect tải dữ liệu phải khai báo đầy đủ dependency và không gọi `setState` đồng bộ ngay trong effect.
+- Protected material/video chỉ nhận access token qua `Authorization: Bearer`; không đặt token trong query string.
+- Material download/view dùng authenticated blob URL và phải revoke object URL sau khi sử dụng.
+- Utility có I/O hoặc side effect như logger, password hasher và document parser được inject tại composition root và kiểm tra capability khi khởi động.
+- Repository adapter phải chuyển Mongoose document, kể cả document lồng trong page result, thành plain application record trước khi trả cho service.
+- Application service không được gọi API của Mongoose (`toObject`, `save`, `lean`, `populate`) hoặc Node filesystem (`fs`, `path`). File access phải đi qua storage gateway được inject ở composition root.
+- Quy tắc thuần như password validation, pagination và AI prompt policy nằm trong `domain`; DTO/service không import concrete utility có I/O.
+- Effect có request phụ thuộc route, filter hoặc lựa chọn hiện tại phải dùng `AbortController` (hoặc cơ chế tương đương) và không cập nhật state sau khi request bị huỷ.

@@ -81,7 +81,7 @@ class QuizService {
     return quizzes.map((quiz) => {
       const latestAttempt = latestAttemptByQuizId.get(String(quiz._id));
       return {
-        ...(typeof quiz.toObject === 'function' ? quiz.toObject() : quiz),
+        ...quiz,
         latestAttempt: latestAttempt ? this.toLatestStudentAttempt(latestAttempt) : null,
       };
     });

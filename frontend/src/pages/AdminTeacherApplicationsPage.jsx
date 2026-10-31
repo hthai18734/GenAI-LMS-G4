@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { adminService } from '../features/admin/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function AdminTeacherApplicationsPage() {
   const [applications, setApplications] = useState([]);
@@ -11,7 +11,7 @@ export default function AdminTeacherApplicationsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const { addToast } = useToast();
 
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     setLoading(true);
     try {
       const res = await adminService.getTeacherApplications(selectedStatus || undefined);
@@ -21,11 +21,11 @@ export default function AdminTeacherApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus, addToast]);
 
   useEffect(() => {
-    fetchApplications();
-  }, [selectedStatus]);
+    void Promise.resolve().then(fetchApplications);
+  }, [fetchApplications]);
 
   const handleApprove = async (appId) => {
     if (!window.confirm('Are you sure you want to approve this teacher application?')) return;

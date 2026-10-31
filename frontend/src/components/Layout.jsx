@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
@@ -50,7 +50,9 @@ export default function Layout() {
       <Sidebar />
       <Navbar title={currentTitle} />
       <main className="student-content">
-        <Outlet />
+        <Suspense fallback={<div className="page-loading" role="status">Loading...</div>}>
+          <Outlet />
+        </Suspense>
       </main>
       <ChatWidget />
     </div></ChatProvider>

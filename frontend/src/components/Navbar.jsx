@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/useAuth.js';
 import { notificationService } from '../features/engagement/api.js';
-import { useToast } from './Toast';
+import { useToast } from './toastContext';
 
 /* ── tiny helper: time-ago ─────────────────────────────────── */
 function timeAgo(dateStr) {
@@ -46,7 +46,7 @@ export default function Navbar({ title }) {
 
   // Initial fetch + periodic polling every 30s + reactive event updates
   useEffect(() => {
-    fetchUnreadCount();
+    queueMicrotask(fetchUnreadCount);
     const interval = setInterval(fetchUnreadCount, 30000);
 
     const handleUpdate = () => {
@@ -63,7 +63,7 @@ export default function Navbar({ title }) {
 
   // Fetch full list when bell panel opens
   useEffect(() => {
-    if (notiOpen) fetchNotifications();
+    if (notiOpen) queueMicrotask(fetchNotifications);
   }, [notiOpen, fetchNotifications]);
 
   const handleMarkRead = async (id) => {

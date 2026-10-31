@@ -5,13 +5,13 @@ Description: Category Management
  */
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../features/admin/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const blank = { name: '', description: '' };
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [editing, setEditing] = useState(null); const [form, setForm] = useState(blank); const [fieldErrors, setFieldErrors] = useState({}); const [saving, setSaving] = useState(false); const { addToast } = useToast();
   const load = async () => { setLoading(true); setError(''); try { const res = await adminService.getCategories(); setCategories(res.data?.categories || []); } catch (err) { setError(err.message || 'Unable to load categories.'); } finally { setLoading(false); } };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void Promise.resolve().then(load); }, []);
   const open = (category = null) => { setEditing(category || {}); setForm(category ? { name: category.name, description: category.description || '' } : blank); setFieldErrors({}); };
   const submit = async (event) => { event.preventDefault(); setSaving(true); setFieldErrors({}); try { if (editing?._id) await adminService.updateCategory(editing._id, form); else await adminService.createCategory(form); addToast(editing?._id ? 'Category updated successfully.' : 'Category created successfully.', 'success'); setEditing(null); await load(); } catch (err) { setFieldErrors(err.errors || {}); addToast(err.message || 'Unable to save category.', 'error'); } finally { setSaving(false); } };
   const remove = async (category) => { if (!window.confirm(`Delete category “${category.name}”?`)) return; try { await adminService.deleteCategory(category._id); addToast('Category deleted successfully.', 'success'); await load(); } catch (err) { addToast(err.message || 'Unable to delete category.', 'error'); } };

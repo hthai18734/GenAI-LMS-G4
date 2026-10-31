@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import {
   BLANK_QUESTION,
   normalizeQuestion,
   quizPayload,
   quizToForm,
-  relationId,
   validateQuestion,
   validateQuiz,
 } from '../features/teacher/quizModel.js';
@@ -252,33 +251,37 @@ export default function TeacherQuizWorkspacePage() {
     setSelectedBankIds(new Set());
     setBankKeyword('');
     setBankCategory(defaultCat);
-    loadBankQuestions('', defaultCat);
   };
 
-  const loadBankQuestions = async (kw = bankKeyword, cat = bankCategory) => {
+  const loadBankQuestions = useCallback(async (kw, cat, signal) => {
     setBankLoading(true);
     try {
       const res = await teacherService.listQuestions({
         keyword: kw,
         categoryId: cat,
         limit: 100,
-      });
+      }, { signal });
       setBankQuestions(res.data?.items || []);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       addToast(err.message || 'Unable to load Question Bank.', 'error');
     } finally {
-      setBankLoading(false);
+      if (!signal?.aborted) setBankLoading(false);
     }
-  };
+  }, [addToast]);
 
   // Live filter/search directly whenever bankKeyword or bankCategory changes
   useEffect(() => {
     if (!bankModalOpen) return;
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      loadBankQuestions(bankKeyword, bankCategory);
+      loadBankQuestions(bankKeyword, bankCategory, controller.signal);
     }, 250);
-    return () => clearTimeout(timer);
-  }, [bankKeyword, bankCategory, bankModalOpen]);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [bankKeyword, bankCategory, bankModalOpen, loadBankQuestions]);
 
   const toggleSelectBankQuestion = (id) => {
     setSelectedBankIds((prev) => {

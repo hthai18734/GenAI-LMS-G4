@@ -75,7 +75,7 @@ class AssignmentService {
     const submissions = await this.assignmentSubmissionRepository.findByStudentAndCourse(user._id, courseId);
     const submissionMap = new Map((submissions || []).map((s) => [String(s.assignmentId), s]));
     return assignments.map((assignment) => {
-      const doc = assignment.toObject ? assignment.toObject() : { ...assignment };
+      const doc = { ...assignment };
       doc.latestSubmission = submissionMap.get(String(assignment._id)) || null;
       return doc;
     });

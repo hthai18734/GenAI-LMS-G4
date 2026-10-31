@@ -1,5 +1,5 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
-const PaginationUtil = require('../../utils/common/PaginationUtil');
+const PaginationUtil = require('../../domain/common/PaginationPolicy');
 const ServiceError = require('../common/ServiceError');
 const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 

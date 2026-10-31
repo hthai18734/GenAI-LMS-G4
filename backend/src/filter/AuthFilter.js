@@ -8,13 +8,8 @@ const ResponseUtil = require('../utils/common/ResponseUtil');
 function createAuthFilter({ userRepository, refreshSessionRepository, jwtUtil = JWTUtil }) {
   return async function AuthFilter(req, res, next) {
   try {
-    let token = null;
     const header = req.headers.authorization;
-    if (header && header.startsWith('Bearer ')) {
-      token = header.slice(7);
-    } else if (req.query && req.query.token) {
-      token = req.query.token;
-    }
+    const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
 
     if (!token) {
       return ResponseUtil.error(res, { status: 401, message: 'Please log in to continue.' });
