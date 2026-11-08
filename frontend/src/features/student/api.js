@@ -26,8 +26,6 @@ export const studentService = {
   markNotificationRead: (id) => api(`/api/notifications/${id}/read`, { method: 'PUT' }),
   markAllNotificationsRead: () => api('/api/notifications/read-all', { method: 'PUT' }),
   sendTestNotification: (type) => api('/api/student/notifications/test', { method: 'POST', body: JSON.stringify({ type }) }),
-  applyTeacher: (data) => api('/api/student/teacher-application', { method: 'POST', body: JSON.stringify(data) }),
-  getTeacherApplication: () => api('/api/student/teacher-application'),
 };
 
 const sessionKey = (attemptId) => `ai_lms_quiz_attempt_${attemptId}`;

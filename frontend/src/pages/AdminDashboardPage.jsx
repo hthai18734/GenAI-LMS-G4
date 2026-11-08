@@ -33,26 +33,17 @@ export default function AdminDashboardPage() {
       console.warn('Dashboard API failed, attempting fallback aggregations...', err);
       // Fallback: try querying available endpoints concurrently
       try {
-        const [appsRes, coursesRes, catRes] = await Promise.all([
-          adminService.getTeacherApplications().catch(() => ({ data: { applications: [] } })),
+        const [coursesRes, catRes] = await Promise.all([
           adminService.getModerationCourses('status=PENDING_REVIEW').catch(() => ({ data: { courses: [] } })),
           adminService.getCategories().catch(() => ({ data: { categories: [] } })),
         ]);
 
-        const apps = appsRes.data?.applications || [];
-        const pendingApps = apps.filter((a) => a.status === 'pending');
         const courses = coursesRes.data?.courses || [];
         const categories = catRes.data?.categories || [];
 
         setData({
           metrics: {
             users: { total: 1, students: 0, teachers: 0, admins: 1 },
-            applications: {
-              pending: pendingApps.length,
-              approved: apps.filter((a) => a.status === 'approved').length,
-              rejected: apps.filter((a) => a.status === 'rejected').length,
-              total: apps.length,
-            },
             courses: {
               PENDING_REVIEW: courses.length,
               total: courses.length,
@@ -61,7 +52,6 @@ export default function AdminDashboardPage() {
               total: categories.length,
             },
           },
-          recentApplications: pendingApps.slice(0, 5),
           recentPendingCourses: courses.slice(0, 5),
           recentUsers: [],
         });
@@ -99,11 +89,9 @@ export default function AdminDashboardPage() {
 
   const metrics = data?.metrics || {};
   const users = metrics.users || { total: 0, students: 0, teachers: 0, admins: 0 };
-  const applications = metrics.applications || { pending: 0, approved: 0, rejected: 0, total: 0 };
   const courses = metrics.courses || { PENDING_REVIEW: 0, APPROVED: 0, PUBLIC: 0, DRAFT: 0, REJECTED: 0, ARCHIVED: 0, total: 0 };
   const categories = metrics.categories || { total: 0 };
 
-  const recentApps = data?.recentApplications || [];
   const recentCourses = data?.recentPendingCourses || [];
   const recentUsers = data?.recentUsers || [];
 
@@ -128,7 +116,7 @@ export default function AdminDashboardPage() {
             <span className="admin-hero-badge">System Ready</span>
           </h1>
           <p>
-            Hello <strong>{user?.fullName || 'Admin'}</strong>! Monitor activity, review teacher applications, and moderate courses in real time.
+            Hello <strong>{user?.fullName || 'Admin'}</strong>! Monitor activity, manage users, and moderate courses in real time.
           </p>
         </div>
         <div className="admin-hero-actions">
@@ -160,29 +148,7 @@ export default function AdminDashboardPage() {
           </div>
         </button>
 
-        {/* KPI 2: Teacher Applications */}
-        <button
-          type="button"
-          className="admin-kpi-card"
-          onClick={() => navigate('/admin/teacher-applications')}
-        >
-          <div className="admin-kpi-top">
-            <div className="admin-kpi-icon amber">👨‍🏫</div>
-            <span className={`admin-kpi-badge ${applications.pending > 0 ? 'alert' : 'success'}`}>
-              {applications.pending > 0 ? `${applications.pending} Pending Review` : 'All Reviewed'}
-            </span>
-          </div>
-          <div>
-            <div className="admin-kpi-value">{applications.pending}</div>
-            <div className="admin-kpi-label">Teacher Applications</div>
-          </div>
-          <div className="admin-kpi-footer">
-            <span>{applications.approved} Approved · {applications.rejected} Rejected</span>
-            <span>Review →</span>
-          </div>
-        </button>
-
-        {/* KPI 3: Course Moderation */}
+        {/* KPI 2: Course Moderation */}
         <button
           type="button"
           className="admin-kpi-card"
@@ -204,7 +170,7 @@ export default function AdminDashboardPage() {
           </div>
         </button>
 
-        {/* KPI 4: Categories */}
+        {/* KPI 3: Categories */}
         <button
           type="button"
           className="admin-kpi-card"
@@ -231,9 +197,6 @@ export default function AdminDashboardPage() {
           <span>⚡ Quick Actions</span>
         </div>
         <div className="admin-shortcuts-links">
-          <Link to="/admin/teacher-applications" className="admin-shortcut-btn primary">
-            👨‍🏫 Review Teacher Applications {applications.pending > 0 && `(${applications.pending})`}
-          </Link>
           <Link to="/admin/moderation" className="admin-shortcut-btn primary">
             🛡️ Course Moderation {courses.PENDING_REVIEW > 0 && `(${courses.PENDING_REVIEW})`}
           </Link>
@@ -244,50 +207,8 @@ export default function AdminDashboardPage() {
       </section>
 
       {/* ─── 4. Main Split Grid: Pending Queues ────────────────────── */}
-      <section className="admin-split-grid">
-        {/* Panel 1: Pending Teacher Applications */}
-        <div className="admin-panel-card">
-          <div className="admin-panel-header">
-            <div className="admin-panel-title">
-              <h3>Recent Teacher Applications</h3>
-              <span className={`admin-panel-count ${applications.pending > 0 ? 'alert' : ''}`}>
-                {applications.pending} pending
-              </span>
-            </div>
-            <Link to="/admin/teacher-applications" className="admin-panel-viewall">
-              View all →
-            </Link>
-          </div>
-          <div className="admin-panel-list">
-            {recentApps.length === 0 ? (
-              <div className="admin-empty-panel">
-                <span className="admin-empty-icon">🎉</span>
-                <p>No teacher applications are awaiting review!</p>
-              </div>
-            ) : (
-              recentApps.map((app) => (
-                <div className="admin-panel-item" key={app._id}>
-                  <div className="admin-item-info">
-                    <div className="admin-item-avatar">
-                      {(app.userId?.fullName || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="admin-item-meta">
-                      <strong>{app.userId?.fullName || 'Applicant'}</strong>
-                      <span>{app.userId?.email || 'No email'} · {app.bio ? app.bio.slice(0, 38) + '…' : 'No bio'}</span>
-                    </div>
-                  </div>
-                  <div className="admin-item-action">
-                    <Link to="/admin/teacher-applications" className="admin-quick-action-btn">
-                      Review
-                    </Link>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Panel 2: Courses Pending Moderation */}
+      <section>
+        {/* Courses Pending Moderation */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">

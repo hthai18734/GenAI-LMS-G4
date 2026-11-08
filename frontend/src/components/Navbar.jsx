@@ -273,14 +273,6 @@ export default function Navbar({ title }) {
                       <span>📊 Admin Dashboard</span>
                     </Link>
                     <Link
-                      to="/admin/teacher-applications"
-                      className="dropdown-item"
-                      onClick={() => setOpen(false)}
-                      role="menuitem"
-                    >
-                      <span>👨‍🏫 Review Teacher Applications</span>
-                    </Link>
-                    <Link
                       to="/admin/moderation"
                       className="dropdown-item"
                       onClick={() => setOpen(false)}
