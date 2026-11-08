@@ -54,9 +54,6 @@ export default function Sidebar() {
           <NavLink to="/admin/moderation" className={linkClass}>
             <span className="link-text">🛡️ Course Moderation</span>
           </NavLink>
-          <NavLink to="/admin/teacher-applications" className={linkClass}>
-            <span className="link-text">👨‍🏫 Teacher Applications</span>
-          </NavLink>
           <NavLink to="/admin/categories" className={linkClass}>
             <span className="link-text">🏷️ Category Management</span>
           </NavLink>
@@ -85,10 +82,6 @@ export default function Sidebar() {
         </NavLink>
         <NavLink to="/wishlist" className={linkClass}>
           <span className="link-text">💖 Wishlist</span>
-        </NavLink>
-
-        <NavLink to="/apply-teacher" className={linkClass} style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
-          <span className="link-text">👨‍🏫 Become a Teacher</span>
         </NavLink>
       </nav>
     </aside>

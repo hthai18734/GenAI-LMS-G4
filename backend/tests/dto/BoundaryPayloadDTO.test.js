@@ -14,7 +14,6 @@ const ReviewWriteDTO = require('../../src/dto/review/ReviewWriteDTO');
 const UpdateProfileDTO = require('../../src/dto/student/UpdateProfileDTO');
 const UpdateNotificationPreferencesDTO = require('../../src/dto/student/UpdateNotificationPreferencesDTO');
 const UserWriteDTO = require('../../src/dto/admin/UserWriteDTO');
-const RejectTeacherApplicationDTO = require('../../src/dto/admin/RejectTeacherApplicationDTO');
 const CatalogQueryDTO = require('../../src/dto/student/CatalogQueryDTO');
 const BrowseCoursesQueryDTO = require('../../src/dto/public/BrowseCoursesQueryDTO');
 const HomepageQueryDTO = require('../../src/dto/public/HomepageQueryDTO');
@@ -22,7 +21,6 @@ const SearchCoursesQueryDTO = require('../../src/dto/public/SearchCoursesQueryDT
 const FilterCoursesQueryDTO = require('../../src/dto/public/FilterCoursesQueryDTO');
 const ReviewQueryDTO = require('../../src/dto/review/ReviewQueryDTO');
 const UserQueryDTO = require('../../src/dto/admin/UserQueryDTO');
-const TeacherApplicationQueryDTO = require('../../src/dto/admin/TeacherApplicationQueryDTO');
 
 test('write DTOs convert malformed JSON payloads into validation errors instead of exceptions', () => {
   for (const DTO of [
@@ -35,9 +33,6 @@ test('write DTOs convert malformed JSON payloads into validation errors instead 
     assert.ok(new DTO(null).validate().payload, `${DTO.name} must reject null`);
     assert.ok(new DTO([]).validate().payload, `${DTO.name} must reject arrays`);
   }
-
-  const rejectTeacher = new RejectTeacherApplicationDTO({ id: 'app-1' }, null);
-  assert.ok(rejectTeacher.validate().payload);
 });
 
 test('lesson and quiz DTOs reject boolean and collection numeric coercion', () => {
@@ -55,7 +50,7 @@ test('lesson and quiz DTOs reject boolean and collection numeric coercion', () =
 test('query DTOs reject malformed containers and collection coercion', () => {
   for (const DTO of [
     CatalogQueryDTO, BrowseCoursesQueryDTO, HomepageQueryDTO, SearchCoursesQueryDTO,
-    FilterCoursesQueryDTO, ReviewQueryDTO, UserQueryDTO, TeacherApplicationQueryDTO,
+    FilterCoursesQueryDTO, ReviewQueryDTO, UserQueryDTO,
   ]) {
     assert.doesNotThrow(() => new DTO(null).validate());
     assert.ok(new DTO(null).validate().payload, `${DTO.name} must reject null`);

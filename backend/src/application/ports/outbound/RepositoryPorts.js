@@ -37,7 +37,6 @@ module.exports = Object.freeze({
   quizRepository: port('create', 'findByCourseId', 'findById', 'softDelete', 'update'),
   refreshSessionRepository: port('create', 'createId', 'findActive', 'hash', 'remove', 'removeByUser', 'rotate'),
   reviewRepository: port('count', 'create', 'findAll', 'findById', 'findDetail', 'mutateWithRating', 'remove', 'repairPendingRatings', 'update'),
-  teacherApplicationRepository: port('countByStatus', 'create', 'findAll', 'findById', 'findLatestByUser', 'findPendingByUser', 'findRecent', 'updateStatus'),
   transactionRepository: port('run'),
   userRepository: port('changePassword', 'clearPasswordReset', 'countAccounts', 'countByRole', 'createUser', 'deleteUser', 'findAccounts', 'findActiveVerifiedStudent', 'findByEmail', 'findById', 'findPublicTeacherById', 'findRecent', 'findTeacherSummaryById', 'findTeachers', 'findTopTeachers', 'isEmailExists', 'recordLoginSuccess', 'resetPassword', 'savePasswordReset', 'updateProfile', 'updateRole', 'updateStatus', 'updateUser', 'verifyEmail'),
   videoProgressRepository: port('findByStudentAndVideo', 'saveProgress'),

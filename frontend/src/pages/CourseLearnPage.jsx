@@ -9,6 +9,9 @@ import ReviewsPanel from '../components/ReviewsPanel';
 import DiscussionPostEditor from '../components/DiscussionPostEditor';
 import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
+import CourseSectionList from '../features/student/CourseSectionList.jsx';
+import CourseProgressSummary from '../features/student/CourseProgressSummary.jsx';
+import { assignmentClosed } from '../features/student/learningModel.js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AssignmentAttachment from '../features/learning/AssignmentAttachment.jsx';
@@ -23,6 +26,13 @@ export default function CourseLearnPage() {
 
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [progressError, setProgressError] = useState(null);
+  const [assignmentError, setAssignmentError] = useState(null);
+  const [refreshingAssignments, setRefreshingAssignments] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const assignmentFileInput = useRef(null);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [quizzes, setQuizzes] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [currentLesson, setCurrentLesson] = useState(null);
@@ -100,26 +110,48 @@ export default function CourseLearnPage() {
       const res = await progressService.getCourseProgress(courseId);
       const progress = res.data?.progress || res.data || null;
       setCourseProgress(progress);
+      setProgressError(null);
       if (progress && !progress.eligibleToComplete) setEnrollmentStatus('active');
-    } catch {
-      // ignore
+    } catch (error) {
+      setCourseProgress(null);
+      setProgressError(error.message || 'Unable to load course progress.');
     }
   }, [courseId]);
 
+  const refreshAssignments = async () => {
+    if (submittingAssignment || refreshingAssignments) return;
+    setRefreshingAssignments(true);
+    try {
+      const res = await studentService.getCourseAssignments(courseId);
+      const fresh = res.data?.assignments || [];
+      setAssignments(fresh);
+      setAssignmentError(null);
+      setSelectedAssignment(current => current ? fresh.find(a => a._id === current._id) || null : null);
+      await loadCourseProgress();
+    } catch (error) { setAssignmentError(error.message || 'Unable to refresh assignments.'); }
+    finally { setRefreshingAssignments(false); }
+  };
+
   const loadCourseAndLessons = useCallback(async () => {
     setLoading(true);
+    setCourseProgress(null);
+    setAssignmentError(null);
+    setSelectedAssignment(null);
+    setCompletedBanner(null);
+    setEnrollmentId(null);
     try {
       // 1. Fetch lessons
       const [lessonsRes, quizzesRes, assignmentsRes] = await Promise.all([
         studentService.getCourseLessons(courseId),
         studentService.getCourseQuizzes(courseId).catch(() => ({ data: { quizzes: [] } })),
-        studentService.getCourseAssignments(courseId).catch(() => ({ data: { assignments: [] } })),
+        studentService.getCourseAssignments(courseId).catch(error => { setAssignmentError(error.message || 'Unable to load assignments.'); return { data: { assignments: [] } }; }),
       ]);
       const fetchedCourse = lessonsRes.data?.course;
       const fetchedLessons = lessonsRes.data?.lessons || [];
 
       setCourse(fetchedCourse);
       setLessons(fetchedLessons);
+      setSections(lessonsRes.data?.sections || []);
       setQuizzes(quizzesRes.data?.quizzes || []);
       setAssignments(assignmentsRes.data?.assignments || []);
       if (lessonsRes.data?.enrollmentId) {
@@ -504,6 +536,7 @@ export default function CourseLearnPage() {
   const handleSubmitAssignment = async (e) => {
     e.preventDefault();
     if (submittingAssignment || !selectedAssignment || (!assignmentAnswer.trim() && !assignmentFile)) return;
+    if (assignmentClosed(selectedAssignment)) { setAssignmentSubmissionNotice({ type: 'error', message: 'The assignment deadline has passed.' }); return; }
     setSubmittingAssignment(true);
     setAssignmentSubmissionNotice(null);
     try {
@@ -537,6 +570,8 @@ export default function CourseLearnPage() {
     try {
       const res = await studentService.completeLesson(courseId, currentLesson.id);
       addToast('Lesson marked as completed!', 'success');
+      await loadCourseProgress();
+      setCurrentLesson(previous => previous ? { ...previous, status: 'completed' } : previous);
 
       // Update local state
       setLessons((prev) =>
@@ -579,9 +614,8 @@ export default function CourseLearnPage() {
     );
   }
 
-  const completedCount = lessons.filter((l) => l.status === 'completed').length;
-  const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
-  const effectivePercent = courseProgress?.percentage !== undefined ? Math.round(courseProgress.percentage) : progressPercent;
+  const effectivePercent = courseProgress?.percentage ?? 0;
+  const closed = assignmentClosed(selectedAssignment, now);
 
   return (
     <div>
@@ -656,8 +690,8 @@ export default function CourseLearnPage() {
 
           <div style={{ minWidth: '220px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-              <span style={{ color: 'var(--muted)' }}>Progress ({courseProgress?.completedRequired || completedCount}/{courseProgress?.totalRequired || lessons.length})</span>
-              <span style={{ fontWeight: 600, color: 'var(--purple)' }}>{effectivePercent}%</span>
+              <span style={{ color: 'var(--muted)' }}>{courseProgress ? `Progress (${courseProgress.completedRequired}/${courseProgress.totalRequired})` : 'Progress unavailable'}</span>
+              <span style={{ fontWeight: 600, color: 'var(--purple)' }}>{courseProgress ? `${effectivePercent}%` : '—'}</span>
             </div>
             <div className="progress-wrap" style={{ margin: 0 }}>
               <div className="progress-fill" style={{ width: `${effectivePercent}%` }}></div>
@@ -666,6 +700,10 @@ export default function CourseLearnPage() {
         </div>
       </div>
 
+      <CourseProgressSummary progress={courseProgress} error={progressError} onRefresh={loadCourseProgress} />
+      <div className="student-summary-heading"><h3>Assignments</h3><button type="button" className="btn btn-secondary btn-sm" disabled={refreshingAssignments || submittingAssignment} onClick={refreshAssignments}>{refreshingAssignments ? 'Refreshing...' : 'Refresh assignments & feedback'}</button></div>
+      {assignmentError && <p role="alert">{assignmentError}</p>}
+      {!assignmentError && !assignments.length && <p>No assignments available in this course.</p>}
       {/* Completion Banner */}
       {completedBanner && (
         <div style={{
@@ -796,6 +834,7 @@ export default function CourseLearnPage() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button className="btn btn-secondary btn-sm" type="button" onClick={() => handleOpenAssignmentModal(assignment, 'view')}>View assignment</button>
                   {submission && (
                     <button
                       className="btn btn-secondary btn-sm"
@@ -808,9 +847,10 @@ export default function CourseLearnPage() {
                   <button
                     className="btn btn-primary btn-sm"
                     type="button"
+                    disabled={assignmentClosed(assignment, now)}
                     onClick={() => handleOpenAssignmentModal(assignment, 'submit')}
                   >
-                    {submission ? 'Resubmit assignment' : 'Start assignment'}
+                    {assignmentClosed(assignment, now) ? 'Submission closed' : submission ? 'Resubmit assignment' : 'Start assignment'}
                   </button>
                 </div>
               </div>
@@ -820,6 +860,7 @@ export default function CourseLearnPage() {
       )}
       {lessons.length === 0 ? (
         <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '40px 24px', textAlign: 'center' }}>
+          <CourseSectionList sections={sections} lessons={lessons} currentLesson={currentLesson} onSelect={setCurrentLesson} />
           <div className="empty-icon" style={{ fontSize: '42px', marginBottom: '12px' }}>📝</div>
           <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 8px' }}>Lessons are being prepared</h3>
           <p style={{ color: 'var(--muted)', maxWidth: '480px', margin: '0 auto 20px', fontSize: '14px' }}>
@@ -832,69 +873,8 @@ export default function CourseLearnPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '24px' }}>
-          {/* Lesson List */}
-          <div style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '16px', height: 'fit-content' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px', paddingBottom: '8px', borderBottom: '1px solid var(--line)' }}>
-              Course Syllabus ({completedCount}/{lessons.length})
-            </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {lessons.map((lesson, idx) => {
-              const isActive = currentLesson?.id === lesson.id;
-              const isDone = lesson.status === 'completed';
-
-              return (
-                <button
-                  key={lesson.id}
-                  onClick={() => setCurrentLesson(lesson)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    textAlign: 'left',
-                    background: isActive ? 'var(--lav)' : isDone ? '#f0fdf4' : 'transparent',
-                    border: isActive ? '1px solid #d4ceff' : '1px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all .2s',
-                  }}
-                >
-                  <span style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    background: isDone ? '#22c55e' : isActive ? 'var(--purple)' : '#e5e7eb',
-                    color: isDone || isActive ? '#fff' : '#4b5563',
-                    flex: '0 0 auto',
-                  }}>
-                    {isDone ? '✓' : idx + 1}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'var(--purple)' : 'var(--ink)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>
-                      {lesson.sectionTitle ? `${lesson.sectionTitle} · ` : ''}{lesson.title}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--muted)', display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
-                      <span>{lesson.videoRef ? '🎬 Video' : '📖 Reading'}</span>
-                      {lesson.duration ? <span>• {lesson.duration} mins</span> : null}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <div className="student-learning-layout">
+          <CourseSectionList sections={sections} lessons={lessons} currentLesson={currentLesson} onSelect={setCurrentLesson} />
 
         {/* Current Lesson View */}
         <div style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '28px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
@@ -1774,6 +1754,10 @@ export default function CourseLearnPage() {
             )}
 
             {/* Assignment Instructions / Description */}
+            {assignmentModalMode === 'view' && <div>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={refreshingAssignments} onClick={refreshAssignments}>{refreshingAssignments ? 'Refreshing…' : 'Refresh feedback'}</button>
+              {assignmentError && <p role="alert">{assignmentError}</p>}
+            </div>}
             <div>
               <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>📖</span> Assignment instructions
@@ -1798,6 +1782,9 @@ export default function CourseLearnPage() {
 
             <AssignmentAttachment attachment={selectedAssignment.attachment} url={`/api/student/assignments/${selectedAssignment._id}/attachment`} />
             {selectedAssignment.latestSubmission?.attachment && <div><h4>Submitted file</h4><AssignmentAttachment attachment={selectedAssignment.latestSubmission.attachment} url={`/api/student/assignment-submissions/${selectedAssignment.latestSubmission._id}/attachment`} /></div>}
+            {!selectedAssignment.latestSubmission && <p>No submission yet.</p>}
+            {selectedAssignment.latestSubmission && !selectedAssignment.latestSubmission.feedback && <p>{selectedAssignment.latestSubmission.status === 'submitted' ? 'Your submission is awaiting grading. No instructor feedback yet.' : 'No written feedback has been provided.'}</p>}
+            {closed && <p role="status">Submissions are closed. You can still view your accepted work and feedback.</p>}
             {/* Teacher Feedback (if available) */}
             {selectedAssignment.latestSubmission?.feedback && (
               <div
@@ -1814,9 +1801,9 @@ export default function CourseLearnPage() {
                 <p style={{ margin: '6px 0 0', fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#15803d' : '#b45309', whiteSpace: 'pre-wrap' }}>
                   "{selectedAssignment.latestSubmission.feedback}"
                 </p>
-                {selectedAssignment.latestSubmission.gradedAt && (
+                {(selectedAssignment.latestSubmission.feedbackAt || selectedAssignment.latestSubmission.gradedAt) && (
                   <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
-                    Graded: {new Date(selectedAssignment.latestSubmission.gradedAt).toLocaleString('en-US')}
+                    Updated: {new Date(selectedAssignment.latestSubmission.feedbackAt || selectedAssignment.latestSubmission.gradedAt).toLocaleString('en-US')}
                   </small>
                 )}
               </div>
@@ -1831,11 +1818,12 @@ export default function CourseLearnPage() {
                   </h4>
                   <button
                     type="button"
+                    disabled={closed || refreshingAssignments}
                     onClick={() => { setAssignmentSubmissionNotice(null); setAssignmentModalMode('submit'); }}
                     className="btn btn-secondary btn-sm"
                     style={{ fontSize: '12px' }}
                   >
-                    Edit / Resubmit
+                    {selectedAssignment.latestSubmission ? 'Edit / Resubmit' : 'Start assignment'}
                   </button>
                 </div>
                 <div
@@ -1884,7 +1872,8 @@ export default function CourseLearnPage() {
                   disabled={submittingAssignment}
                   required={!assignmentFile}
                   value={assignmentAnswer}
-                  onChange={(e) => setAssignmentAnswer(e.target.value)}
+                  maxLength={10000}
+                  onChange={(e) => { setAssignmentSubmissionNotice(null); setAssignmentAnswer(e.target.value); }}
                   placeholder="Enter your answer, code, solution or submission link (GitHub, Drive...)."
                   style={{
                     width: '100%',
@@ -1899,10 +1888,11 @@ export default function CourseLearnPage() {
                   }}
                 />
                 <label htmlFor="assignment-answer-file">Submission file (PDF, DOC, DOCX — max 25 MB)</label>
-                <input id="assignment-answer-file" type="file" accept={ASSIGNMENT_FILE_ACCEPT} disabled={submittingAssignment} onChange={e => {
-                  const file = e.target.files?.[0]; try { validateAssignmentFile(file); setAssignmentFile(file || null); } catch (err) { addToast(err.message, 'error'); e.target.value = ''; }
+                <input ref={assignmentFileInput} id="assignment-answer-file" type="file" accept={ASSIGNMENT_FILE_ACCEPT} disabled={submittingAssignment} onChange={e => {
+                  const file = e.target.files?.[0]; setAssignmentSubmissionNotice(null); setAssignmentFile(null); try { validateAssignmentFile(file); setAssignmentFile(file || null); } catch (err) { setAssignmentSubmissionNotice({ type: 'error', message: err.message }); e.target.value = ''; }
                 }} />
-                {assignmentFile && <small>Selected: {assignmentFile.name}</small>}
+                {assignmentFile && <div><small>Selected: {assignmentFile.name}</small> <button type="button" className="btn btn-secondary btn-sm" disabled={submittingAssignment} onClick={() => { setAssignmentFile(null); if (assignmentFileInput.current) assignmentFileInput.current.value = ''; }}>Remove file</button></div>}
+                <small>{assignmentAnswer.length}/10000 characters. Text is saved when you submit; there is no automatic draft save.</small>
                 <small>Enter an answer or attach a file. Resubmitting replaces your previous answer and file; grades and feedback are cleared for grading again.</small>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
                   <button
@@ -1916,7 +1906,7 @@ export default function CourseLearnPage() {
                   <button
                     type="submit"
                     className="btn btn-primary btn-sm"
-                    disabled={submittingAssignment || (!assignmentAnswer.trim() && !assignmentFile)}
+                    disabled={closed || refreshingAssignments || submittingAssignment || (!assignmentAnswer.trim() && !assignmentFile)}
                   >
                     {submittingAssignment ? 'Submitting...' : selectedAssignment.latestSubmission ? 'Update submission' : 'Submit assignment'}
                   </button>

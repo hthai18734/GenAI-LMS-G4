@@ -22,31 +22,6 @@ class EmailUtil {
     });
   }
 
-  static async sendApplicationNotification(toEmail, status, reason = null) {
-    const isApproved = status === 'approved';
-    const subject = isApproved
-      ? 'Congratulations! Your Teacher Application has been Approved'
-      : 'Update on Your Teacher Application';
-
-    const bodyText = isApproved
-      ? 'Your application to become an instructor on AI-LMS has been approved. You can now access your teacher dashboard and start creating courses.'
-      : `Thank you for your interest in becoming an instructor on AI-LMS. After careful review, we regret to inform you that your application was not approved at this time.\nReason: ${reason || 'Does not meet current criteria'}.`;
-
-    try {
-      return await this.#send({
-        to: toEmail,
-        subject,
-        text: bodyText,
-        html: this.#card(subject, `<p style="margin: 0 0 12px; font-size: 15px; color: #374151;">${bodyText.replace(/\n/g, '<br/>')}</p>`),
-      });
-    } catch (err) {
-      // In testing or environments without SMTP configured, log instead of failing
-      const LoggerUtil = require('../common/LoggerUtil');
-      LoggerUtil.warn(`Email notification could not be sent to ${toEmail}: ${err.message}`);
-      return { skipped: true, error: err.message };
-    }
-  }
-
   static async #send({ to, subject, text, html }) {
     const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
     if (!fromEmail) throw new Error('SMTP_FROM_EMAIL or SMTP_USER is required.');
