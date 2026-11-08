@@ -1746,6 +1746,10 @@ export default function CourseLearnPage() {
             )}
 
             {/* Assignment Instructions / Description */}
+            {assignmentModalMode === 'view' && <div>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={refreshingAssignments} onClick={refreshAssignments}>{refreshingAssignments ? 'Refreshing…' : 'Refresh feedback'}</button>
+              {assignmentError && <p role="alert">{assignmentError}</p>}
+            </div>}
             <div>
               <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>📖</span> Assignment instructions
@@ -1770,6 +1774,8 @@ export default function CourseLearnPage() {
 
             <AssignmentAttachment attachment={selectedAssignment.attachment} url={`/api/student/assignments/${selectedAssignment._id}/attachment`} />
             {selectedAssignment.latestSubmission?.attachment && <div><h4>Submitted file</h4><AssignmentAttachment attachment={selectedAssignment.latestSubmission.attachment} url={`/api/student/assignment-submissions/${selectedAssignment.latestSubmission._id}/attachment`} /></div>}
+            {!selectedAssignment.latestSubmission && <p>No submission yet.</p>}
+            {selectedAssignment.latestSubmission && !selectedAssignment.latestSubmission.feedback && <p>{selectedAssignment.latestSubmission.status === 'submitted' ? 'Your submission is awaiting grading. No instructor feedback yet.' : 'No written feedback has been provided.'}</p>}
             {closed && <p role="status">Submissions are closed. You can still view your accepted work and feedback.</p>}
             {/* Teacher Feedback (if available) */}
             {selectedAssignment.latestSubmission?.feedback && (
@@ -1787,9 +1793,9 @@ export default function CourseLearnPage() {
                 <p style={{ margin: '6px 0 0', fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#15803d' : '#b45309', whiteSpace: 'pre-wrap' }}>
                   "{selectedAssignment.latestSubmission.feedback}"
                 </p>
-                {selectedAssignment.latestSubmission.gradedAt && (
+                {(selectedAssignment.latestSubmission.feedbackAt || selectedAssignment.latestSubmission.gradedAt) && (
                   <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
-                    Graded: {new Date(selectedAssignment.latestSubmission.gradedAt).toLocaleString('en-US')}
+                    Updated: {new Date(selectedAssignment.latestSubmission.feedbackAt || selectedAssignment.latestSubmission.gradedAt).toLocaleString('en-US')}
                   </small>
                 )}
               </div>
