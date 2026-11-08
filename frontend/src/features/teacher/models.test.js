@@ -21,6 +21,7 @@ test('assignment feature model maps, validates, and serializes editor state', ()
   assert.deepEqual(validateAssignmentForm(form), {});
   assert.deepEqual(assignmentPayload(form), {
     title: 'Assignment', content: 'Instructions', lessonId: 'lesson-1',
+    deadline: null, maxScore: null, passingScore: null,
   });
   assert.equal(form.courseId, 'course-1');
 });

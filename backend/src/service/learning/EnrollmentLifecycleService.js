@@ -1,5 +1,6 @@
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const ServiceError = require('../common/ServiceError');
+const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 
 class EnrollmentLifecycleService {
   constructor({ enrollmentRepository, courseRepository, certificateRepository, progressTrackingService } = {}) {
@@ -47,21 +48,13 @@ class EnrollmentLifecycleService {
       throw new ServiceError(403, 'You do not have permission to complete this enrollment.');
     }
 
-    if (enrollment.status === 'completed') {
-      const existingCert = await this.certificateRepository.findOneByCourse(user._id, enrollment.courseId._id || enrollment.courseId);
-      return {
-        completed: true,
-        alreadyCompleted: true,
-        enrollmentId: String(enrollment._id),
-        certificateNumber: existingCert?.certificateNumber || null,
-      };
-    }
-
     if (enrollment.status === 'cancelled') {
       throw new ServiceError(400, 'Cannot complete a cancelled enrollment.');
     }
 
     const courseId = enrollment.courseId._id || enrollment.courseId;
+    const course = await this.courseRepository.findById(courseId);
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course is not available for completion.');
     const progress = await this.progressTrackingService.recalculateCourseProgress(user._id, courseId);
 
     if (!progress.eligibleToComplete) {
@@ -71,11 +64,13 @@ class EnrollmentLifecycleService {
       });
     }
 
-    const updated = await this.enrollmentRepository.markCompleted(enrollmentId);
+    const alreadyCompleted = enrollment.status === 'completed';
+    const updated = alreadyCompleted ? enrollment : await this.enrollmentRepository.markCompleted(enrollmentId);
     const cert = await this.certificateRepository.issueCertificate(user._id, courseId, enrollmentId);
 
     return {
       completed: true,
+      alreadyCompleted,
       enrollmentId: String(updated._id),
       status: 'completed',
       completedAt: updated.completedAt,

@@ -17,6 +17,7 @@ const courseSchema = new mongoose.Schema({
   category: { type: String, trim: true, default: null },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
   duration: { type: Number, default: 0 },
+  gradePolicy: { type: mongoose.Schema.Types.Mixed, default: null },
   price: { type: Number, default: 0, min: 0 },
   discountPrice: { type: Number, default: null, min: 0 },
   averageRating: { type: Number, default: 0, min: 0, max: 5 },

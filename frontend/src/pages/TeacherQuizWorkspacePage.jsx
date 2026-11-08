@@ -326,57 +326,57 @@ export default function TeacherQuizWorkspacePage() {
   const existingQuestionIds = new Set(questions.map((q) => String(q._id)));
 
   return (
-    <section className="management-page assessment-page" style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 32px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <button className="ghost" type="button" onClick={() => navigate(`/teacher/courses/${quiz.courseId}/edit#activities`)}>
-          ← Back to course activities
+    <section className="assessment-workspace quiz-workspace">
+      <nav className="quiz-toolbar" aria-label="Quiz navigation">
+        <button className="assessment-button" type="button" onClick={() => navigate(`/teacher/courses/${quiz.courseId}/edit#activities`)}>
+          ← Back to Course Activities
         </button>
         <button
-          className="btn btn-secondary btn-sm"
+          className="assessment-button"
           type="button"
           onClick={() => navigate('/teacher/questions')}
         >
-          📂 Go to Question Bank
+          Go to Question Bank
         </button>
-      </div>
+      </nav>
 
-      <header className="management-header assessment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+      <header className="assessment-header">
         <div>
-          <h1 style={{ margin: '0 0 6px', fontSize: '26px' }}>{quiz.title}</h1>
-          <p style={{ margin: 0, color: 'var(--muted)' }}>Quiz configuration and reusable questions.</p>
+          <h1>{quiz.title}</h1>
+          <p>Quiz configuration and reusable questions.</p>
         </div>
-        <button className="danger-button" type="button" onClick={deleteQuiz} disabled={deleting}>
+        <button className="assessment-button quiz-delete" type="button" onClick={deleteQuiz} disabled={deleting}>
           {deleting ? 'Deleting…' : 'Delete Quiz'}
         </button>
       </header>
 
       {error && <div className="page-error" style={{ marginBottom: '16px' }}>{error}</div>}
 
-      <article className="assessment-context" style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', background: 'var(--panel)', padding: '14px 20px', borderRadius: '12px', border: '1px solid var(--line)', marginBottom: '28px', fontSize: '14px' }}>
+      <article className="assessment-note quiz-context">
         <span><strong>Course:</strong> {course?.title || quiz.courseId}</span>
         <span><strong>Location:</strong> {quiz.lessonId ? 'Linked to lesson' : 'Course-level quiz'}</span>
         {course?.categoryId && <span><strong>Default Category:</strong> {categories.find((c) => c._id === course.categoryId)?.name || 'Custom'}</span>}
       </article>
 
       {/* Quiz Configuration Form */}
-      <form className="assessment-form" onSubmit={saveQuiz} noValidate style={{ background: 'var(--panel)', padding: '24px', borderRadius: '14px', border: '1px solid var(--line)', marginBottom: '32px' }}>
-        <h2 style={{ marginTop: 0, fontSize: '18px', marginBottom: '18px' }}>⚙️ Quiz Configuration</h2>
-        <label style={{ display: 'block', marginBottom: '16px' }}>
+      <form className="assessment-form assessment-panel" aria-labelledby="quiz-configuration-title" onSubmit={saveQuiz} noValidate>
+        <h2 id="quiz-configuration-title">Quiz Configuration</h2>
+        <label>
           Switch quiz
-          <select value={quizId} onChange={(event) => navigate(`/teacher/quizzes/${event.target.value}`)} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }}>
+          <select value={quizId} onChange={(event) => navigate(`/teacher/quizzes/${event.target.value}`)} disabled={savingQuiz}>
             {courseQuizzes.map((courseQuiz) => <option key={courseQuiz._id} value={courseQuiz._id}>{courseQuiz.title}</option>)}
           </select>
-          <small style={{ display: 'block', color: 'var(--muted)', marginTop: '5px' }}>Selecting another quiz loads that quiz and its own questions.</small>
+          <small className="form-help">Selecting another quiz loads that quiz and its own questions.</small>
         </label>
-        <label style={{ display: 'block', marginBottom: '16px' }}>
+        <label>
           Quiz title *
-          <input name="title" value={quizForm.title} onChange={updateQuiz} maxLength="200" disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }} />
+          <input name="title" value={quizForm.title} onChange={updateQuiz} maxLength="200" disabled={savingQuiz} />
           {quizErrors.title && <small style={{ color: 'red' }}>{quizErrors.title}</small>}
         </label>
 
-        <label style={{ display: 'block', marginBottom: '16px' }}>
+        <label>
           Related lesson
-          <select name="lessonId" value={quizForm.lessonId} onChange={updateQuiz} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }}>
+          <select name="lessonId" value={quizForm.lessonId} onChange={updateQuiz} disabled={savingQuiz}>
             <option value="">Course-level quiz</option>
             {lessons.map((lesson) => (
               <option key={lesson._id} value={lesson._id}>
@@ -384,124 +384,83 @@ export default function TeacherQuizWorkspacePage() {
               </option>
             ))}
           </select>
-          <small style={{ display: 'block', color: 'var(--muted)', marginTop: '5px' }}>If the selected lesson already has a quiz, its questions are loaded automatically.</small>
+          <small className="form-help">This changes only the lesson linked to the current quiz.</small>
           {quizErrors.lessonId && <small style={{ color: 'red' }}>{quizErrors.lessonId}</small>}
         </label>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+        <div className="quiz-settings-grid">
           <label>
             Time limit (minutes) *
-            <input name="timeLimit" type="number" min="1" step="1" value={quizForm.timeLimit} onChange={updateQuiz} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }} />
+            <input name="timeLimit" type="number" min="1" step="1" value={quizForm.timeLimit} onChange={updateQuiz} disabled={savingQuiz} />
             {quizErrors.timeLimit && <small style={{ color: 'red' }}>{quizErrors.timeLimit}</small>}
           </label>
           <label>
             Passing score (%) *
-            <input name="passingScore" type="number" min="0" max="100" step="1" value={quizForm.passingScore} onChange={updateQuiz} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }} />
+            <input name="passingScore" type="number" min="0" max="100" step="1" value={quizForm.passingScore} onChange={updateQuiz} disabled={savingQuiz} />
             {quizErrors.passingScore && <small style={{ color: 'red' }}>{quizErrors.passingScore}</small>}
           </label>
           <label>
             Attempt limit *
-            <input name="attemptLimit" type="number" min="1" step="1" value={quizForm.attemptLimit} onChange={updateQuiz} disabled={savingQuiz} style={{ width: '100%', padding: '9px 12px', marginTop: '6px' }} />
+            <input name="attemptLimit" type="number" min="1" step="1" value={quizForm.attemptLimit} onChange={updateQuiz} disabled={savingQuiz} />
             {quizErrors.attemptLimit && <small style={{ color: 'red' }}>{quizErrors.attemptLimit}</small>}
           </label>
         </div>
 
-        <footer className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="primary" disabled={savingQuiz} style={{ padding: '10px 24px' }}>
+        <footer className="assessment-actions quiz-form-actions">
+          <button className="assessment-button assessment-button-primary" disabled={savingQuiz}>
             {savingQuiz ? 'Saving…' : 'Save Quiz Configuration'}
           </button>
         </footer>
       </form>
 
       {/* Questions Section */}
-      <section className="assessment-section" style={{ background: 'var(--panel)', padding: '24px', borderRadius: '14px', border: '1px solid var(--line)' }}>
-        <header className="assessment-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px', flexWrap: 'wrap', gap: '14px' }}>
+      <section className="assessment-section assessment-panel quiz-questions" aria-labelledby="quiz-questions-title">
+        <header className="quiz-section-header">
           <div>
-            <h2 style={{ margin: '0 0 4px', fontSize: '18px' }}>📋 Questions in this Quiz ({questions.length})</h2>
-            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '13px' }}>
+            <h2 id="quiz-questions-title">Questions in this Quiz ({questions.length})</h2>
+            <p>
               Questions are linked from your Question Bank and can be reused across courses.
             </p>
           </div>
-          {questions.length > 0 && (
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="assessment-actions">
               <button
-                className="btn btn-secondary"
+                className="assessment-button"
                 type="button"
                 onClick={openBankModal}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                📥 Add from Question Bank
+                Add from Question Bank
               </button>
               <button
-                className="btn btn-primary"
+                className="assessment-button assessment-button-primary"
                 type="button"
                 onClick={openCreateQuestionModal}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                + Create New Question
+                Create New Question
               </button>
             </div>
-          )}
         </header>
 
         {/* Question List */}
         {questions.length === 0 ? (
           <article
-            className="assessment-empty"
-            style={{
-              textAlign: 'center',
-              padding: '44px 24px',
-              background: '#f8fafc',
-              borderRadius: '12px',
-              border: '1px dashed #cbd5e1',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className="quiz-empty"
           >
-            <div style={{ fontSize: '42px', marginBottom: '12px', lineHeight: 1 }}>📭</div>
-            <strong style={{ fontSize: '16px', color: '#1e293b', marginBottom: '6px' }}>
+            <strong>
               No questions in this quiz yet
             </strong>
-            <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: '14px', maxWidth: '440px', lineHeight: 1.5 }}>
+            <p>
               Add existing questions from your Question Bank or create a new question directly.
             </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={openBankModal}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px' }}
-              >
-                📥 Add from Question Bank
-              </button>
-              <button
-                className="btn btn-primary"
-                type="button"
-                onClick={openCreateQuestionModal}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px' }}
-              >
-                + Create New Question
-              </button>
-            </div>
           </article>
         ) : (
-          <div className="assessment-question-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="assessment-question-list">
             {questions.map((question, index) => (
               <article
-                className="assessment-question"
+                className="assessment-question assessment-panel"
                 key={question._id}
-                style={{
-                  border: '1px solid var(--line)',
-                  borderRadius: '12px',
-                  padding: '18px',
-                  background: 'var(--card-bg, #fff)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                }}
               >
-                <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
-                  <div style={{ flex: 1 }}>
+                <header className="quiz-question-header">
+                  <div>
                     <strong style={{ fontSize: '15px', lineHeight: '1.4' }}>
                       {index + 1}. {question.questionText}
                     </strong>
@@ -522,14 +481,13 @@ export default function TeacherQuizWorkspacePage() {
                       </span>
                     )}
                   </div>
-                  <nav style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                    <button className="ghost compact" type="button" onClick={() => editQuestion(question)}>
+                  <nav className="assessment-actions" aria-label={`Question ${index + 1} actions`}>
+                    <button className="assessment-button" type="button" onClick={() => editQuestion(question)}>
                       Edit
                     </button>
                     <button
-                      className="ghost compact"
+                      className="assessment-button"
                       type="button"
-                      style={{ color: '#d97706' }}
                       title="Remove from this quiz (keeps in Question Bank)"
                       onClick={() => unlinkQuestion(question)}
                     >
@@ -573,11 +531,15 @@ export default function TeacherQuizWorkspacePage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 1200,
             padding: '20px',
           }}
         >
           <div
+            className="quiz-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quiz-question-dialog-title"
             style={{
               background: '#fff',
               borderRadius: '14px',
@@ -590,10 +552,10 @@ export default function TeacherQuizWorkspacePage() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--line)', paddingBottom: '14px' }}>
-              <h2 style={{ margin: 0, fontSize: '18px' }}>
-                {editingQuestionId ? '✏️ Edit Question' : '➕ Create New Question & Add to Quiz'}
+              <h2 id="quiz-question-dialog-title" style={{ margin: 0, fontSize: '18px' }}>
+                {editingQuestionId ? 'Edit Question' : 'Create New Question & Add to Quiz'}
               </h2>
-              <button className="ghost" type="button" onClick={closeQuestionModal} style={{ fontSize: '18px' }}>
+              <button className="assessment-button" type="button" aria-label="Close question editor" onClick={closeQuestionModal} style={{ fontSize: '18px' }}>
                 ✕
               </button>
             </div>
@@ -619,11 +581,12 @@ export default function TeacherQuizWorkspacePage() {
               {questionErrors.payload && <div className="page-error" style={{ marginBottom: '14px' }}>{questionErrors.payload}</div>}
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
+                <label htmlFor="quiz-question-category" style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
                   Category
                 </label>
                 <select
                   name="categoryId"
+                  id="quiz-question-category"
                   value={questionForm.categoryId}
                   onChange={updateQuestionField}
                   disabled={savingQuestion}
@@ -639,11 +602,12 @@ export default function TeacherQuizWorkspacePage() {
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
+                <label htmlFor="quiz-question-text" style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
                   Question text *
                 </label>
                 <textarea
                   name="questionText"
+                  id="quiz-question-text"
                   value={questionForm.questionText}
                   onChange={updateQuestionField}
                   rows="3"
@@ -658,9 +622,10 @@ export default function TeacherQuizWorkspacePage() {
                 <legend style={{ fontWeight: '500', padding: '0 8px', fontSize: '14px' }}>Options *</legend>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {questionForm.options.map((option, index) => (
-                    <div key={`option-${index}`} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span style={{ minWidth: '70px', fontSize: '13px', color: 'var(--muted)' }}>Option {index + 1}:</span>
+                    <div key={`option-${index}`} className="quiz-option-row">
+                      <label htmlFor={`quiz-option-${index}`}>Option {index + 1}</label>
                       <input
+                        id={`quiz-option-${index}`}
                         value={option}
                         onChange={(event) => updateOption(index, event.target.value)}
                         disabled={savingQuestion}
@@ -668,25 +633,26 @@ export default function TeacherQuizWorkspacePage() {
                         placeholder={`Option ${index + 1} text`}
                       />
                       {questionForm.options.length > 2 && (
-                        <button className="ghost compact" type="button" onClick={() => removeOption(index)} style={{ color: '#ef4444' }}>
+                        <button className="assessment-button quiz-delete" type="button" onClick={() => removeOption(index)} disabled={savingQuestion}>
                           Remove
                         </button>
                       )}
                     </div>
                   ))}
                 </div>
-                <button className="ghost compact" type="button" onClick={addOption} disabled={savingQuestion} style={{ marginTop: '10px' }}>
+                <button className="assessment-button" type="button" onClick={addOption} disabled={savingQuestion} style={{ marginTop: '10px' }}>
                   + Add Option
                 </button>
                 {questionErrors.options && <small style={{ color: 'red', display: 'block', marginTop: '6px' }}>{questionErrors.options}</small>}
               </fieldset>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
+                <label htmlFor="quiz-correct-answer" style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
                   Correct answer *
                 </label>
                 <select
                   name="correctAnswer"
+                  id="quiz-correct-answer"
                   value={questionForm.correctAnswer}
                   onChange={updateQuestionField}
                   disabled={savingQuestion}
@@ -705,11 +671,12 @@ export default function TeacherQuizWorkspacePage() {
               </div>
 
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
+                <label htmlFor="quiz-question-explanation" style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
                   Explanation (optional)
                 </label>
                 <textarea
                   name="explanation"
+                  id="quiz-question-explanation"
                   value={questionForm.explanation}
                   onChange={updateQuestionField}
                   rows="2"
@@ -719,11 +686,11 @@ export default function TeacherQuizWorkspacePage() {
                 />
               </div>
 
-              <footer style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '10px', borderTop: '1px solid var(--line)' }}>
-                <button className="ghost" type="button" onClick={closeQuestionModal} disabled={savingQuestion}>
+              <footer className="assessment-actions quiz-form-actions">
+                <button className="assessment-button" type="button" onClick={closeQuestionModal} disabled={savingQuestion}>
                   Cancel
                 </button>
-                <button className="primary" disabled={savingQuestion} style={{ padding: '9px 22px' }}>
+                <button className="assessment-button assessment-button-primary" disabled={savingQuestion}>
                   {savingQuestion ? 'Saving…' : editingQuestionId ? 'Update Question' : 'Save & Add to Quiz'}
                 </button>
               </footer>
@@ -742,11 +709,15 @@ export default function TeacherQuizWorkspacePage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 1200,
             padding: '20px',
           }}
         >
           <div
+            className="quiz-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quiz-bank-dialog-title"
             style={{
               background: '#fff',
               borderRadius: '14px',
@@ -761,22 +732,23 @@ export default function TeacherQuizWorkspacePage() {
           >
             <div style={{ padding: '20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ margin: '0 0 4px', fontSize: '18px' }}>📂 Add from Question Bank</h3>
+                <h3 id="quiz-bank-dialog-title" style={{ margin: '0 0 4px', fontSize: '18px' }}>Add from Question Bank</h3>
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
                   Select one or more questions to link to this quiz.
                 </p>
               </div>
-              <button className="ghost" onClick={() => setBankModalOpen(false)} style={{ fontSize: '18px' }}>
+              <button className="assessment-button" type="button" aria-label="Close Question Bank" onClick={() => setBankModalOpen(false)} style={{ fontSize: '18px' }}>
                 ✕
               </button>
             </div>
 
             {/* Filter toolbar: live search & filter */}
             <div style={{ padding: '16px 20px', background: 'var(--panel)', borderBottom: '1px solid var(--line)', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ position: 'relative', flex: 1, minWidth: '220px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0, display: 'flex', alignItems: 'center' }}>
                 <span style={{ position: 'absolute', left: '12px', color: 'var(--muted)', pointerEvents: 'none', fontSize: '15px' }}>🔍</span>
                 <input
                   type="text"
+                  aria-label="Search Question Bank"
                   placeholder="Search question text directly..."
                   value={bankKeyword}
                   onChange={(e) => setBankKeyword(e.target.value)}
@@ -803,9 +775,10 @@ export default function TeacherQuizWorkspacePage() {
                 )}
               </div>
               <select
+                aria-label="Question category"
                 value={bankCategory}
                 onChange={(e) => setBankCategory(e.target.value)}
-                style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--line)', minWidth: '180px', fontSize: '14px' }}
+                style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--line)', flex: '1 1 180px', minWidth: 0, fontSize: '14px' }}
               >
                 <option value="">All Categories</option>
                 {categories.map((c) => (
@@ -879,16 +852,16 @@ export default function TeacherQuizWorkspacePage() {
             </div>
 
             {/* Modal actions */}
-            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="quiz-bank-footer">
               <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
                 Selected: <strong>{selectedBankIds.size}</strong> question(s)
               </span>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="ghost" type="button" onClick={() => setBankModalOpen(false)}>
+              <div className="assessment-actions">
+                <button className="assessment-button" type="button" onClick={() => setBankModalOpen(false)}>
                   Cancel
                 </button>
                 <button
-                  className="btn btn-primary"
+                  className="assessment-button assessment-button-primary"
                   type="button"
                   disabled={!selectedBankIds.size || linkingBank}
                   onClick={handleAddSelectedFromBank}

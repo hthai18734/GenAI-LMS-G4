@@ -1,4 +1,5 @@
 import { api } from '../../shared/api/client.js';
+import { assignmentRequestBody } from '../../shared/assignment/documents.js';
 
 export const studentService = {
   getProfile: () => api('/api/student/profile'),
@@ -15,7 +16,7 @@ export const studentService = {
   getCourseLessons: (courseId) => api(`/api/student/courses/${courseId}/lessons`),
   getCourseQuizzes: (courseId) => api(`/api/student/courses/${courseId}/quizzes`),
   getCourseAssignments: (courseId) => api(`/api/student/courses/${courseId}/assignments`),
-  submitAssignment: (assignmentId, answer) => api(`/api/student/assignments/${assignmentId}/submissions`, { method: 'POST', body: JSON.stringify({ answer }) }),
+  submitAssignment: (assignmentId, answer, file, revision) => api(`/api/student/assignments/${assignmentId}/submissions`, { method: 'POST', body: assignmentRequestBody({ answer, ...(revision == null ? {} : { revision }) }, file) }),
   completeLesson: (courseId, lessonId) => api(`/api/student/courses/${courseId}/lessons/${lessonId}/complete`, { method: 'POST' }),
   startQuiz: (quizId) => api(`/api/student/quizzes/${quizId}/attempts`, { method: 'POST' }),
   submitQuiz: (attemptId, data) => api(`/api/student/quiz-attempts/${attemptId}/submit`, { method: 'POST', body: JSON.stringify(data) }),

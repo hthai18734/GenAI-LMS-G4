@@ -4,6 +4,10 @@ const assertPort = require('../application/ports/outbound/assertPort');
 const toApplicationRepository = require('../infrastructure/persistence/mongoose/toApplicationRepository');
 
 const mongooseAdapters = {
+  assignmentDocumentRepository: require(`${root}/learning/AssignmentDocumentRepository`),
+  videoUploadRepository: require(`${root}/learning/VideoUploadRepository`),
+  gradebookRepository: require(`${root}/learning/GradebookRepository`),
+  sectionRepository: require(`${root}/learning/SectionRepository`),
   assignmentRepository: require(`${root}/learning/AssignmentRepository`),
   assignmentSubmissionRepository: require(`${root}/learning/AssignmentSubmissionRepository`),
   categoryRepository: require(`${root}/learning/CategoryRepository`),

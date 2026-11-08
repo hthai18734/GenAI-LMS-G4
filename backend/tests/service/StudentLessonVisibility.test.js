@@ -30,6 +30,11 @@ function service(overrides = {}) {
     learningActivityLogRepository: { recordActivityOnce: async (key, data) => calls.push(['activity', key, data]) },
     videoProgressRepository: { findByStudentAndVideo: async () => null },
     certificateRepository: { issueCertificate: async () => null },
+    progressTrackingService: { evaluateCourseProgress: async () => ({ eligibleToComplete: false }), recalculateCourseProgress: async (student, course) => {
+      calls.push(['evaluate', student, course]);
+      return { eligibleToComplete: false, byType: { LESSON: { completed: 1, total: 1 } } };
+    } },
+    enrollmentLifecycleService: { completeCourse: async () => { assert.fail('Incomplete course must not finalize'); } },
     notificationPreferenceRepository: { isEnabled: async () => false },
     notificationRepository: { create: async () => ({}) },
     ...overrides,
@@ -56,7 +61,7 @@ test('student resume and completion use published lessons only', async () => {
     date: calls[1][2].date,
   });
   assert.equal(calls[1][2].startedAt.getTime(), calls[1][2].endedAt.getTime());
-  assert.deepEqual(calls[2], ['count', courseId, { publishedOnly: true }]);
+  assert.deepEqual(calls[2], ['evaluate', userId, courseId]);
 });
 
 test('repeating and concurrent lesson completion uses one deterministic activity key', async () => {

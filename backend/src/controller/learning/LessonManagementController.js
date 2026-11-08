@@ -51,7 +51,8 @@ class LessonManagementController {
       const lessons = await LessonManagementService.reorderLessons(
         req.params.courseId,
         req.user,
-        req.body.orderedLessonIds
+        req.body.orderedLessonIds,
+        req.body.sectionId
       );
       return ResponseUtil.success(res, {
         message: 'Lessons reordered successfully.',

@@ -1,7 +1,7 @@
 const Course = require('../../../../../model/learning/Course');
 const Enrollment = require('../../../../../model/learning/Enrollment');
 const QuizAttempt = require('../../../../../model/learning/QuizAttempt');
-const Lesson = require('../../../../../model/learning/Lesson');
+const lessonRepository = require('../learning/LessonRepository');
 const { COURSE_STATUS } = require('../../../../../domain/learning/CourseStatus');
 
 module.exports = {
@@ -24,7 +24,7 @@ module.exports = {
   },
   async lessons(courseIds) {
     if (!courseIds.length) return [];
-    return Lesson.find({ courseId: { $in: courseIds }, isPublished: true, deletedAt: null })
-      .select('_id courseId title content duration order').sort({ courseId: 1, order: 1 }).limit(300).lean();
+    const groups = await Promise.all(courseIds.map(id => lessonRepository.findPublishedByCourseId(id)));
+    return groups.flat().slice(0, 300).map(lesson => ({ _id: lesson._id, courseId: lesson.courseId, sectionId: lesson.sectionId, sectionTitle: lesson.sectionTitle, title: lesson.title, content: lesson.content, duration: lesson.duration, order: lesson.order }));
   },
 };

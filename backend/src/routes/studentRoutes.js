@@ -9,6 +9,8 @@ const MaterialController = require('../composition/http').controllers.MaterialCo
 const WishlistController = require('../composition/http').controllers.WishlistController;
 const LearningGoalController = require('../composition/http').controllers.LearningGoalController;
 const ReviewController = require('../composition/http').controllers.ReviewController;
+const { uploadAssignmentDocument } = require('../utils/upload/AssignmentDocumentUpload');
+const AssignmentDocuments = require('../composition/http').controllers.AssignmentDocumentController;
 
 const router = express.Router();
 router.use(NoCacheFilter);
@@ -68,7 +70,9 @@ router.post('/courses/:courseId/enroll', StudentController.enrollCourse.bind(Stu
 router.get('/courses', StudentController.getEnrolledCourses.bind(StudentController));
 
 router.post('/courses/:courseId/lessons/:lessonId/complete', StudentController.completeLesson.bind(StudentController));
-router.post('/assignments/:assignmentId/submissions', StudentAssignmentController.submitAssignment.bind(StudentAssignmentController));
+router.get('/assignments/:assignmentId/attachment', AssignmentDocuments.prompt);
+router.get('/assignment-submissions/:submissionId/attachment', AssignmentDocuments.submission);
+router.post('/assignments/:assignmentId/submissions', AssignmentDocuments.prepareSubmission, uploadAssignmentDocument, StudentAssignmentController.submitAssignment.bind(StudentAssignmentController));
 
 // Iteration 2: I2-14, I2-15, I2-16 Course Wishlist
 router.post('/wishlist/:courseId', WishlistController.add.bind(WishlistController));

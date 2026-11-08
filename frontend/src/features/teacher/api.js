@@ -1,6 +1,15 @@
 import { api } from '../../shared/api/client.js';
+import { assignmentRequestBody } from '../../shared/assignment/documents.js';
 
 export const teacherService = {
+  getGradebook: (id, query = '', options = {}) => api(`/api/teacher/courses/${id}/gradebook${query ? `?${query}` : ''}`, options),
+  getGradeReport: id => api(`/api/teacher/courses/${id}/grade-report`),
+  getSubmissions: (id, query = '', options = {}) => api(`/api/teacher/assignments/${id}/submissions${query ? `?${query}` : ''}`, options),
+  getSubmission: (id, options = {}) => api(`/api/teacher/assignment-submissions/${id}`, options),
+  gradeSubmission: (id, data) => api(`/api/teacher/assignment-submissions/${id}/grade`, { method: 'PATCH', body: JSON.stringify(data) }),
+  feedbackSubmission: (id, data) => api(`/api/teacher/assignment-submissions/${id}/feedback`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getSections: (courseId, options = {}) => api(`/api/teacher/courses/${courseId}/sections`, options),
+  createSection: (courseId, data) => api(`/api/teacher/courses/${courseId}/sections`, { method: 'POST', body: JSON.stringify(data) }),
   getDashboard: () => api('/api/teacher/dashboard'),
   generateAIContent: (data) => api('/api/teacher/ai/content-generation', { method: 'POST', body: JSON.stringify(data) }),
   getCourses: (query = '', options = {}) => api(`/api/teacher/courses${query ? `?${query}` : ''}`, options),
@@ -21,7 +30,7 @@ export const teacherService = {
   createLesson: (courseId, data) => api(`/api/teacher/courses/${courseId}/lessons`, { method: 'POST', body: JSON.stringify(data) }),
   updateLesson: (courseId, lessonId, data) => api(`/api/teacher/courses/${courseId}/lessons/${lessonId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteLesson: (courseId, lessonId) => api(`/api/teacher/courses/${courseId}/lessons/${lessonId}`, { method: 'DELETE' }),
-  reorderLessons: (courseId, orderedLessonIds) => api(`/api/teacher/courses/${courseId}/lessons/reorder`, { method: 'PUT', body: JSON.stringify({ orderedLessonIds }) }),
+  reorderLessons: (courseId, orderedLessonIds, sectionId) => api(`/api/teacher/courses/${courseId}/lessons/reorder`, { method: 'PUT', body: JSON.stringify({ orderedLessonIds, sectionId }) }),
   createQuiz: (courseId, data) => api(`/api/teacher/courses/${courseId}/quizzes`, { method: 'POST', body: JSON.stringify(data) }),
   getQuiz: (id) => api(`/api/teacher/quizzes/${id}`),
   updateQuiz: (id, data) => api(`/api/teacher/quizzes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -35,11 +44,12 @@ export const teacherService = {
   linkQuestionToQuiz: (quizId, questionId) => api(`/api/teacher/quizzes/${quizId}/questions/${questionId}/link`, { method: 'POST' }),
   unlinkQuestionFromQuiz: (quizId, questionId) => api(`/api/teacher/quizzes/${quizId}/questions/${questionId}/unlink`, { method: 'DELETE' }),
   batchLinkQuestionsToQuiz: (quizId, questionIds) => api(`/api/teacher/quizzes/${quizId}/questions/batch-link`, { method: 'POST', body: JSON.stringify({ questionIds }) }),
-  createAssignment: (courseId, data) => api(`/api/teacher/courses/${courseId}/assignments`, { method: 'POST', body: JSON.stringify(data) }),
+  createAssignment: (courseId, data, file) => api(`/api/teacher/courses/${courseId}/assignments`, { method: 'POST', body: assignmentRequestBody(data, file) }),
   getAssignment: (assignmentId, options = {}) => api(`/api/teacher/assignments/${assignmentId}`, options),
-  updateAssignment: (assignmentId, data) => api(`/api/teacher/assignments/${assignmentId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateAssignment: (assignmentId, data, file) => api(`/api/teacher/assignments/${assignmentId}`, { method: 'PATCH', body: assignmentRequestBody(data, file) }),
   deleteAssignment: (assignmentId) => api(`/api/teacher/assignments/${assignmentId}`, { method: 'DELETE' }),
   uploadThumbnail: (file) => { const data = new FormData(); data.append('thumbnail', file); return api('/api/teacher/uploads/course-thumbnail', { method: 'POST', body: data }); },
-  uploadLessonVideo: (file) => { const data = new FormData(); data.append('video', file); return api('/api/teacher/uploads/lesson-video', { method: 'POST', body: data }); },
+  uploadLessonVideo: (file, courseId) => { const data = new FormData(); data.append('video', file); return api(`/api/teacher/uploads/lesson-video?courseId=${encodeURIComponent(courseId)}`, { method: 'POST', body: data }); },
+  discardVideoUpload: filename => api(`/api/teacher/uploads/lesson-video/${encodeURIComponent(filename)}`, { method: 'DELETE' }),
   getCategories: (options = {}) => api('/api/teacher/categories', options),
 };

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { lessonManagementService: LessonManagementService } = require('../../src/composition/services');
 const LessonRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/LessonRepository');
 const CourseRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/CourseRepository');
+const SectionRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/SectionRepository');
 const ServiceError = require('../../src/service/common/ServiceError');
 
 const COURSE_ID = '507f1f77bcf86cd799439011';
@@ -18,6 +19,8 @@ function restore(target, originals) {
 }
 
 test('createLesson validates title and auto assigns next order', async () => {
+  const originalDefault = SectionRepository.ensureDefault;
+  SectionRepository.ensureDefault = async () => ({ _id: LESSON_ID_2, courseId: COURSE_ID });
   const origCourseFind = CourseRepository.findById;
   const origMaxOrder = LessonRepository.maxActiveOrder;
   const origCreate = LessonRepository.create;
@@ -39,8 +42,10 @@ test('createLesson validates title and auto assigns next order', async () => {
 
     assert.equal(result.title, 'Introduction to Node.js');
     assert.equal(createdData.order, 4);
+    assert.equal(String(createdData.sectionId), LESSON_ID_2);
     assert.equal(createdData.isPublished, false);
   } finally {
+    SectionRepository.ensureDefault = originalDefault;
     restore(CourseRepository, { findById: origCourseFind });
     restore(LessonRepository, { maxActiveOrder: origMaxOrder, create: origCreate });
   }

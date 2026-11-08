@@ -145,8 +145,10 @@ class TeacherCourseController {
     });
   }
 
-  async uploadVideo(req, res) {
+  async uploadVideo(req, res, next) {
     if (!req.file) return ResponseUtil.error(res, { status: 400, message: 'Please select a video file to upload.' });
+    try { await UseCases.lessonVideoService.registerUpload(req.query.courseId, req.user, req.file); }
+    catch (error) { return next(error); }
     return ResponseUtil.success(res, {
       status: 201,
       message: 'Lesson video uploaded successfully.',

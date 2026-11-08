@@ -56,6 +56,9 @@ const AdminTeachersPage = lazyPage('AdminTeachersPage', () => import('../pages/A
 const AdminVouchersPage = lazyPage('AdminVouchersPage', () => import('../pages/AdminVouchersPage'));
 const NotFoundPage = lazyPage('NotFoundPage', () => import('../pages/NotFoundPage'));
 
+const TeacherAssignmentSubmissionsPage = lazyPage('TeacherAssignmentSubmissionsPage', () => import('../pages/TeacherAssignmentSubmissionsPage'));
+const TeacherGradebookPage = lazyPage('TeacherGradebookPage', () => import('../pages/TeacherGradebookPage'));
+const TeacherSectionCreatePage = lazyPage('TeacherSectionCreatePage', () => import('../pages/TeacherSectionCreatePage'));
 export default function AppRoutes() {
   return (
     <Suspense fallback={<div className="page-loading" role="status">Loading...</div>}>
@@ -109,10 +112,13 @@ export default function AppRoutes() {
         <Route path="/teacher/courses" element={<TeacherCoursesPage />} />
         <Route path="/teacher/courses/new" element={<TeacherCourseFormPage />} />
         <Route path="/teacher/courses/:courseId/edit" element={<TeacherCourseFormPage />} />
+        <Route path="/teacher/courses/:courseId/gradebook" element={<TeacherGradebookPage />} />
+        <Route path="/teacher/courses/:courseId/sections/new" element={<TeacherSectionCreatePage />} />
         <Route path="/teacher/courses/:courseId/preview" element={<CourseLearnPage />} />
         <Route path="/teacher/quizzes/new" element={<TeacherQuizFormPage />} />
         <Route path="/teacher/quizzes/:quizId" element={<TeacherQuizWorkspacePage />} />
         <Route path="/teacher/assignments/new" element={<TeacherAssignmentFormPage />} />
+        <Route path="/teacher/assignments/:assignmentId/submissions" element={<TeacherAssignmentSubmissionsPage />} />
         <Route path="/teacher/assignments/:assignmentId/edit" element={<TeacherAssignmentFormPage />} />
         <Route path="/teacher/ai-content" element={<TeacherAIContentPage />} />
         <Route path="/teacher/questions" element={<TeacherQuestionBankPage />} />

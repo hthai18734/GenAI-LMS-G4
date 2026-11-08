@@ -5,7 +5,9 @@ dist-ssr/
 .env
 *.log
 /backend/uploads/
+/outputs/
 *.DS_Store
 README.md
+!docs/use-cases/iteration-3-huy/README.md
 .idea/
 .vscode/

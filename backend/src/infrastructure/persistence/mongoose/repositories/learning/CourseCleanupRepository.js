@@ -5,6 +5,8 @@ const Progress = require('../../../../../model/learning/Progress');
 const CourseProgress = require('../../../../../model/learning/CourseProgress');
 const VideoProgress = require('../../../../../model/learning/VideoProgress');
 const Lesson = require('../../../../../model/learning/Lesson');
+const Section = require('../../../../../model/learning/Section');
+const AssignmentSubmission = require('../../../../../model/learning/AssignmentSubmission');
 const Material = require('../../../../../model/learning/Material');
 const Quiz = require('../../../../../model/learning/Quiz');
 const QuizQuestion = require('../../../../../model/learning/QuizQuestion');
@@ -18,6 +20,8 @@ class CourseCleanupRepository {
     const courseQuizzes = await Quiz.find({ courseId }).select('_id').lean().exec();
     const quizIds = courseQuizzes.map((quiz) => quiz._id);
     return Promise.allSettled([
+      Section.updateMany({ courseId }, { deletedAt: new Date() }),
+      AssignmentSubmission.deleteMany({ courseId }),
       Certificate.deleteMany({ courseId }),
       Enrollment.deleteMany({ courseId }),
       Wishlist.deleteMany({ courseId }),

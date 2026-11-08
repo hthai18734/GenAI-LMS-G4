@@ -3,7 +3,7 @@
  * Created at: 29/09/2026
  * Description: Course Management Form & Curriculum Workspace
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
 import { materialService, discussionService } from '../features/learning/api.js';
@@ -11,10 +11,13 @@ import { getUser } from '../features/auth/api.js';
 import { useToast } from '../components/toastContext';
 import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
+import CourseSections from '../features/teacher/CourseSections.jsx';
+import CourseAssignments from '../features/teacher/CourseAssignments.jsx';
+import CourseQuizzes from '../features/teacher/CourseQuizzes.jsx';
 import DiscussionPostEditor from '../components/DiscussionPostEditor';
 
 const initial = { title: '', description: '', categoryId: '', thumbnail: '', duration: '' };
-const initialLesson = { title: '', content: '', order: 1, duration: 0, videoRef: '', isPublished: true };
+const initialLesson = { title: '', content: '', sectionId: '', order: 1, duration: 0, videoRef: '', isPublished: true };
 const supportedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
 const statusBadgeConfig = {
@@ -61,6 +64,8 @@ export default function TeacherCourseFormPage() {
   const [lessonErrors, setLessonErrors] = useState({});
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoFileName, setVideoFileName] = useState('');
+  const pendingVideoRef = useRef(null);
+  useEffect(() => () => { if (pendingVideoRef.current) teacherService.discardVideoUpload(pendingVideoRef.current).catch(() => {}); }, []);
 
   // Materials state
   const [activeMaterialLesson, setActiveMaterialLesson] = useState(null);
@@ -226,7 +231,7 @@ export default function TeacherCourseFormPage() {
           if (requestedLesson) {
             setActiveTab('lessons');
             setEditingLessonId(requestedLesson._id);
-            setLessonForm({ title: requestedLesson.title, content: requestedLesson.content, order: requestedLesson.order, duration: requestedLesson.duration || 0, videoRef: requestedLesson.videoRef || '', isPublished: requestedLesson.isPublished === true });
+            setLessonForm({ title: requestedLesson.title, content: requestedLesson.content, sectionId: requestedLesson.sectionId || '', order: requestedLesson.order, duration: requestedLesson.duration || 0, videoRef: requestedLesson.videoRef || '', isPublished: requestedLesson.isPublished === true });
             setTimeout(() => document.getElementById('lesson-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
           }
           setQuizzes(quizRes.data?.quizzes || []);
@@ -310,6 +315,7 @@ export default function TeacherCourseFormPage() {
       }
     } catch (err) {
       setError(err.message || 'Unable to save course.');
+      addToast(err.message || 'Unable to save course.', 'error');
       setFieldErrors(err.errors || {});
     } finally {
       setSaving(false);
@@ -324,9 +330,11 @@ export default function TeacherCourseFormPage() {
     }
     setUploadingVideo(true);
     try {
-      const res = await teacherService.uploadLessonVideo(file);
+      const res = await teacherService.uploadLessonVideo(file, courseId);
       const videoUrl = res.data?.videoUrl;
       if (videoUrl) {
+        if (pendingVideoRef.current) await teacherService.discardVideoUpload(pendingVideoRef.current).catch(() => {});
+        pendingVideoRef.current = res.data.filename;
         setLessonForm((prev) => ({ ...prev, videoRef: videoUrl }));
         setVideoFileName(file.name);
         addToast('Video uploaded successfully!', 'success');
@@ -342,6 +350,7 @@ export default function TeacherCourseFormPage() {
     setEditingLessonId(lesson._id || lesson.id);
     setLessonForm({
       title: lesson.title,
+      sectionId: lesson.sectionId || '',
       content: lesson.content,
       order: lesson.order,
       duration: lesson.duration || 0,
@@ -353,6 +362,8 @@ export default function TeacherCourseFormPage() {
   };
 
   const resetLesson = () => {
+    if (pendingVideoRef.current) teacherService.discardVideoUpload(pendingVideoRef.current).catch(() => {});
+    pendingVideoRef.current = null;
     setEditingLessonId(null);
     setLessonForm({ ...initialLesson, order: lessons.length + 1, isPublished: true });
     setVideoFileName('');
@@ -366,6 +377,7 @@ export default function TeacherCourseFormPage() {
     try {
       const payload = {
         title: lessonForm.title.trim(),
+        sectionId: lessonForm.sectionId || null,
         content: lessonForm.content.trim(),
         order: Number(lessonForm.order),
         duration: Number(lessonForm.duration || 0),
@@ -383,6 +395,7 @@ export default function TeacherCourseFormPage() {
       await loadLessons();
     } catch (err) {
       setLessonErrors(err.errors || { payload: err.message || 'Unable to save lesson.' });
+      addToast(err.message || 'Unable to save lesson.', 'error');
     } finally {
       setSavingLesson(false);
     }
@@ -404,16 +417,18 @@ export default function TeacherCourseFormPage() {
   const handleMoveLesson = async (index, direction) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= lessons.length) return;
+    if (String(lessons[index].sectionId || '') !== String(lessons[targetIndex].sectionId || '')) return;
 
     const newLessons = [...lessons];
     const [moved] = newLessons.splice(index, 1);
     newLessons.splice(targetIndex, 0, moved);
 
-    const lessonIds = newLessons.map((l) => l._id || l.id);
+    const sectionId = moved.sectionId;
+    const lessonIds = newLessons.filter(l => String(l.sectionId || '') === String(sectionId || '')).map((l) => l._id || l.id);
     setReordering(true);
     try {
-      await teacherService.reorderLessons(courseId, lessonIds);
-      setLessons(newLessons.map((l, i) => ({ ...l, order: i + 1 })));
+      await teacherService.reorderLessons(courseId, lessonIds, sectionId);
+      await loadLessons();
       addToast('Lesson order updated!', 'success');
     } catch (err) {
       addToast(err.message || 'Unable to reorder lessons.', 'error');
@@ -968,7 +983,7 @@ export default function TeacherCourseFormPage() {
                       </span>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span>{lesson.title}</span>
+                          <span>{lesson.sectionTitle || 'General'} · {lesson.order}. {lesson.title}</span>
                           {lesson.isPublished !== false ? (
                             <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
                               ✓ Published
@@ -995,7 +1010,7 @@ export default function TeacherCourseFormPage() {
                         <button
                           type="button"
                           className="ghost compact"
-                          disabled={idx === 0 || reordering}
+                          disabled={idx === 0 || reordering || String(lessons[idx - 1]?.sectionId || '') !== String(lesson.sectionId || '')}
                           title="Move Up"
                           onClick={() => handleMoveLesson(idx, -1)}
                           style={{ padding: '4px 8px' }}
@@ -1005,7 +1020,7 @@ export default function TeacherCourseFormPage() {
                         <button
                           type="button"
                           className="ghost compact"
-                          disabled={idx === lessons.length - 1 || reordering}
+                          disabled={idx === lessons.length - 1 || reordering || String(lessons[idx + 1]?.sectionId || '') !== String(lesson.sectionId || '')}
                           title="Move Down"
                           onClick={() => handleMoveLesson(idx, 1)}
                           style={{ padding: '4px 8px' }}
@@ -1052,7 +1067,10 @@ export default function TeacherCourseFormPage() {
               </h3>
               {lessonErrors.payload && <div className="page-error" style={{ marginBottom: '14px' }}>{lessonErrors.payload}</div>}
 
+              {canEdit && <Link className="assessment-button" style={{ alignSelf: 'flex-start' }} to={`/teacher/courses/${courseId}/sections/new`}>Create Section</Link>}
               <form onSubmit={saveLesson} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <CourseSections courseId={courseId} editable={canEdit} value={lessonForm.sectionId} onChange={sectionId => setLessonForm(current => ({ ...current, sectionId, order: Math.max(0, ...lessons.filter(l => String(l.sectionId || '') === sectionId).map(l => l.order)) + 1 }))} />
+                {lessonErrors.sectionId && <p role="alert">{lessonErrors.sectionId}</p>}
                 <div className="form-group" style={{ margin: 0 }}>
                   <label htmlFor="lTitle" style={{ fontWeight: 600, fontSize: '13px', color: 'var(--ink)', marginBottom: '6px', display: 'block' }}>
                     Lesson Title <span style={{ color: '#ef4444' }}>*</span>
@@ -1321,97 +1339,15 @@ export default function TeacherCourseFormPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
             gap: '24px',
           }}
         >
           {/* Card 1: Quizzes */}
-          <div className="profile-card-panel" style={{ padding: '30px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  color: '#fff',
-                  marginBottom: '16px',
-                }}
-              >
-                📝
-              </div>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
-                Course Quizzes
-              </h3>
-              <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 20px' }}>
-                Test student retention with automated multiple-choice quizzes attached to specific lessons or the entire course.
-              </p>
-              {quizzes.length > 0 && <div style={{ marginBottom: '16px' }}>{quizzes.map((quiz) => <button key={quiz._id} type="button" className="btn btn-secondary btn-sm" style={{ margin: '0 8px 8px 0' }} onClick={() => navigate(`/teacher/quizzes/${quiz._id}`)}>{quiz.title}</button>)}</div>}
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate(`/teacher/quizzes/new?courseId=${courseId}`)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '44px',
-                fontWeight: 600,
-              }}
-            >
-              <span>➕</span> Create New Quiz
-            </button>
-          </div>
+          <CourseQuizzes courseId={courseId} quizzes={quizzes} />
 
           {/* Card 2: Assignments */}
-          <div className="profile-card-panel" style={{ padding: '30px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  color: '#fff',
-                  marginBottom: '16px',
-                }}
-              >
-                📋
-              </div>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
-                Course Assignments
-              </h3>
-              <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 20px' }}>
-                Assign hands-on practical exercises, coding problems, or essay questions for enrolled students.
-              </p>
-              {assignments.length > 0 && <div style={{ marginBottom: '16px' }}>{assignments.map((assignment) => <button key={assignment._id} type="button" className="btn btn-secondary btn-sm" style={{ margin: '0 8px 8px 0' }} onClick={() => navigate(`/teacher/assignments/${assignment._id}/edit?courseId=${courseId}`)}>{assignment.title}</button>)}</div>}
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate(`/teacher/assignments/new?courseId=${courseId}`)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '44px',
-                fontWeight: 600,
-              }}
-            >
-              <span>➕</span> Create New Assignment
-            </button>
-          </div>
+          <CourseAssignments courseId={courseId} assignments={assignments} />
         </div>
       )}
 

@@ -3,8 +3,12 @@ const port = (...methods) => Object.freeze(methods);
 // These are application-owned structural ports. Mongoose adapters are validated
 // against them only in the composition root; use cases never import adapters.
 module.exports = Object.freeze({
-  assignmentRepository: port('create', 'findByCourseId', 'findById', 'softDelete', 'update'),
-  assignmentSubmissionRepository: port('findById', 'findPassedAssignmentIds', 'grade', 'submit'),
+  videoUploadRepository: port('create', 'find', 'expired', 'remove'),
+  gradebookRepository: port('read'),
+  assignmentDocumentRepository: port('isUsed'),
+  sectionRepository: port('create', 'findById', 'findByCourseId', 'nextOrder', 'ensureDefault'),
+  assignmentRepository: port('create', 'findByCourseId', 'findById', 'softDelete', 'update', 'lockScale'),
+  assignmentSubmissionRepository: port('findById', 'findPassedAssignmentIds', 'findByAssignmentAndStudent', 'grade', 'submit', 'findByStudentAndCourse', 'findPage', 'assess', 'hasNumericGrades'),
   categoryRepository: port('countActiveRecords', 'create', 'findActiveById', 'findAll', 'findAllActive', 'findById', 'findByNameCaseInsensitive', 'isUsedByActiveCourse', 'softDelete', 'update'),
   certificateRepository: port('findByUserId', 'findOneByCourse', 'issueCertificate'),
   chatLearningRepository: port('catalog', 'enrollments', 'lessons', 'quizPerformance'),

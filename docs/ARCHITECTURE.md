@@ -343,3 +343,79 @@ File này mô tả kiến trúc; test bảo vệ boundary; code thực thi hành
 - Application service không được gọi API của Mongoose (`toObject`, `save`, `lean`, `populate`) hoặc Node filesystem (`fs`, `path`). File access phải đi qua storage gateway được inject ở composition root.
 - Quy tắc thuần như password validation, pagination và AI prompt policy nằm trong `domain`; DTO/service không import concrete utility có I/O.
 - Effect có request phụ thuộc route, filter hoặc lựa chọn hiện tại phải dùng `AbortController` (hoặc cơ chế tương đương) và không cập nhật state sau khi request bị huỷ.
+
+## 12. Curriculum và đánh giá — Iteration 3 (HuyTGCE182405)
+
+Quan hệ đã triển khai: `Course <- Section.courseId <- Lesson.sectionId`.
+Lesson vẫn giữ `courseId` để tương thích các reference video/material/assessment/progress.
+Application service xác minh Section tồn tại, chưa bị xóa và có cùng Course trước khi
+ghi Lesson. Không tạo DAO; Section/Gradebook/VideoUpload có repository port và adapter
+Mongoose, được inject tại composition root.
+
+- Section hỗ trợ tạo và danh sách theo Course; chưa có API xóa/đổi tên/reorder Section.
+- Section.order có phạm vi Course; Lesson.order có phạm vi Section. Khi trùng order,
+  dùng ID làm thứ tự phụ xác định. Reorder Lesson nhận thêm sectionId; chỉ chấp nhận
+  toàn bộ tập Lesson của Section, không trùng ID hoặc lẫn Section khác.
+- API cũ thiếu sectionId khi tạo sẽ dùng Section mặc định General. Cập nhật bỏ qua
+  sectionId giữ liên kết hiện tại; sectionId null yêu cầu chuyển vào General.
+- Schema sectionId còn nullable trong giai đoạn expand. Migration có dry-run,
+  journal và rollback, chỉ CLI explicit local/test; không chạy tự động khi startup.
+- Repository trả danh sách phẳng theo thứ tự Section rồi Lesson, kèm sectionTitle và
+  sectionOrder. Student navigation, Teacher curriculum và nguồn Lesson cho AI dùng thứ tự này.
+- Course cleanup soft-delete cả Section và Lesson. Không có cascade xóa Section riêng.
+
+Assignment bổ sung deadline UTC, maxScore/passingScore được cấu hình tường minh.
+Nộp bài bị chặn khi thời gian server >= deadline. Settings-only update của owner có
+thể thay deadline khi Course đang live; sửa nội dung vẫn tuân thủ trạng thái Course.
+Chấm số khóa thang điểm nguyên tử trên Assignment; cập nhật submission kiểm tra revision.
+Feedback có thể lưu riêng, không thay điểm. Điểm/feedback đã lưu hiển thị ngay cho
+sinh viên tương ứng qua endpoint học được bảo vệ. Resubmit giữ quy tắc cũ: thay bản
+nộp hiện tại và xóa grade/feedback cũ; chưa có lịch sử bài nộp/chấm điểm.
+
+Gradebook là read model: roster từ Enrollment, điểm Assignment từ AssignmentSubmission,
+điểm Quiz từ QuizAttempt submitted. Không tạo nguồn điểm override hoặc bảng điểm sao
+chép. Nhập thủ công dùng lại API chấm một bài Assignment đã tồn tại; chưa có batch,
+điểm ngoài assessment hoặc Quiz override. Null/unsubmitted/ungraded khác điểm 0.
+
+Course completion now has one authority: CourseCompletionPolicy.evaluateCompletion,
+loaded by ProgressTrackingService.evaluateCourseProgress. It requires all published
+accessible Lesson/video requirements, the latest submitted Quiz passing its own
+configured threshold, and every current Assignment submission passing its own scale.
+Student dashboard/course/resume/lesson views, Gradebook and report consume this result.
+Both issuance paths route through EnrollmentLifecycleService.completeCourse and check
+fresh eligibility plus public/nondeleted Course availability, even when the stored
+enrollment was completed earlier. Certificate upsert uses the existing unique
+user/Course index. New ungraded/failing work hides certificate visibility until all
+requirements are met; stored certificate history is retained.
+No weighted average, rounding/provisional algorithm or highest-attempt choice remains.
+Legacy Course.gradePolicy is ignored; policy writes return410 after ownership checks.
+Existing progress40/30/30 weights describe completed activities, never score averages.
+
+Grade report được backend kiểm tra Course ownership, dùng cùng GradebookService;
+frontend xuất PDF bằng html2pdf.js hiện có, dùng textContent cho dữ liệu người dùng.
+Chưa có snapshot bảng điểm chính thức hoặc workflow công bố riêng.
+
+Video vẫn dùng local filesystem. Upload yêu cầu Course ownership trước khi nhận file,
+MIME allowlist, tối đa 200 MiB và kiểm tra chữ ký container cơ bản. VideoUpload lưu
+owner/Course/metadata và hạn giữ tạm 24 giờ; Lesson lưu videoRef/videoMetadata khi save.
+Hủy upload có API discard; startup và timer dọn upload hết hạn, giữ registry khi xóa
+file thất bại để thử lại. Storage cũng quét file tên do ứng dụng sinh đã quá 24 giờ,
+không có registry và không được Lesson sử dụng, để xử lý trường hợp tạo registry thất bại.
+Không public thư mục video; quyền xem vẫn qua media endpoint.
+
+Đặc tả, trạng thái kiểm chứng và hướng dẫn migration:
+`docs/use-cases/iteration-3-huy/README.md`, `REVIEW_CHECKLIST.md`, `SECTION_MIGRATION.md`.
+
+
+### 12.1 Follow-up: separate Section form and private Assignment files (2026-11-08)
+Section creation is a separate name/description page; storage retains Section.title
+and adds description. Lesson form only selects an existing/default Section.
+Teacher prompt and Student answer support one PDF/DOC/DOCX each,25 MiB, on existing
+Assignment POST/PATCH/submission endpoints: multipart data JSON + file.
+AssignmentDocumentService and storage/repository ports validate file containers,
+serve ownership/enrollment-protected downloads and clean unused files. Documents
+are never public static uploads. Submission replacement clears grade/feedback and
+checks deadline at pre-upload and write boundaries. Quiz start/submission also
+check deadline and use the earlier time-limit/deadline expiry. Teacher forms use
+neutral panels and success/error save toasts. Full rules and manual tests:
+docs/use-cases/iteration-3-huy/COMPLETION_UPDATE.md.

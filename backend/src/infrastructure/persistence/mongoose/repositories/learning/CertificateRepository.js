@@ -22,10 +22,18 @@ class CertificateRepository {
   }
 
   async issueCertificate(userId, courseId, enrollmentId) {
-    const existing = await this.findOneByCourse(userId, courseId);
-    if (existing) return existing;
     const certificateNumber = `CERT-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    return Certificate.create({ userId, courseId, enrollmentId, certificateNumber, issuedAt: new Date() });
+    try {
+      return await Certificate.findOneAndUpdate({ userId, courseId }, {
+        $setOnInsert: { enrollmentId, certificateNumber, issuedAt: new Date() },
+      }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }).exec();
+    } catch (error) {
+      if (error.code === 11000) {
+        const existing = await this.findOneByCourse(userId, courseId);
+        if (existing) return existing;
+      }
+      throw error;
+    }
   }
 }
 
