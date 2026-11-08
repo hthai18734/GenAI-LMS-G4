@@ -221,25 +221,6 @@ test(
         assert.equal(r.data.orderTotal, 199.99);
         assert.equal(r.data.discountAmount, 40);
         assert.equal(r.data.previewOnly, true);
-        require("fs").writeFileSync(
-          require("path").join(
-            __dirname,
-            "../../..",
-            "docs/voucher-api-example.actual.json",
-          ),
-          JSON.stringify(
-            {
-              request: {
-                method: "POST",
-                path: apply,
-                body: { code: "test", courseId: String(course._id) },
-              },
-              response: r,
-            },
-            null,
-            2,
-          ) + "\n",
-        );
         assert.equal(
           (
             await req(
@@ -303,7 +284,7 @@ test(
               new Date(boundary.getTime() + 1),
             )
           ).message,
-          /hết hạn/,
+          /expired/,
         );
         await Course.updateOne(
           { _id: course._id },
@@ -315,16 +296,16 @@ test(
     await t.test(
       "apply failures: empty, unknown, inactive, future, expired, minimum, quantity, user",
       async () => {
-        assert.match((await quote("")).message, /nhập mã/);
-        assert.match((await quote("NONE")).message, /không tồn tại/);
+        assert.match((await quote("")).message, /enter a voucher code/);
+        assert.match((await quote("NONE")).message, /does not exist/);
         for (const [change, pattern] of [
-          [{ status: "inactive" }, /khả dụng/],
+          [{ status: "inactive" }, /no longer available/],
           [
             { status: "active", start_date: new Date("2099-01-01") },
-            /chưa tới/,
+            /not active yet/,
           ],
-          [{ start_date: null, end_date: new Date("2000-01-01") }, /hết hạn/],
-          [{ end_date: null, min_order_value: 200 }, /tối thiểu/],
+          [{ start_date: null, end_date: new Date("2000-01-01") }, /expired/],
+          [{ end_date: null, min_order_value: 200 }, /at least/],
         ]) {
           await Voucher.updateOne({ _id: id }, { $set: change });
           const r = await quote("TEST");
@@ -336,10 +317,10 @@ test(
           { $set: { min_order_value: null, quantity: 1 } },
         );
         await Redemption.create({ userId: users[0]._id, voucherID: id });
-        assert.match((await quote("TEST")).message, /hết lượt/);
+        assert.match((await quote("TEST")).message, /usage limit/);
         await Voucher.updateOne({ _id: id }, { $set: { quantity: null } });
         await Redemption.create({ userId: users[1]._id, voucherID: id });
-        assert.match((await quote("TEST")).message, /đã sử dụng/);
+        assert.match((await quote("TEST")).message, /already used/);
         assert.equal(
           (
             await req(
@@ -428,7 +409,7 @@ test(
           newStatus: "inactive",
         });
         assert.equal(res.status, 200);
-        assert.equal(res.message, "Đã vô hiệu hóa voucher.");
+        assert.equal(res.message, "Voucher deactivated.");
         assert.equal(
           (
             await req(admin + "/" + unused._id + "/status", "PATCH", {

@@ -59,11 +59,11 @@ return  {
     });
   }),
   detail: wrap(async (req, res) => {
-    if (!validId(req.params.id)) return fail(res, "Voucher không hợp lệ.");
+    if (!validId(req.params.id)) return fail(res, "Voucher is invalid.");
     const voucher = await service.detail(req.params.id);
     return voucher
       ? Response.success(res, { data: { voucher } })
-      : fail(res, "Voucher không tồn tại.", 404);
+      : fail(res, "Voucher not found.", 404);
   }),
   create: wrap(async (req, res) => {
     const data = input(req, res, true);
@@ -71,31 +71,31 @@ return  {
     return (await service.create(data))
       ? Response.success(res, {
           status: 201,
-          message: "Thêm voucher " + data.code + " thành công!",
+          message: `Voucher ${data.code} created successfully.`,
         })
-      : fail(res, "Thêm voucher thất bại. Mã code có thể đã tồn tại.");
+      : fail(res, "Unable to create voucher. The code may already exist.");
   }),
   update: wrap(async (req, res) => {
-    if (!validId(req.params.id)) return fail(res, "Voucher không hợp lệ.");
+    if (!validId(req.params.id)) return fail(res, "Voucher is invalid.");
     const data = input(req, res, false);
     if (!data) return;
     return (await service.update(req.params.id, data))
-      ? Response.success(res, { message: "Cập nhật voucher thành công!" })
+      ? Response.success(res, { message: "Voucher updated successfully." })
       : fail(
           res,
-          "Cập nhật thất bại. Mã code có thể đã tồn tại hoặc voucher không còn tồn tại.",
+          "Unable to update voucher. The code may already exist or the voucher may no longer exist.",
         );
   }),
   remove: wrap(async (req, res) => {
-    if (!validId(req.params.id)) return fail(res, "Voucher không hợp lệ.");
+    if (!validId(req.params.id)) return fail(res, "Voucher is invalid.");
     const r = await service.remove(req.params.id);
     return r === 1
-      ? Response.success(res, { message: "Xóa voucher thành công!" })
+      ? Response.success(res, { message: "Voucher deleted successfully." })
       : fail(
           res,
           r === -1
-            ? "Không thể xóa voucher đã được khách hàng sử dụng."
-            : "Xóa voucher thất bại.",
+            ? "A voucher that has already been redeemed cannot be deleted."
+            : "Unable to delete voucher.",
         );
   }),
   toggle: wrap(async (req, res) => {
@@ -105,20 +105,20 @@ return  {
       Object.keys(req.body).some((k) => k !== "newStatus") ||
       !["active", "inactive"].includes(req.body.newStatus)
     )
-      return fail(res, "Yêu cầu không hợp lệ.");
+      return fail(res, "Invalid request.");
     if (!(await service.toggle(req.params.id, req.body.newStatus)))
-      return fail(res, "Thao tác thất bại. Voucher có thể đã expired.");
+      return fail(res, "Unable to update voucher status. The voucher may have expired.");
     return Response.success(res, {
       message:
         req.body.newStatus === "active"
-          ? "Đã kích hoạt voucher."
-          : "Đã vô hiệu hóa voucher.",
+          ? "Voucher activated."
+          : "Voucher deactivated.",
     });
   }),
   history: wrap(async (req, res) => {
-    if (!validId(req.params.id)) return fail(res, "Voucher không hợp lệ.");
+    if (!validId(req.params.id)) return fail(res, "Voucher is invalid.");
     if (!(await service.detail(req.params.id)))
-      return fail(res, "Voucher không tồn tại.", 404);
+      return fail(res, "Voucher not found.", 404);
     const pageNumber = Number(req.query.page || 1);
     if (!Number.isSafeInteger(pageNumber) || pageNumber < 1)
       return fail(res, "Invalid history page.");

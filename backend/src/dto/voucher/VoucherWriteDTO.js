@@ -21,27 +21,27 @@ function numberField(raw, error) {
 
 function validateVoucherInput(body, isCreate, now = new Date()) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Unsupported voucher field.' };
-  if (body.code == null || !String(body.code).trim()) return { error: 'MÃ£ voucher khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.' };
+  if (body.code == null || !String(body.code).trim()) return { error: 'Voucher code is required.' };
   const code = String(body.code).trim().toUpperCase();
-  const discount = numberField(body.discountPercent, 'GiÃ¡ trá»‹ giáº£m giÃ¡ khÃ´ng há»£p lá»‡.');
-  if (discount.error || discount.value === null) return { error: 'GiÃ¡ trá»‹ giáº£m giÃ¡ khÃ´ng há»£p lá»‡.' };
-  if (discount.value <= 0 || discount.value > 100) return { error: 'Giáº£m giÃ¡ pháº£i lá»›n hÆ¡n 0 vÃ  khÃ´ng vÆ°á»£t quÃ¡ 100%.' };
-  const quantity = numberField(body.quantity, 'Sá»‘ lÆ°á»£ng khÃ´ng há»£p lá»‡.');
-  if (quantity.error || (quantity.value !== null && !Number.isInteger(quantity.value))) return { error: 'Sá»‘ lÆ°á»£ng khÃ´ng há»£p lá»‡.' };
-  if (quantity.value !== null && quantity.value <= 0) return { error: 'Sá»‘ lÆ°á»£ng pháº£i lá»›n hÆ¡n 0. Äá»ƒ trá»‘ng náº¿u khÃ´ng giá»›i háº¡n.' };
-  const minimum = numberField(body.minOrderValue, 'GiÃ¡ trá»‹ Ä‘Æ¡n hÃ ng tá»‘i thiá»ƒu khÃ´ng há»£p lá»‡.');
+  const discount = numberField(body.discountPercent, 'Discount percentage is invalid.');
+  if (discount.error || discount.value === null) return { error: 'Discount percentage is invalid.' };
+  if (discount.value <= 0 || discount.value > 100) return { error: 'Discount percentage must be greater than 0 and no more than 100.' };
+  const quantity = numberField(body.quantity, 'Quantity is invalid.');
+  if (quantity.error || (quantity.value !== null && !Number.isInteger(quantity.value))) return { error: 'Quantity is invalid.' };
+  if (quantity.value !== null && quantity.value <= 0) return { error: 'Quantity must be greater than 0. Leave it blank for unlimited use.' };
+  const minimum = numberField(body.minOrderValue, 'Minimum order value is invalid.');
   if (minimum.error) return { error: minimum.error };
-  if (minimum.value !== null && minimum.value < 0) return { error: 'ÄÆ¡n hÃ ng tá»‘i thiá»ƒu khÃ´ng Ä‘Æ°á»£c Ã¢m.' };
-  const maximum = numberField(body.maxDiscountValue, 'GiÃ¡ trá»‹ giáº£m tá»‘i Ä‘a khÃ´ng há»£p lá»‡.');
+  if (minimum.value !== null && minimum.value < 0) return { error: 'Minimum order value cannot be negative.' };
+  const maximum = numberField(body.maxDiscountValue, 'Maximum discount value is invalid.');
   if (maximum.error) return { error: maximum.error };
-  if (maximum.value !== null && maximum.value <= 0) return { error: 'Sá»‘ tiá»n giáº£m tá»‘i Ä‘a pháº£i lá»›n hÆ¡n 0. Äá»ƒ trá»‘ng náº¿u khÃ´ng giá»›i háº¡n.' };
+  if (maximum.value !== null && maximum.value <= 0) return { error: 'Maximum discount value must be greater than 0. Leave it blank for no limit.' };
   const start = parseDate(body.startDate);
   const end = parseDate(body.endDate);
   const localDay = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(now);
-  if (isCreate && start && start < parseDate(localDay)) return { error: 'NgÃ y báº¯t Ä‘áº§u khÃ´ng Ä‘Æ°á»£c lÃ  ngÃ y trong quÃ¡ khá»©.' };
-  if (start && end && start >= end) return { error: 'NgÃ y báº¯t Ä‘áº§u pháº£i trÆ°á»›c ngÃ y káº¿t thÃºc.' };
+  if (isCreate && start && start < parseDate(localDay)) return { error: 'Start date cannot be in the past.' };
+  if (start && end && start >= end) return { error: 'Start date must be before end date.' };
   const status = isCreate
     ? 'active'
     : ['active', 'inactive'].includes(body.status)

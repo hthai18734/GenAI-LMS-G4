@@ -539,7 +539,7 @@ export default function LearningGoalsPage() {
                   />
                   {form.goalType === 'COMPLETE_COURSE' && (
                     <span style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '4px', display: 'block', fontWeight: 400 }}>
-                      🔒 Mục tiêu này luôn cố định là 100% (hoàn thành trọn vẹn khóa học).
+                      🔒 This goal is fixed at 100% (complete the entire course).
                     </span>
                   )}
                 </label>
@@ -599,7 +599,7 @@ export default function LearningGoalsPage() {
                   />
                   {editingGoal.goalType === 'COMPLETE_COURSE' && (
                     <span style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '4px', display: 'block', fontWeight: 400 }}>
-                      🔒 Mục tiêu này luôn cố định là 100% (hoàn thành trọn vẹn khóa học).
+                      🔒 This goal is fixed at 100% (complete the entire course).
                     </span>
                   )}
                 </label>

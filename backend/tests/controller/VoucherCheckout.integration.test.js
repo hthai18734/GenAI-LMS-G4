@@ -181,7 +181,7 @@ test(
         );
         assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
         for (const r of results.filter((r) => r.status === "rejected"))
-          assert.match(r.reason.message, /hết lượt/);
+          assert.match(r.reason.message, /usage limit/);
         assert.equal(await Redemption.countDocuments({ voucherID: v._id }), 1);
         assert.equal(await purchases.countDocuments({ code: "LAST-USE" }), 1);
       },
@@ -198,7 +198,7 @@ test(
         );
         assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
         for (const r of results.filter((r) => r.status === "rejected"))
-          assert.match(r.reason.message, /đã sử dụng/);
+          assert.match(r.reason.message, /already used/);
         assert.equal(await Redemption.countDocuments({ voucherID: v._id }), 1);
         assert.equal(await purchases.countDocuments({ code: "SAME-USER" }), 1);
       },

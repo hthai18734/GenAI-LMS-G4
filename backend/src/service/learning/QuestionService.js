@@ -94,7 +94,7 @@ class QuestionService {
         if (err.status !== 404) throw err;
       }
     }
-    // Requirement #6: Khi xóa Question đang được Quiz hoạt động sử dụng, trả HTTP 409
+    // Requirement #6: Deleting a question used by an active quiz returns HTTP 409.
     const activeQuizCount = await this.quizQuestionRepository.countActiveByQuestionId(question._id);
     if (activeQuizCount > 0) {
       throw new ServiceError(409, `Cannot delete question because it is currently linked to ${activeQuizCount} active quiz(zes). Please unlink it first.`);
