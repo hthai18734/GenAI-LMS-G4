@@ -34,7 +34,7 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, callback) => {
-  if (!allowedMimeTypes.has(file.mimetype) && !file.mimetype.startsWith('video/')) {
+  if (!allowedMimeTypes.has(file.mimetype)) {
     const error = new Error('Only video formats are supported (MP4, WebM, OGG, MOV).');
     error.status = 400;
     return callback(error);
