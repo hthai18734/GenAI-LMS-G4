@@ -25,6 +25,8 @@ export default function CourseLearnPage() {
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
   const [sections, setSections] = useState([]);
+  const [assignmentError, setAssignmentError] = useState(null);
+  const [refreshingAssignments, setRefreshingAssignments] = useState(false);
   const [quizzes, setQuizzes] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [currentLesson, setCurrentLesson] = useState(null);
@@ -108,14 +110,30 @@ export default function CourseLearnPage() {
     }
   }, [courseId]);
 
+  const refreshAssignments = async () => {
+    if (submittingAssignment || refreshingAssignments) return;
+    setRefreshingAssignments(true);
+    try {
+      const res = await studentService.getCourseAssignments(courseId);
+      const fresh = res.data?.assignments || [];
+      setAssignments(fresh);
+      setAssignmentError(null);
+      setSelectedAssignment(current => current ? fresh.find(a => a._id === current._id) || null : null);
+      await loadCourseProgress();
+    } catch (error) { setAssignmentError(error.message || 'Unable to refresh assignments.'); }
+    finally { setRefreshingAssignments(false); }
+  };
+
   const loadCourseAndLessons = useCallback(async () => {
     setLoading(true);
+    setAssignmentError(null);
+    setSelectedAssignment(null);
     try {
       // 1. Fetch lessons
       const [lessonsRes, quizzesRes, assignmentsRes] = await Promise.all([
         studentService.getCourseLessons(courseId),
         studentService.getCourseQuizzes(courseId).catch(() => ({ data: { quizzes: [] } })),
-        studentService.getCourseAssignments(courseId).catch(() => ({ data: { assignments: [] } })),
+        studentService.getCourseAssignments(courseId).catch(error => { setAssignmentError(error.message || 'Unable to load assignments.'); return { data: { assignments: [] } }; }),
       ]);
       const fetchedCourse = lessonsRes.data?.course;
       const fetchedLessons = lessonsRes.data?.lessons || [];
@@ -669,6 +687,9 @@ export default function CourseLearnPage() {
         </div>
       </div>
 
+      <div className="student-summary-heading"><h3>Assignments</h3><button type="button" className="btn btn-secondary btn-sm" disabled={refreshingAssignments || submittingAssignment} onClick={refreshAssignments}>{refreshingAssignments ? 'Refreshing...' : 'Refresh assignments & feedback'}</button></div>
+      {assignmentError && <p role="alert">{assignmentError}</p>}
+      {!assignmentError && !assignments.length && <p>No assignments available in this course.</p>}
       {/* Completion Banner */}
       {completedBanner && (
         <div style={{
@@ -799,6 +820,7 @@ export default function CourseLearnPage() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button className="btn btn-secondary btn-sm" type="button" onClick={() => handleOpenAssignmentModal(assignment, 'view')}>View assignment</button>
                   {submission && (
                     <button
                       className="btn btn-secondary btn-sm"
