@@ -10,6 +10,7 @@ import DiscussionPostEditor from '../components/DiscussionPostEditor';
 import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
 import CourseSectionList from '../features/student/CourseSectionList.jsx';
+import { assignmentClosed } from '../features/student/learningModel.js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AssignmentAttachment from '../features/learning/AssignmentAttachment.jsx';
@@ -27,6 +28,8 @@ export default function CourseLearnPage() {
   const [sections, setSections] = useState([]);
   const [assignmentError, setAssignmentError] = useState(null);
   const [refreshingAssignments, setRefreshingAssignments] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [quizzes, setQuizzes] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [currentLesson, setCurrentLesson] = useState(null);
@@ -525,6 +528,7 @@ export default function CourseLearnPage() {
   const handleSubmitAssignment = async (e) => {
     e.preventDefault();
     if (submittingAssignment || !selectedAssignment || (!assignmentAnswer.trim() && !assignmentFile)) return;
+    if (assignmentClosed(selectedAssignment)) { setAssignmentSubmissionNotice({ type: 'error', message: 'The assignment deadline has passed.' }); return; }
     setSubmittingAssignment(true);
     setAssignmentSubmissionNotice(null);
     try {
@@ -603,6 +607,7 @@ export default function CourseLearnPage() {
   const completedCount = lessons.filter((l) => l.status === 'completed').length;
   const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
   const effectivePercent = courseProgress?.percentage !== undefined ? Math.round(courseProgress.percentage) : progressPercent;
+  const closed = assignmentClosed(selectedAssignment, now);
 
   return (
     <div>
@@ -833,9 +838,10 @@ export default function CourseLearnPage() {
                   <button
                     className="btn btn-primary btn-sm"
                     type="button"
+                    disabled={assignmentClosed(assignment, now)}
                     onClick={() => handleOpenAssignmentModal(assignment, 'submit')}
                   >
-                    {submission ? 'Resubmit assignment' : 'Start assignment'}
+                    {assignmentClosed(assignment, now) ? 'Submission closed' : submission ? 'Resubmit assignment' : 'Start assignment'}
                   </button>
                 </div>
               </div>
@@ -1763,6 +1769,7 @@ export default function CourseLearnPage() {
 
             <AssignmentAttachment attachment={selectedAssignment.attachment} url={`/api/student/assignments/${selectedAssignment._id}/attachment`} />
             {selectedAssignment.latestSubmission?.attachment && <div><h4>Submitted file</h4><AssignmentAttachment attachment={selectedAssignment.latestSubmission.attachment} url={`/api/student/assignment-submissions/${selectedAssignment.latestSubmission._id}/attachment`} /></div>}
+            {closed && <p role="status">Submissions are closed. You can still view your accepted work and feedback.</p>}
             {/* Teacher Feedback (if available) */}
             {selectedAssignment.latestSubmission?.feedback && (
               <div
@@ -1796,11 +1803,12 @@ export default function CourseLearnPage() {
                   </h4>
                   <button
                     type="button"
+                    disabled={closed || refreshingAssignments}
                     onClick={() => { setAssignmentSubmissionNotice(null); setAssignmentModalMode('submit'); }}
                     className="btn btn-secondary btn-sm"
                     style={{ fontSize: '12px' }}
                   >
-                    Edit / Resubmit
+                    {selectedAssignment.latestSubmission ? 'Edit / Resubmit' : 'Start assignment'}
                   </button>
                 </div>
                 <div
@@ -1849,7 +1857,8 @@ export default function CourseLearnPage() {
                   disabled={submittingAssignment}
                   required={!assignmentFile}
                   value={assignmentAnswer}
-                  onChange={(e) => setAssignmentAnswer(e.target.value)}
+                  maxLength={10000}
+                  onChange={(e) => { setAssignmentSubmissionNotice(null); setAssignmentAnswer(e.target.value); }}
                   placeholder="Enter your answer, code, solution or submission link (GitHub, Drive...)."
                   style={{
                     width: '100%',
@@ -1868,6 +1877,7 @@ export default function CourseLearnPage() {
                   const file = e.target.files?.[0]; try { validateAssignmentFile(file); setAssignmentFile(file || null); } catch (err) { addToast(err.message, 'error'); e.target.value = ''; }
                 }} />
                 {assignmentFile && <small>Selected: {assignmentFile.name}</small>}
+                <small>{assignmentAnswer.length}/10000 characters. Text is saved when you submit; there is no automatic draft save.</small>
                 <small>Enter an answer or attach a file. Resubmitting replaces your previous answer and file; grades and feedback are cleared for grading again.</small>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
                   <button
@@ -1881,7 +1891,7 @@ export default function CourseLearnPage() {
                   <button
                     type="submit"
                     className="btn btn-primary btn-sm"
-                    disabled={submittingAssignment || (!assignmentAnswer.trim() && !assignmentFile)}
+                    disabled={closed || refreshingAssignments || submittingAssignment || (!assignmentAnswer.trim() && !assignmentFile)}
                   >
                     {submittingAssignment ? 'Submitting...' : selectedAssignment.latestSubmission ? 'Update submission' : 'Submit assignment'}
                   </button>
