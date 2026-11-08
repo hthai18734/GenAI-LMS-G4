@@ -12,7 +12,7 @@ function enrollmentView(enrollment) {
 
 class StudentLearningService {
   constructor({
-    courseRepository, enrollmentRepository, progressRepository, lessonRepository,
+    courseRepository, enrollmentRepository, progressRepository, lessonRepository, sectionRepository,
     certificateRepository, videoProgressRepository, notificationPreferenceRepository,
     notificationRepository, learningActivityLogRepository, progressTrackingService, enrollmentLifecycleService,
   } = {}) {
@@ -20,6 +20,7 @@ class StudentLearningService {
     this.enrollmentRepository = enrollmentRepository;
     this.progressRepository = progressRepository;
     this.lessonRepository = lessonRepository;
+    this.sectionRepository = sectionRepository;
     this.certificateRepository = certificateRepository;
     this.videoProgressRepository = videoProgressRepository;
     this.notificationPreferenceRepository = notificationPreferenceRepository;
@@ -213,9 +214,10 @@ class StudentLearningService {
     if (!elevated && course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(userId, courseId);
     if (!enrollment && !elevated) throw new ServiceError(403, 'You must be enrolled to view lessons.');
-    const [lessons, progressList] = await Promise.all([
+    const [lessons, progressList, sections] = await Promise.all([
       elevated ? this.lessonRepository.findByCourseId(courseId) : this.lessonRepository.findPublishedByCourseId(courseId),
       this.progressRepository.findByUserAndCourse(userId, courseId),
+      this.sectionRepository ? this.sectionRepository.findByCourseId(courseId) : [],
     ]);
     const progress = new Map(progressList
       .filter((record) => record.lessonId?._id)
@@ -228,6 +230,7 @@ class StudentLearningService {
         title: course.title, description: course.description, thumbnail: course.thumbnail, category: course.category,
       },
       enrollmentStatus: enrollment?.status === 'completed' && completion?.eligibleToComplete ? 'completed' : 'active',
+      sections: sections.map(section => ({ id: String(section._id), title: section.title, description: section.description || '', order: section.order })),
       lessons: lessons.map((lesson) => ({
         id: String(lesson._id), _id: String(lesson._id), title: lesson.title,
         sectionId: lesson.sectionId ? String(lesson.sectionId) : null, sectionTitle: lesson.sectionTitle || null,

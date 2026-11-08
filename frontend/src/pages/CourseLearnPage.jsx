@@ -9,6 +9,7 @@ import ReviewsPanel from '../components/ReviewsPanel';
 import DiscussionPostEditor from '../components/DiscussionPostEditor';
 import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
+import CourseSectionList from '../features/student/CourseSectionList.jsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AssignmentAttachment from '../features/learning/AssignmentAttachment.jsx';
@@ -23,6 +24,7 @@ export default function CourseLearnPage() {
 
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
+  const [sections, setSections] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [currentLesson, setCurrentLesson] = useState(null);
@@ -120,6 +122,7 @@ export default function CourseLearnPage() {
 
       setCourse(fetchedCourse);
       setLessons(fetchedLessons);
+      setSections(lessonsRes.data?.sections || []);
       setQuizzes(quizzesRes.data?.quizzes || []);
       setAssignments(assignmentsRes.data?.assignments || []);
       if (lessonsRes.data?.enrollmentId) {
@@ -820,6 +823,7 @@ export default function CourseLearnPage() {
       )}
       {lessons.length === 0 ? (
         <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '40px 24px', textAlign: 'center' }}>
+          <CourseSectionList sections={sections} lessons={lessons} currentLesson={currentLesson} onSelect={setCurrentLesson} />
           <div className="empty-icon" style={{ fontSize: '42px', marginBottom: '12px' }}>📝</div>
           <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 8px' }}>Lessons are being prepared</h3>
           <p style={{ color: 'var(--muted)', maxWidth: '480px', margin: '0 auto 20px', fontSize: '14px' }}>
@@ -832,69 +836,8 @@ export default function CourseLearnPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '24px' }}>
-          {/* Lesson List */}
-          <div style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '16px', height: 'fit-content' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px', paddingBottom: '8px', borderBottom: '1px solid var(--line)' }}>
-              Course Syllabus ({completedCount}/{lessons.length})
-            </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {lessons.map((lesson, idx) => {
-              const isActive = currentLesson?.id === lesson.id;
-              const isDone = lesson.status === 'completed';
-
-              return (
-                <button
-                  key={lesson.id}
-                  onClick={() => setCurrentLesson(lesson)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    textAlign: 'left',
-                    background: isActive ? 'var(--lav)' : isDone ? '#f0fdf4' : 'transparent',
-                    border: isActive ? '1px solid #d4ceff' : '1px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all .2s',
-                  }}
-                >
-                  <span style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    background: isDone ? '#22c55e' : isActive ? 'var(--purple)' : '#e5e7eb',
-                    color: isDone || isActive ? '#fff' : '#4b5563',
-                    flex: '0 0 auto',
-                  }}>
-                    {isDone ? '✓' : idx + 1}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'var(--purple)' : 'var(--ink)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>
-                      {lesson.sectionTitle ? `${lesson.sectionTitle} · ` : ''}{lesson.title}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--muted)', display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
-                      <span>{lesson.videoRef ? '🎬 Video' : '📖 Reading'}</span>
-                      {lesson.duration ? <span>• {lesson.duration} mins</span> : null}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <div className="student-learning-layout">
+          <CourseSectionList sections={sections} lessons={lessons} currentLesson={currentLesson} onSelect={setCurrentLesson} />
 
         {/* Current Lesson View */}
         <div style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '28px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
