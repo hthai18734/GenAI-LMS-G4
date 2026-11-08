@@ -11,7 +11,7 @@ const ATTEMPT_SUBMITTED = 'This quiz attempt has already been submitted.';
 const RESULT_UNAVAILABLE = 'Quiz result is available only after submission.';
 
 class QuizService {
-  constructor({ quizRepository, lessonRepository, questionRepository, quizQuestionRepository, quizAttemptRepository, enrollmentRepository, progressRepository, courseRepository, courseService } = {}) {
+  constructor({ quizRepository, lessonRepository, questionRepository, quizQuestionRepository, quizAttemptRepository, enrollmentRepository, progressRepository, courseRepository, courseService, clock = () => new Date() } = {}) {
     this.quizRepository = quizRepository;
     this.lessonRepository = lessonRepository;
     this.questionRepository = questionRepository;
@@ -21,6 +21,7 @@ class QuizService {
     this.progressRepository = progressRepository;
     this.courseRepository = courseRepository;
     this.courseService = courseService;
+    this.clock = clock;
   }
   assertValidId(id, field = 'Quiz') {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} ID is invalid.`);
@@ -143,13 +144,16 @@ class QuizService {
     }
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, quiz.courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
+    if (quiz.deadline && this.clock() >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
     const attemptCount = await this.quizAttemptRepository.countByUserAndQuiz(user._id, quiz._id);
     if (attemptCount >= quiz.attemptLimit) throw new ServiceError(409, NO_ATTEMPTS_REMAINING);
 
     const questions = await this.getQuizQuestions(quiz._id);
-    const startedAt = new Date();
+    const startedAt = this.clock();
+    if (quiz.deadline && startedAt >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
     if (!questions.length) throw new ServiceError(409, 'This quiz has no questions yet.');
-    const expiresAt = new Date(startedAt.getTime() + (Number(quiz.timeLimit) * 60 * 1000));
+    const expiresAt = new Date(Math.min(startedAt.getTime() + Number(quiz.timeLimit) * 60 * 1000,
+      quiz.deadline ? new Date(quiz.deadline).getTime() : Infinity));
 
     const questionsSnapshot = questions.map((q) => ({
       questionId: q._id,
@@ -180,6 +184,7 @@ class QuizService {
     const attempt = await this.getActiveAttempt(attemptId, user);
     const quiz = await this.quizRepository.findById(attempt.quizId);
     if (!quiz) throw new ServiceError(409, INVALID_ATTEMPT);
+    if (quiz.deadline && this.clock() >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
 
     // Chấm điểm bằng snapshot nếu có, ngược lại fallback sang questions hiện hành
     let questions = attempt.questionsSnapshot;
@@ -191,7 +196,8 @@ class QuizService {
     const answers = this.gradeAnswers(questions, submittedAnswers);
     const correctCount = answers.filter((answer) => answer.isCorrect).length;
     const score = questions.length ? Math.round((correctCount / questions.length) * 100) : 0;
-    const submittedAt = new Date();
+    const submittedAt = this.clock();
+    if (quiz.deadline && submittedAt >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
 
     const updated = await this.quizAttemptRepository.submit(attempt._id, user._id, {
       status: 'submitted',
