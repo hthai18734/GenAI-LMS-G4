@@ -12,4 +12,8 @@ module.exports = ({ gradebookService }) => ({
       await gradebookService.configure(req.params.courseId, req.user);
     } catch (e) { return next(e); }
   },
+  async report(req, res, next) {
+    try { return ResponseUtil.success(res, { data: await gradebookService.report(req.params.courseId, req.user) }); }
+    catch (e) { return next(e); }
+  },
 });

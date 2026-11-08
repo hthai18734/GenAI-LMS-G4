@@ -27,5 +27,14 @@ class GradebookService {
     await this.courseService.getOwnedCourse(courseId, user);
     throw new ServiceError(410, 'Weighted grade policies have been retired. Course completion uses lessons, videos and the latest assessment results.');
   }
+  async report(courseId, user) {
+    const context = await this.context(courseId, user);
+    const first = await this.build(context, await this.gradebookRepository.read(courseId, { page: 1, limit: 100 }), { page: 1, limit: 100 });
+    for (let page = 2; page <= first.pagination.pages; page++) {
+      const next = await this.build(context, await this.gradebookRepository.read(courseId, { page, limit: 100 }), { page, limit: 100 });
+      first.rows.push(...next.rows);
+    }
+    return { ...first, generatedAt: new Date().toISOString(), publication: 'saved-results-visible', format: 'pdf-data' };
+  }
 }
 module.exports = GradebookService;
