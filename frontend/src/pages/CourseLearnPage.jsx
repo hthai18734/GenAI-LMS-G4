@@ -30,7 +30,7 @@ export default function CourseLearnPage() {
   const [progressError, setProgressError] = useState(null);
   const [assignmentError, setAssignmentError] = useState(null);
   const [refreshingAssignments, setRefreshingAssignments] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const assignmentFileInput = useRef(null);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [quizzes, setQuizzes] = useState([]);

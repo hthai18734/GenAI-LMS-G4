@@ -17,14 +17,14 @@ export default function TeacherSuspendedNotice() {
       if (profile) {
         updateUser({ ...user, teachingStatus: profile.teachingStatus || 'active' });
         if (profile.teachingStatus !== 'suspended') {
-          addToast('Quyền giảng dạy của bạn đã được khôi phục! Đang tải lại...', 'success');
+          addToast('Your teaching access has been restored. Reloading...', 'success');
           window.location.reload();
         } else {
-          addToast('Tài khoản vẫn đang trong trạng thái tạm đình chỉ.', 'info');
+          addToast('Your account is still suspended.', 'info');
         }
       }
     } catch {
-      addToast('Không thể kiểm tra trạng thái lúc này. Vui lòng thử lại sau.', 'error');
+      addToast('Unable to check your status right now. Please try again later.', 'error');
     } finally {
       setChecking(false);
     }
@@ -95,7 +95,7 @@ export default function TeacherSuspendedNotice() {
             border: '1px solid #fecaca'
           }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}></span>
-            Trạng thái: Tạm đình chỉ giảng dạy
+            Status: Teaching suspended
           </span>
         </div>
 
@@ -106,7 +106,7 @@ export default function TeacherSuspendedNotice() {
           marginBottom: '12px',
           letterSpacing: '-0.02em'
         }}>
-          Quyền Giảng Dạy Đang Tạm Khóa
+          Teaching Access Suspended
         </h1>
 
         <p style={{
@@ -116,7 +116,7 @@ export default function TeacherSuspendedNotice() {
           maxWidth: '480px',
           margin: '0 auto 32px'
         }}>
-          Tài khoản giảng viên <strong>{user?.fullName || user?.email}</strong> đã bị tạm ngừng các quyền giảng dạy bởi quản trị viên hệ thống. Vui lòng kiểm tra mục thông báo hoặc liên hệ quản trị viên để biết thêm chi tiết.
+          Teaching access for <strong>{user?.fullName || user?.email}</strong> has been suspended by a system administrator. Check your notifications or contact an administrator for details.
         </p>
 
         {/* Action Buttons */}
@@ -134,7 +134,7 @@ export default function TeacherSuspendedNotice() {
               gap: '6px'
             }}
           >
-            {checking ? 'Đang kiểm tra...' : '🔄 Kiểm tra lại trạng thái'}
+            {checking ? 'Checking...' : '🔄 Check status again'}
           </button>
 
           <Link
@@ -150,7 +150,7 @@ export default function TeacherSuspendedNotice() {
               gap: '6px'
             }}
           >
-            🔔 Xem thông báo
+            🔔 View notifications
           </Link>
 
           <Link
@@ -166,7 +166,7 @@ export default function TeacherSuspendedNotice() {
               gap: '6px'
             }}
           >
-            👤 Hồ sơ của tôi
+            👤 My profile
           </Link>
 
           <Link
@@ -179,7 +179,7 @@ export default function TeacherSuspendedNotice() {
               alignSelf: 'center'
             }}
           >
-            Về trang chủ →
+            Back to home →
           </Link>
         </div>
       </div>

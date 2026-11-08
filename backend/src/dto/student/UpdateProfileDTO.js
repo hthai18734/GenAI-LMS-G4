@@ -19,7 +19,7 @@ class UpdateProfileDTO {
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (!Object.keys(this.body).some((k) => allowed.includes(k))) errors.payload = 'At least one editable field is required.';
 
-    // fullName validation (tên ghi gì cũng được, miễn không để trống)
+    // A full name can contain any text but cannot be blank.
     if (hasOwn(this.body, 'fullName')) {
       const name = text(this.body.fullName);
       if (!name) {
@@ -29,7 +29,7 @@ class UpdateProfileDTO {
       }
     }
 
-    // phone validation (10 số bắt đầu bằng số 0)
+    // A phone number must contain 10 digits and start with 0.
     if (hasOwn(this.body, 'phone')) {
       const rawPhone = text(this.body.phone);
       if (rawPhone) {

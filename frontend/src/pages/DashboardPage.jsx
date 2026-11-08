@@ -562,7 +562,6 @@ export default function DashboardPage() {
   }
 
   /* ── Data ── */
-  const enrolled = data?.enrolledCourses || 0;
   const active = data?.activeCourses || 0;
   const completed = data?.completedCourses || 0;
   const courses = data?.courses || [];

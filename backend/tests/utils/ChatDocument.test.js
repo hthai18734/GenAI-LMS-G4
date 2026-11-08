@@ -5,9 +5,9 @@ const path = require('node:path');
 const { parseDocument } = require('../../src/utils/document/ChatDocumentParser');
 function file(name, text, mimetype = 'text/plain') { return { originalname: name, mimetype, buffer: Buffer.from(text) }; }
 test('UTF-8 text is extracted and file name is sanitized', async () => {
-  const doc = await parseDocument(file('../lesson.txt', 'Bài học tiếng Việt'));
+  const doc = await parseDocument(file('../lesson.txt', 'English lesson'));
   assert.equal(doc.name, 'lesson.txt');
-  assert.equal(doc.text, 'Bài học tiếng Việt');
+  assert.equal(doc.text, 'English lesson');
   assert.equal(doc.data, undefined);
 });
 test('Markdown supported', async () => {

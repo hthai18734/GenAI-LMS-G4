@@ -22,10 +22,10 @@ test('Iteration 3 Huy: curriculum, assessment, gradebook, report and video HTTP/
   await Promise.all([Section.init(), Submission.init(), VideoUpload.init()]);
   const server = app.listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
   t.after(async () => { await new Promise(r => server.close(r)); await mongoose.connection.dropDatabase(); await mongoose.disconnect(); if (secret === undefined) delete process.env.JWT_ACCESS_SECRET; else process.env.JWT_ACCESS_SECRET = secret; });
-  const teacher = await User.create({ fullName: 'Tạ Gia Huy', email: 'teacher@huy.test', role: 'teacher', emailVerifiedAt: new Date() });
+  const teacher = await User.create({ fullName: 'Test Teacher', email: 'teacher@huy.test', role: 'teacher', emailVerifiedAt: new Date() });
   const other = await User.create({ fullName: 'Other', email: 'other@huy.test', role: 'teacher', emailVerifiedAt: new Date() });
-  const student = await User.create({ fullName: 'Học viên', email: 'student@huy.test', role: 'student', emailVerifiedAt: new Date() });
-  const course = await Course.create({ title: 'Tiếng Việt', teacherId: teacher._id, status: 'DRAFT' });
+  const student = await User.create({ fullName: 'Test Student', email: 'student@huy.test', role: 'student', emailVerifiedAt: new Date() });
+  const course = await Course.create({ title: 'Test Course', teacherId: teacher._id, status: 'DRAFT' });
   const otherCourse = await Course.create({ title: 'Other', teacherId: other._id, status: 'DRAFT' });
   async function request(path, user = teacher, method = 'GET', body) {
     const headers = { ...(user ? { Authorization: `Bearer ${JWT.createAccessToken(user)}` } : {}) };
@@ -37,12 +37,12 @@ test('Iteration 3 Huy: curriculum, assessment, gradebook, report and video HTTP/
   assert.equal((await request(sectionPath, null)).status, 401);
   assert.equal((await request(sectionPath, other, 'POST', { title: 'No' })).status, 403);
   assert.equal((await request(sectionPath, teacher, 'POST', { title: '' })).status, 400);
-  const first = (await request(sectionPath, teacher, 'POST', { title: 'Chương 1' })).body.data.section;
-  const second = (await request(sectionPath, teacher, 'POST', { title: 'Chương 2' })).body.data.section;
+  const first = (await request(sectionPath, teacher, 'POST', { title: 'Section 1' })).body.data.section;
+  const second = (await request(sectionPath, teacher, 'POST', { title: 'Section 2' })).body.data.section;
   const foreign = await Section.create({ courseId: otherCourse._id, title: 'Foreign', order: 1 });
   const deletedSection = await Section.create({ courseId: course._id, title: 'Deleted', order: 99, deletedAt: new Date() });
   const lessonPath = `teacher/courses/${course._id}/lessons`;
-  const payload = { title: 'Bài học', content: 'Notes', order: 1, sectionId: first._id, isPublished: true };
+  const payload = { title: 'Lesson', content: 'Notes', order: 1, sectionId: first._id, isPublished: true };
   assert.equal((await request(lessonPath, teacher, 'POST', { ...payload, sectionId: String(foreign._id) })).status, 404);
   assert.equal((await request(lessonPath, teacher, 'POST', { ...payload, sectionId: String(deletedSection._id) })).status, 404);
   const l1 = (await request(lessonPath, teacher, 'POST', payload)).body.data.lesson;
@@ -101,7 +101,7 @@ test('Iteration 3 Huy: curriculum, assessment, gradebook, report and video HTTP/
   assert.equal(created.status, 201); const assignment = created.body.data.assignment;
   await Course.updateOne({ _id: course._id }, { status: 'PUBLIC' });
   await Enrollment.create({ userId: student._id, courseId: course._id, status: 'active' });
-  const submitted = await request(`student/assignments/${assignment._id}/submissions`, student, 'POST', { answer: 'Giải pháp' });
+  const submitted = await request(`student/assignments/${assignment._id}/submissions`, student, 'POST', { answer: 'Student solution' });
   assert.equal(submitted.status, 200); const submission = submitted.body.data.submission;
   const submissionPath = `teacher/assignment-submissions/${submission._id}`;
   assert.equal((await request(submissionPath, other)).status, 403);
@@ -112,11 +112,11 @@ test('Iteration 3 Huy: curriculum, assessment, gradebook, report and video HTTP/
   const race = await Promise.all([request(`${submissionPath}/grade`, teacher, 'PATCH', grade), request(`${submissionPath}/grade`, teacher, 'PATCH', grade)]);
   assert.deepEqual(race.map(r => r.status).sort(), [200, 409]);
   let latest = (await request(submissionPath)).body.data.submission;
-  const feedback = await request(`${submissionPath}/feedback`, teacher, 'PATCH', { feedback: 'Nhận xét', revision: latest.revision }); assert.equal(feedback.status, 200); assert.equal(feedback.body.data.submission.score, 0);
+  const feedback = await request(`${submissionPath}/feedback`, teacher, 'PATCH', { feedback: 'Teacher feedback', revision: latest.revision }); assert.equal(feedback.status, 200); assert.equal(feedback.body.data.submission.score, 0);
   latest = feedback.body.data.submission;
   assert.equal((await request(`${submissionPath}/grade`, teacher, 'PATCH', { score: 8, revision: latest.revision })).status, 200);
   const visible = (await request(`student/courses/${course._id}/assignments`, student)).body.data.assignments[0];
-  assert.equal(visible.latestSubmission.score, 8); assert.equal(visible.latestSubmission.feedback, 'Nhận xét');
+  assert.equal(visible.latestSubmission.score, 8); assert.equal(visible.latestSubmission.feedback, 'Teacher feedback');
   const quiz = await Quiz.create({ courseId: course._id, title: 'Quiz', timeLimit: 10, passingScore: 50 });
   for (const [i, score] of [75, 50].entries()) await Attempt.create({ quizId: quiz._id, courseId: course._id, userId: student._id, status: 'submitted', score, passed: true, expiresAt: new Date(), submittedAt: new Date(1000 + i) });
   const gradebookPath = `teacher/courses/${course._id}/gradebook`;
@@ -132,7 +132,7 @@ test('Iteration 3 Huy: curriculum, assessment, gradebook, report and video HTTP/
   assert.equal((await request(`${gradebookPath}/calculate`, teacher, 'POST')).body.data.rows[0].result.status, 'incomplete');
   await Assignment.updateOne({ _id: assignment._id }, { deadline: new Date(0) });
   assert.equal((await request(`student/assignments/${assignment._id}/submissions`, student, 'POST', { answer: 'Late' })).status, 409);
-  assert.equal((await Submission.findById(submission._id)).answer, 'Giải pháp');
+  assert.equal((await Submission.findById(submission._id)).answer, 'Student solution');
   await Course.updateOne({ _id: course._id }, { status: 'APPROVED' });
   assert.equal((await request(`teacher/courses/${course._id}`, teacher, 'DELETE')).status, 200);
   assert.equal(await Section.countDocuments({ courseId: course._id, deletedAt: null }), 0);

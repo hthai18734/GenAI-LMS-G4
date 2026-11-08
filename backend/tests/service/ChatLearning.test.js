@@ -7,10 +7,10 @@ const Conversation = require('../../src/model/chat/ChatConversation');
 const user = { _id: '507f1f77bcf86cd799439011', role: 'student', email: 'private@example.com', passwordHash: 'private-hash' };
 const c1 = '507f1f77bcf86cd799439012';
 const c2 = '507f1f77bcf86cd799439013';
-const details = { goal: 'Học JavaScript', level: 'beginner' };
+const details = { goal: 'Learn JavaScript', level: 'beginner' };
 const payload = (mode, data = details) => DTO.message({ mode, details: data, requestId: 'request-123', userId: 'forged', profile: 'forged' });
 const source = {
-  catalog: async () => [{ _id: c1, title: 'JavaScript', description: 'JS cơ bản', price: 0 }, { _id: c2, title: 'React', description: 'React cơ bản', price: 20 }],
+  catalog: async () => [{ _id: c1, title: 'JavaScript', description: 'JS fundamentals', price: 0 }, { _id: c2, title: 'React', description: 'React fundamentals', price: 20 }],
   enrollments: async id => { assert.equal(id, user._id); return [{ courseId: c2, status: 'completed' }]; },
   quizPerformance: async id => { assert.equal(id, user._id); return [{ courseId: c2, averageScore: 72.5, latestScore: 75, attempts: 2 }]; },
   lessons: async ids => ids.length ? [{ _id: '507f1f77bcf86cd799439014', courseId: ids[0], title: 'Async JavaScript', content: 'Promises and async await', order: 2 }] : [],
@@ -34,7 +34,7 @@ test('recommendations use authenticated enrollment, remove completed courses, ex
   assert.equal(feature.data.profile.completedCourses, 1);
   assert.equal(feature.data.profile.quizPerformance[0].averageScore, 72.5);
   assert.ok(!JSON.stringify(feature.data).includes('private'));
-  const result = feature.finish(JSON.stringify({ recommendations: [{ courseId: c1, reason: 'Phù hợp người mới học JavaScript' }] }));
+  const result = feature.finish(JSON.stringify({ recommendations: [{ courseId: c1, reason: 'Suitable for JavaScript beginners' }] }));
   assert.equal(result.recommendations[0].url, `/courses/${c1}`);
   assert.match(result.answer, /JavaScript/);
 });
@@ -62,7 +62,7 @@ test('no catalog returns immediate honest response without needing model', async
 });
 test('study plan preserves exact time budget and rejects missing weeks or forged courses', async () => {
   const feature = await new Learning(source).prepare(user, payload('study_plan', { ...details, weeks: 2, daysPerWeek: 3, minutesPerDay: 30 }));
-  const weeks = [1, 2].map(week => ({ week, focus: 'Biến và hàm', activities: 'Buổi 1: đọc; buổi 2: thực hành; buổi 3: ôn tập.', outcome: 'Viết một hàm', courseId: c1 }));
+  const weeks = [1, 2].map(week => ({ week, focus: 'Variables and functions', activities: 'Session 1: read; session 2: practice; session 3: review.', outcome: 'Write a function', courseId: c1 }));
   const result = feature.finish(JSON.stringify({ weeks }));
   assert.equal(result.studyPlan.totalMinutes, 180);
   assert.equal(result.studyPlan.weeks[0].minutesPerDay, 30);
@@ -75,7 +75,7 @@ test('wrong-answer instructions do not assume the student answer is incorrect or
   const feature = await new Learning(source).prepare(user, payload('wrong_answer', { question: '2+2', studentAnswer: '4' }));
   assert.match(feature.instruction, /Do not assume/);
   assert.match(feature.instruction, /has not been graded by the system/);
-  assert.equal(feature.finish('Đáp án của bạn đúng.').mode, 'wrong_answer');
+  assert.equal(feature.finish('Your answer is correct.').mode, 'wrong_answer');
 });
 test('new features pass through owned conversation and save structured output idempotently', async () => {
   const row = { _id: c1, turns: [] };
@@ -86,7 +86,7 @@ test('new features pass through owned conversation and save structured output id
     append: async (owner, id, token, turn) => row.turns.push(turn),
   };
   const service = new ChatService({ chatRepository, context: { resolve: async () => null }, learning: new Learning(source),
-    gemini: { generateContent: async () => { calls++; return { text: JSON.stringify({ recommendations: [{ courseId: c1, reason: 'Mục tiêu phù hợp' }] }), model: 'test' }; } } });
+    gemini: { generateContent: async () => { calls++; return { text: JSON.stringify({ recommendations: [{ courseId: c1, reason: 'Matches the learning goal' }] }), model: 'test' }; } } });
   await assert.rejects(service.send({ ...user, _id: 'other' }, c1, payload('recommend')), e => e.status === 404);
   assert.equal(calls, 0);
   const result = await service.send(user, c1, payload('recommend'));

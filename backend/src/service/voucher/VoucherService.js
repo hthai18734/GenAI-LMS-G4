@@ -134,24 +134,24 @@ async function validateApply(
   session = null,
 ) {
   if (code == null || !String(code).trim())
-    return { success: false, message: "Vui lòng nhập mã voucher." };
+    return { success: false, message: "Please enter a voucher code." };
   const v = await VoucherRepository.findByCode(String(code).trim().toUpperCase(), session);
-  if (!v) return { success: false, message: "Mã voucher không tồn tại." };
+  if (!v) return { success: false, message: "Voucher code does not exist." };
   if (v.status !== "active")
-    return { success: false, message: "Voucher này không còn khả dụng." };
+    return { success: false, message: "This voucher is no longer available." };
   if (v.start_date && v.start_date > now)
-    return { success: false, message: "Voucher chưa tới thời gian sử dụng." };
+    return { success: false, message: "This voucher is not active yet." };
   if (v.end_date && v.end_date < now)
-    return { success: false, message: "Voucher đã hết hạn." };
+    return { success: false, message: "This voucher has expired." };
   if (v.min_order_value != null && total < v.min_order_value)
     return {
       success: false,
-      message: `Đơn hàng chưa đạt giá trị tối thiểu ${Math.round(v.min_order_value).toLocaleString("en-US")}đ để dùng voucher này.`,
+      message: `The order total must be at least ${Math.round(v.min_order_value).toLocaleString("en-US")} VND to use this voucher.`,
     };
   if (v.quantity != null && (await usedCount(v._id, session)) >= v.quantity)
-    return { success: false, message: "Voucher đã hết lượt sử dụng." };
+    return { success: false, message: "This voucher has reached its usage limit." };
   if (await hasUsed(customerID, v._id, session))
-    return { success: false, message: "Bạn đã sử dụng voucher này rồi." };
+    return { success: false, message: "You have already used this voucher." };
   // Java BigDecimal divide(scale=2, HALF_UP); domain VND values from SQL DECIMAL.
   let discount = percentageDiscount(total, v.discount_percent);
   if (v.max_discount_value != null)
@@ -159,7 +159,7 @@ async function validateApply(
   discount = Math.min(discount, total);
   return {
     success: true,
-    message: "Áp dụng voucher thành công!",
+    message: "Voucher applied successfully.",
     voucher: publicDoc(v),
     discountAmount: discount,
   };

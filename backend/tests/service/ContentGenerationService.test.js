@@ -50,8 +50,8 @@ test('quiz generation returns validated structured questions for persistence', a
 
 test('Chinese generation retries when the model follows the Vietnamese source language', async () => {
   let calls = 0;
-  const vietnamese = { title: 'React cơ bản', description: 'Khóa học dành cho người mới', estimatedDurationHours: 2, prerequisites: 'JavaScript', learningOutcomes: ['Xây dựng ứng dụng'], modules: [
-    { title: 'Nhập môn', objective: 'Hiểu React', lessons: [{ title: 'Component', objective: 'Tạo component', durationMinutes: 120 }] },
+  const generatedOutline = { title: 'React Fundamentals', description: 'A course for beginners', estimatedDurationHours: 2, prerequisites: 'JavaScript', learningOutcomes: ['Build an application'], modules: [
+    { title: 'Introduction', objective: 'Understand React', lessons: [{ title: 'Components', objective: 'Create a component', durationMinutes: 120 }] },
   ] };
   const chinese = { title: 'React 核心课程', description: '面向初学者的完整课程内容', estimatedDurationHours: 2, prerequisites: '具备 JavaScript 基础知识', learningOutcomes: ['能够构建完整的前端应用程序'], modules: [
     { title: '基础概念与实践', objective: '理解组件设计与数据传递方法', lessons: [{ title: '组件开发基础', objective: '创建并组合可复用的用户界面组件', durationMinutes: 120 }] },
@@ -59,9 +59,9 @@ test('Chinese generation retries when the model follows the Vietnamese source la
   const service = new ContentGenerationService({ gemini: { generateContent: async request => {
     calls += 1;
     if (calls === 2) assert.match(request.contents.at(-1).parts[0].text, /zh-CN/);
-    return { text: JSON.stringify(calls === 1 ? vietnamese : chinese), model: 'test' };
+    return { text: JSON.stringify(calls === 1 ? generatedOutline : chinese), model: 'test' };
   } } });
-  const result = await service.generate(ContentGenerationDTO.parse({ type: 'course_outline', source: 'Khóa học React', language: 'Chinese' }));
+  const result = await service.generate(ContentGenerationDTO.parse({ type: 'course_outline', source: 'React course', language: 'Chinese' }));
   assert.equal(calls, 2);
   assert.match(result.content, /核心课程/);
 });

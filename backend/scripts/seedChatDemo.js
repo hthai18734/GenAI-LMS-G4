@@ -12,13 +12,13 @@ const samples = require('./data/chatDemoCourses');
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
   const teacher = await User.findOne({ email: 'teacher@ai-lms.edu', role: 'teacher', status: 'active' });
-  if (!teacher) throw new Error('Cần tài khoản teacher@ai-lms.edu có role teacher và trạng thái active.');
+  if (!teacher) throw new Error('An active teacher account for teacher@ai-lms.edu is required.');
   const specified = process.argv.slice(2);
   const emails = specified.length ? specified : ['student1@ai-lms.edu', 'student2@ai-lms.edu'];
   const students = await User.find({ email: { $in: emails }, role: 'student', status: 'active' });
-  if (specified.length && students.length !== new Set(emails).size) throw new Error('Một email không tồn tại hoặc không phải học viên active.');
+  if (specified.length && students.length !== new Set(emails).size) throw new Error('An email does not exist or does not belong to an active student.');
   const category = await Category.findOneAndUpdate({ normalizedName: 'chat demo', deletedAt: null }, {
-    $setOnInsert: { name: 'Chat Demo', normalizedName: 'chat demo', description: 'Khóa học mẫu kiểm tra trợ lý AI', isActive: true },
+    $setOnInsert: { name: 'Chat Demo', normalizedName: 'chat demo', description: 'Sample courses for testing the AI learning assistant', isActive: true },
   }, { upsert: true, new: true, runValidators: true });
   const output = [];
   for (const sample of samples) {
@@ -29,7 +29,7 @@ async function main() {
       category: category.name, status: 'open', price: 0,
       duration: sample.lessons.reduce((sum, lesson) => sum + lesson.duration, 0),
     });
-    if (course.deletedAt || String(course.teacherId) !== String(teacher._id)) throw new Error('Khóa mẫu đã bị xóa hoặc đổi chủ sở hữu; không ghi đè dữ liệu.');
+    if (course.deletedAt || String(course.teacherId) !== String(teacher._id)) throw new Error('The sample course was deleted or its owner changed; existing data will not be overwritten.');
     for (const [index, lesson] of sample.lessons.entries()) {
       await Lesson.updateOne({ courseId: course._id, order: index + 1 }, {
         $setOnInsert: { ...lesson, courseId: course._id, order: index + 1 },
@@ -55,6 +55,6 @@ async function main() {
 }
 main().catch(error => {
   // Avoid printing connection strings from database/network errors.
-  console.error(error.name === 'Error' ? error.message : `Seed thất bại (${error.name}).`);
+  console.error(error.name === 'Error' ? error.message : `Seed failed (${error.name}).`);
   process.exitCode = 1;
 }).finally(() => mongoose.disconnect());
