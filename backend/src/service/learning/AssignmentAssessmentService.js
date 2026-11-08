@@ -45,5 +45,9 @@ class AssignmentAssessmentService {
     if (typeof feedback !== 'string' || feedback.trim().length > 10000) throw new ServiceError(400, 'Feedback must be text up to 10000 characters.');
     return { feedback: feedback.trim(), feedbackAt: new Date(), feedbackBy: user._id };
   }
+  async feedback(id, user, input) {
+    const { submission } = await this.owned(id, user);
+    return this.persistAssessment(submission, input, this.feedbackChanges(input.feedback, user));
+  }
 }
 module.exports = AssignmentAssessmentService;
