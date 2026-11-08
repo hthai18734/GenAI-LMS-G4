@@ -10,6 +10,7 @@ import DiscussionPostEditor from '../components/DiscussionPostEditor';
 import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
 import CourseSectionList from '../features/student/CourseSectionList.jsx';
+import CourseProgressSummary from '../features/student/CourseProgressSummary.jsx';
 import { assignmentClosed } from '../features/student/learningModel.js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -26,6 +27,7 @@ export default function CourseLearnPage() {
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
   const [sections, setSections] = useState([]);
+  const [progressError, setProgressError] = useState(null);
   const [assignmentError, setAssignmentError] = useState(null);
   const [refreshingAssignments, setRefreshingAssignments] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -108,9 +110,11 @@ export default function CourseLearnPage() {
       const res = await progressService.getCourseProgress(courseId);
       const progress = res.data?.progress || res.data || null;
       setCourseProgress(progress);
+      setProgressError(null);
       if (progress && !progress.eligibleToComplete) setEnrollmentStatus('active');
-    } catch {
-      // ignore
+    } catch (error) {
+      setCourseProgress(null);
+      setProgressError(error.message || 'Unable to load course progress.');
     }
   }, [courseId]);
 
@@ -130,8 +134,11 @@ export default function CourseLearnPage() {
 
   const loadCourseAndLessons = useCallback(async () => {
     setLoading(true);
+    setCourseProgress(null);
     setAssignmentError(null);
     setSelectedAssignment(null);
+    setCompletedBanner(null);
+    setEnrollmentId(null);
     try {
       // 1. Fetch lessons
       const [lessonsRes, quizzesRes, assignmentsRes] = await Promise.all([
@@ -563,6 +570,8 @@ export default function CourseLearnPage() {
     try {
       const res = await studentService.completeLesson(courseId, currentLesson.id);
       addToast('Lesson marked as completed!', 'success');
+      await loadCourseProgress();
+      setCurrentLesson(previous => previous ? { ...previous, status: 'completed' } : previous);
 
       // Update local state
       setLessons((prev) =>
@@ -605,9 +614,7 @@ export default function CourseLearnPage() {
     );
   }
 
-  const completedCount = lessons.filter((l) => l.status === 'completed').length;
-  const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
-  const effectivePercent = courseProgress?.percentage !== undefined ? Math.round(courseProgress.percentage) : progressPercent;
+  const effectivePercent = courseProgress?.percentage ?? 0;
   const closed = assignmentClosed(selectedAssignment, now);
 
   return (
@@ -683,8 +690,8 @@ export default function CourseLearnPage() {
 
           <div style={{ minWidth: '220px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-              <span style={{ color: 'var(--muted)' }}>Progress ({courseProgress?.completedRequired || completedCount}/{courseProgress?.totalRequired || lessons.length})</span>
-              <span style={{ fontWeight: 600, color: 'var(--purple)' }}>{effectivePercent}%</span>
+              <span style={{ color: 'var(--muted)' }}>{courseProgress ? `Progress (${courseProgress.completedRequired}/${courseProgress.totalRequired})` : 'Progress unavailable'}</span>
+              <span style={{ fontWeight: 600, color: 'var(--purple)' }}>{courseProgress ? `${effectivePercent}%` : '—'}</span>
             </div>
             <div className="progress-wrap" style={{ margin: 0 }}>
               <div className="progress-fill" style={{ width: `${effectivePercent}%` }}></div>
@@ -693,6 +700,7 @@ export default function CourseLearnPage() {
         </div>
       </div>
 
+      <CourseProgressSummary progress={courseProgress} error={progressError} onRefresh={loadCourseProgress} />
       <div className="student-summary-heading"><h3>Assignments</h3><button type="button" className="btn btn-secondary btn-sm" disabled={refreshingAssignments || submittingAssignment} onClick={refreshAssignments}>{refreshingAssignments ? 'Refreshing...' : 'Refresh assignments & feedback'}</button></div>
       {assignmentError && <p role="alert">{assignmentError}</p>}
       {!assignmentError && !assignments.length && <p>No assignments available in this course.</p>}
