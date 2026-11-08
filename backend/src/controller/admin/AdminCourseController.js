@@ -1,10 +1,11 @@
+module.exports = function createController(UseCases) {
 /**
 Author: HuyTG - CE182405
 Created at: 29/09/2026
 Description: Course Management
  */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { courseModerationService: CourseModerationService } = require('../../composition/services');
+const { courseModerationService: CourseModerationService } = UseCases;
 const CourseQueryDTO = require('../../dto/course/CourseQueryDTO');
 const RejectCourseDTO = require('../../dto/course/RejectCourseDTO');
 
@@ -15,7 +16,7 @@ class AdminCourseController {
       const dto = new CourseQueryDTO(req.query);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const result = await CourseModerationService.getModerationQueue(dto);
+      const result = await CourseModerationService.getModerationQueue(dto.toObject());
       return ResponseUtil.success(res, { data: result });
     } catch (error) { return next(error); }
   }
@@ -36,9 +37,10 @@ class AdminCourseController {
       const dto = new RejectCourseDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const course = await CourseModerationService.rejectCourse(req.params.courseId, req.user, dto);
+      const course = await CourseModerationService.rejectCourse(req.params.courseId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Course rejected.', data: { course } });
     } catch (error) { return next(error); }
   }
 }
-module.exports = new AdminCourseController();
+return  new AdminCourseController();
+};

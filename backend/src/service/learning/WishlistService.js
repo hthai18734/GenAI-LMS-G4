@@ -17,7 +17,7 @@ class WishlistService {
     this.assertValidId(courseId, 'Course ID');
 
     const course = await this.courseRepository.findById(courseId);
-    if (!course || course.deletedAt || (course.status !== COURSE_STATUS.PUBLIC && course.status !== COURSE_STATUS.APPROVED)) {
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) {
       throw new ServiceError(404, 'Course not found or is not currently available for wishlist.');
     }
 

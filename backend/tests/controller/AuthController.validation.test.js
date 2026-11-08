@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const AuthController = require('../../src/controller/auth/AuthController');
+const AuthController = require('../../src/composition/http').controllers.AuthController;
 
 test('registration validation accepts a valid Iteration 1 registration payload', () => {
   assert.equal(

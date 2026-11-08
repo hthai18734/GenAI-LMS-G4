@@ -2,9 +2,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 class JWTUtil {
-  static createAccessToken(user) {
+  static createAccessToken(user, sessionId = null) {
     return jwt.sign(
-      { sub: String(user._id), role: user.role, type: 'access' },
+      { sub: String(user._id), role: user.role, type: 'access', version: user.tokenVersion || 0, ...(sessionId ? { sid: String(sessionId) } : {}) },
       this.#requiredSecret('JWT_ACCESS_SECRET'),
       { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' },
     );
@@ -12,7 +12,27 @@ class JWTUtil {
 
   static verifyAccessToken(token) {
     const payload = jwt.verify(token, this.#requiredSecret('JWT_ACCESS_SECRET'));
-    if (payload.type !== 'access') throw new Error('Invalid access token type.');
+    if (payload.type !== 'access') throw new jwt.JsonWebTokenError('Invalid access token type.');
+    return payload;
+  }
+
+  static createRefreshToken(user, sessionId) {
+    return jwt.sign(
+      {
+        sub: String(user._id),
+        sid: String(sessionId),
+        version: user.tokenVersion || 0,
+        type: 'refresh',
+        jti: crypto.randomBytes(24).toString('hex'),
+      },
+      this.#requiredSecret('JWT_ACCESS_SECRET'),
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' },
+    );
+  }
+
+  static verifyRefreshToken(token) {
+    const payload = jwt.verify(token, this.#requiredSecret('JWT_ACCESS_SECRET'));
+    if (payload.type !== 'refresh') throw new jwt.JsonWebTokenError('Invalid refresh token type.');
     return payload;
   }
 

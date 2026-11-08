@@ -2,6 +2,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const OAuthUtil = require('../../src/utils/auth/OAuthUtil');
 
+test('frontend OAuth redirects are restricted to configured origins', (t) => {
+  const originalFrontend = process.env.FRONTEND_URL;
+  const originalCors = process.env.CORS_ORIGIN;
+  process.env.FRONTEND_URL = 'http://localhost:5173';
+  process.env.CORS_ORIGIN = 'https://lms.example.com';
+  t.after(() => {
+    if (originalFrontend === undefined) delete process.env.FRONTEND_URL; else process.env.FRONTEND_URL = originalFrontend;
+    if (originalCors === undefined) delete process.env.CORS_ORIGIN; else process.env.CORS_ORIGIN = originalCors;
+  });
+
+  assert.equal(OAuthUtil.resolveFrontendOrigin('https://lms.example.com/path'), 'https://lms.example.com');
+  assert.equal(OAuthUtil.resolveFrontendOrigin(null), 'http://localhost:5173');
+  assert.throws(() => OAuthUtil.resolveFrontendOrigin('https://evil.example'), /not allowed/);
+});
+
 test('Google code exchange requires an ID token and verifies the configured audience', async (t) => {
   const originalClient = OAuthUtil.getClient;
   const originalId = process.env.GOOGLE_CLIENT_ID;

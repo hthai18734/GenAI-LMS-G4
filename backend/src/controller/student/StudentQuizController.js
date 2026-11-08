@@ -1,7 +1,8 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { quizService: QuizService } = require('../../composition/services');
+const { quizService: QuizService } = UseCases;
 const SubmitQuizDTO = require('../../dto/student/SubmitQuizDTO');
-const { assignmentService: AssignmentService } = require('../../composition/services');
+const { assignmentService: AssignmentService } = UseCases;
 
 class StudentQuizController {
   validationError(res, errors) {
@@ -34,7 +35,7 @@ class StudentQuizController {
       const dto = new SubmitQuizDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const result = await QuizService.submitQuiz(req.params.attemptId, req.user, dto);
+      const result = await QuizService.submitQuiz(req.params.attemptId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Quiz submitted successfully.', data: { result } });
     } catch (error) { return next(error); }
   }
@@ -47,4 +48,5 @@ class StudentQuizController {
   }
 }
 
-module.exports = new StudentQuizController();
+return  new StudentQuizController();
+};

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../features/auth/useAuth.js';
 import { authService, clearSession } from '../features/auth/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import PasswordInput from '../components/PasswordInput';
 
 export default function LoginPage() {

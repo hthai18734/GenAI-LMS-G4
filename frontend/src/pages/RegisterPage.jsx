@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import PasswordInput from '../components/PasswordInput';
 import { authService } from '../features/auth/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function RegisterPage() {
   const location = useLocation();

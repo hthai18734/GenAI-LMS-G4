@@ -1,0 +1,421 @@
+# Cấu trúc và kiến trúc phát triển AI-LMS
+
+> Tài liệu duy nhất để thành viên dựa vào khi thêm chức năng hoặc sửa lỗi.
+> Code và test trên `main` là nguồn xác minh cuối cùng nếu tài liệu chưa kịp cập nhật.
+
+## 1. Kiến trúc được chọn
+
+- Frontend: React theo **feature-oriented architecture**, không áp dụng MVC máy móc.
+- Backend: **Hexagonal Architecture / Ports and Adapters**.
+- Database: MongoDB qua Mongoose.
+- DTO được giữ tại biên HTTP để kiểm tra và chuẩn hóa input.
+- Không dùng DAO. Truy cập dữ liệu đi qua Repository Port và Mongoose Repository Adapter.
+
+Luồng tổng quát:
+
+```text
+React Page/Component
+  -> features/<feature>/api.js
+  -> shared/api/client.js
+  -> Express Route
+  -> Controller + DTO                 inbound adapter
+  -> Application Service / Use Case
+  -> Repository Port                  outbound port
+  -> Mongoose Repository Adapter      outbound adapter
+  -> Mongoose Model
+  -> MongoDB
+```
+
+Dependency luôn hướng vào application/domain:
+
+```text
+HTTP/UI -> Application Service -> Repository Port <- Infrastructure Adapter
+                         |
+                         v
+                       Domain
+
+Composition root nối các thành phần, không chứa nghiệp vụ.
+```
+
+## 2. Cấu trúc backend
+
+```text
+backend/src/
+├── application/
+│   └── ports/outbound/                Repository contracts
+├── composition/
+│   ├── repositories.js                Khởi tạo và kiểm tra adapters
+│   ├── services.js                    Inject repositories/gateways vào services
+│   ├── http.js                        Inject services vào HTTP controllers
+│   └── bootstrap.js                   Khởi động ứng dụng và seed dev tùy chọn
+├── controller/                        HTTP inbound adapters
+│   ├── admin/
+│   ├── auth/
+│   ├── chat/
+│   ├── engagement/
+│   ├── learning/
+│   ├── public/
+│   ├── student/
+│   └── teacher/
+├── domain/                            Policy, constant, state rule thuần
+├── dto/                               Validate/normalize/whitelist HTTP input
+├── filter/                            Auth, permission, error middleware
+├── infrastructure/
+│   └── persistence/mongoose/
+│       └── repositories/              MongoDB/Mongoose adapters
+├── model/                             Mongoose schemas và DB constraints
+├── routes/                            Ghép middleware và controller
+├── service/                           Application use cases
+└── utils/                             Gateway kỹ thuật: JWT, OAuth, email, AI, upload
+```
+
+### Trách nhiệm từng layer
+
+| Layer | Được làm | Không được làm |
+|---|---|---|
+| `routes` | Khai báo URL, middleware, controller | Nghiệp vụ, query DB |
+| `controller` | Đọc `req`, gọi DTO/service, trả response | Import model/repository, gọi Mongoose |
+| `dto` | Validate type/range/ID/allowed fields | Query DB, chứa nghiệp vụ |
+| `service` | Use case, authorization nghiệp vụ, transaction flow | Import Express, Mongoose, infrastructure |
+| `domain` | Rule và policy thuần | Import HTTP, Mongoose, service |
+| `application/ports` | Khai báo capability service cần | Biết MongoDB/Mongoose |
+| `infrastructure/.../repositories` | Query, populate, aggregate, transaction | Biết `req/res`, controller |
+| `model` | Schema, index, DB constraint | Là DTO hoặc application service |
+| `composition` | Khởi tạo và inject dependencies | Chứa business rule |
+
+Ghi chú tương thích: thư mục `model/` giữ tên cũ để tránh một migration cơ học phạm vi lớn. Về kiến trúc, đây là persistence schema thuộc outbound adapter, không phải domain model. Chỉ `infrastructure` và `composition` được import các schema này.
+
+### Composition root
+
+Chỉ `composition` được biết cả service và implementation cụ thể:
+
+```text
+repositories.js: Model -> Repository Adapter -> kiểm tra Repository Port
+services.js:     Repository/Gateway -> Service constructor
+http.js:         Service -> Controller factory và AuthFilter
+bootstrap.js:    Startup dependency và development seed
+```
+
+Controller không được import `composition/services` như service locator. Route nhận controller đã được cấu hình từ `composition/http.js`.
+
+Chỉ composition root được khởi tạo application service. Controller, route và infrastructure không tự `new` service. Service lớn phải được tách theo nhóm use case; facade chỉ được giữ khi cần tương thích với caller cũ.
+
+### DTO, Repository và Model
+
+```text
+DTO
+  Input từ HTTP -> plain validated object
+
+Repository Port
+  Capability theo ngôn ngữ use case, do application sở hữu
+
+Mongoose Repository
+  Implementation port, sở hữu mọi query MongoDB
+
+Mongoose Model
+  Schema/index/constraint lưu trữ
+```
+
+Không tạo lại thư mục `backend/src/dao`. Nếu service cần thao tác dữ liệu mới:
+
+1. Mở rộng port trong `application/ports/outbound/RepositoryPorts.js`.
+2. Thêm method vào repository adapter phù hợp.
+3. Inject repository qua `composition/repositories.js` và `composition/services.js`.
+4. Service gọi port, không gọi model trực tiếp.
+
+## 3. Cấu trúc frontend
+
+```text
+frontend/src/
+├── App.jsx                            Composition root của React
+├── routes/                            Route configuration
+├── pages/                             Màn hình theo route
+├── components/                        UI dùng lại
+├── features/
+│   ├── admin/
+│   ├── auth/
+│   ├── chat/
+│   ├── engagement/
+│   ├── learning/
+│   ├── public/
+│   ├── student/
+│   ├── teacher/
+│   └── voucher/
+├── shared/
+│   ├── api/client.js                  HTTP client, token refresh, common errors
+│   └── media/AuthenticatedVideo.jsx   Video cần Bearer token
+└── architecture/Boundaries.test.js
+```
+
+Luồng dependency:
+
+```text
+App/Router -> Page/Component -> feature public API -> shared API client
+```
+
+Quy tắc:
+
+1. Page/component gọi `features/<feature>/api.js`, không gọi Axios/fetch trực tiếp.
+2. `shared` không import `features`, `pages` hoặc business component.
+3. Một feature không import file implementation nội bộ của feature khác.
+4. Logic dùng chung thật sự mới đặt trong `shared`; logic nghiệp vụ vẫn thuộc feature.
+5. Provider toàn cục được ghép trong `App.jsx`.
+6. Media bảo vệ phải đi qua authenticated client; không dùng URL static trực tiếp.
+
+Với form phức tạp, mapping, validation và serialization nằm trong feature model. Page chỉ điều phối state, event và render.
+
+## 4. Quy trình thêm một chức năng
+
+Ví dụ thêm use case `Complete Course`:
+
+1. Xác định actor, input, output, authorization và trạng thái lỗi.
+2. Tạo/cập nhật DTO cho input HTTP.
+3. Thêm capability vào Repository Port nếu cần dữ liệu mới.
+4. Implement capability trong Mongoose Repository.
+5. Viết application service/use case; inject dependencies qua constructor.
+6. Wire service trong `composition/services.js`.
+7. Tạo controller mỏng và wire trong `composition/http.js`.
+8. Ghép middleware/controller trong route.
+9. Frontend thêm API facade vào feature tương ứng.
+10. Page/component chỉ gọi feature API.
+11. Thêm unit/regression tests và chạy toàn bộ quality gate.
+
+Tên file nên phản ánh nghiệp vụ, ví dụ:
+
+```text
+dto/student/CompleteCourseDTO.js
+service/learning/CourseCompletionService.js
+infrastructure/.../learning/EnrollmentRepository.js
+features/learning/api.js
+```
+
+Không tạo `CompleteCourseDAO.js`, không query `Enrollment.find()` trong controller/service.
+
+## 5. Quy trình sửa lỗi
+
+1. Tái hiện lỗi bằng request/test nhỏ nhất.
+2. Xác định layer sở hữu nguyên nhân, không vá ở layer ngoài chỉ để che lỗi.
+3. Thêm regression test thất bại trước khi sửa nếu có thể.
+4. Sửa đúng contract tại layer sở hữu.
+5. Kiểm tra các caller khác của contract.
+6. Chạy targeted tests rồi chạy toàn bộ quality gate.
+
+Hướng chẩn đoán nhanh:
+
+| Triệu chứng | Kiểm tra đầu tiên |
+|---|---|
+| Route 404 | `routes`, mount trong `index.js`/composition |
+| 400 validation | DTO và whitelist field |
+| 401/403 | `AuthFilter`, role middleware, authorization trong service |
+| `x is not a function` | Contract gateway/repository và wiring trong composition |
+| Query sai hoặc thiếu populate | Mongoose Repository adapter |
+| React gọi sai endpoint | Feature API và `shared/api/client.js` |
+| Token refresh/logout lỗi | `AuthService`, `JWTUtil`, `RefreshSessionRepository` |
+| Chỉ lỗi sau merge | Import cũ, file bị xóa/đổi tên, composition không đồng bộ |
+
+Không sửa bằng cách:
+
+- Cho controller/service import model trực tiếp.
+- Khôi phục DAO cũ.
+- Public thư mục upload chứa tài liệu/video học tập.
+- Hard-code credential, token hoặc privileged account.
+- Bỏ authorization chỉ để test chạy.
+- Chọn toàn bộ “Accept Current/Incoming” khi chưa hiểu conflict.
+
+## 6. Authentication và media security
+
+- `AuthService` nhận `JWTUtil`, `OAuthUtil`, password, OTP, email qua dependency injection.
+- Access token và refresh token khác `type`; refresh token có session ID (`sid`) và token version.
+- OAuth redirect chỉ cho phép origin nằm trong cấu hình frontend/CORS.
+- Startup không tạo tài khoản đặc quyền với mật khẩu cố định.
+- Development seed mặc định tắt và luôn tắt trong production.
+- Thumbnail khóa học có thể public.
+- Material và lesson video phải qua authenticated endpoint và kiểm tra enrollment, course owner hoặc admin.
+- `APPROVED` chỉ là đã được admin duyệt; khóa học chỉ mở cho sinh viên sau khi giảng viên Publish sang `PUBLIC`. Catalog, tìm kiếm, trang chi tiết, enrollment và nội dung học phải thống nhất điều kiện này.
+- Khi Unpublish, khóa học trở về `APPROVED`: ẩn khỏi catalog, My Courses/Dashboard và chặn truy cập học; giữ enrollment cùng kết quả đã lưu để dùng lại khi Publish.
+- Trang Learn của sinh viên giữ route `/courses/:courseId/learn` với quyền Student. Giảng viên xem trước qua `/teacher/courses/:courseId/preview`; quyền sở hữu vẫn được kiểm tra tại backend.
+
+Lesson từ schema cũ có thể thiếu `isPublished` hoàn toàn, khiến khóa học đã `PUBLIC` có bài học trong DB nhưng Learn trả danh sách rỗng. Dùng `npm run repair:legacy-lessons -- <courseId>` trong `backend` để xem các bản ghi cần khôi phục, sau đó thêm `--apply` để ghi. Công cụ chỉ xử lý trường bị thiếu của khóa học được chỉ định đang `PUBLIC`; giữ nguyên bài có `isPublished: false`, bài đã xóa, nội dung và thời gian cập nhật.
+
+Development seed chỉ bật khi thật sự cần:
+
+```env
+ENABLE_DEVELOPMENT_SEED=true
+DEV_SEED_ADMIN_EMAIL=...
+DEV_SEED_ADMIN_PASSWORD=...
+DEV_SEED_TEACHER_EMAIL=...
+DEV_SEED_TEACHER_PASSWORD=...
+```
+
+Không commit giá trị thật của các biến trên.
+
+## 7. Quality gate bắt buộc
+
+Từ thư mục project:
+
+```powershell
+cd backend
+npm install
+npm run test:architecture
+npm test
+npm run test:integration
+
+cd ../frontend
+npm install
+npm test
+npm run lint
+npm run build
+```
+
+Điều kiện trước khi push/merge:
+
+- Architecture tests pass.
+- Backend và frontend tests không fail.
+- Lint không có error; warning phải được xem xét và ghi nhận.
+- Production build thành công.
+- `git diff --check` không báo lỗi.
+- Không có `.env`, credential, `node_modules`, file build hoặc dữ liệu test ngẫu nhiên trong commit.
+
+Test kiến trúc:
+
+```text
+backend/tests/architecture/LayerBoundaries.test.js
+frontend/src/architecture/Boundaries.test.js
+```
+
+Nếu cần phá một boundary, phải cập nhật quyết định kiến trúc, test boundary và tài liệu này trong cùng thay đổi; không chỉ tắt test.
+
+## 8. Checklist review Pull Request
+
+- [ ] Chức năng nằm đúng feature/module.
+- [ ] Controller mỏng và không gọi Mongoose.
+- [ ] DTO whitelist input từ client.
+- [ ] Service nhận dependency qua constructor.
+- [ ] Query chỉ nằm trong repository adapter.
+- [ ] Authorization kiểm tra trong use case, không chỉ ẩn nút frontend.
+- [ ] Route có đúng auth/role middleware.
+- [ ] API không trả password hash, token nội bộ hoặc field nhạy cảm.
+- [ ] File upload được kiểm tra type, size, filename và quyền truy cập.
+- [ ] Có test cho success, validation và permission/error path.
+- [ ] Full quality gate đã chạy.
+
+## 9. Quy tắc Git cho nhóm
+
+Trước khi code:
+
+```powershell
+git switch <nhanh-ca-nhan>
+git status --short
+git fetch origin
+git pull --no-rebase origin main
+```
+
+Sau khi code và test:
+
+```powershell
+git status --short
+git diff --check
+git add <cac-file-thuoc-chuc-nang>
+git commit -m "<ThanhVien>_<TenChucNang>_Add|edit|delete"
+git push origin <nhanh-ca-nhan>
+```
+
+Không dùng `git add -A` nếu working tree chứa thay đổi của nhiều chức năng. Merge PR bằng merge commit khi cần giữ lịch sử commit theo chức năng.
+
+## 10. Khi tài liệu và code không khớp
+
+1. Không đoán và không tạo thêm tài liệu kiến trúc thứ hai.
+2. Kiểm tra architecture tests và composition root hiện tại.
+3. Xác định code hay tài liệu bị lỗi.
+4. Sửa `docs/ARCHITECTURE.md` trong cùng PR với thay đổi kiến trúc.
+
+File này mô tả kiến trúc; test bảo vệ boundary; code thực thi hành vi.
+
+## 11. Chuẩn hóa frontend và gateway
+
+- Route page phải được tải bằng `React.lazy`; `Layout` giữ nguyên khi page chunk đang tải nhờ `Suspense` đặt quanh `Outlet`.
+- `features/<feature>/api.js` là public facade. API lớn được tách thành module con nhưng page không import trực tiếp module con.
+- Effect tải dữ liệu phải khai báo đầy đủ dependency và không gọi `setState` đồng bộ ngay trong effect.
+- Protected material/video chỉ nhận access token qua `Authorization: Bearer`; không đặt token trong query string.
+- Material download/view dùng authenticated blob URL và phải revoke object URL sau khi sử dụng.
+- Utility có I/O hoặc side effect như logger, password hasher và document parser được inject tại composition root và kiểm tra capability khi khởi động.
+- Repository adapter phải chuyển Mongoose document, kể cả document lồng trong page result, thành plain application record trước khi trả cho service.
+- Application service không được gọi API của Mongoose (`toObject`, `save`, `lean`, `populate`) hoặc Node filesystem (`fs`, `path`). File access phải đi qua storage gateway được inject ở composition root.
+- Quy tắc thuần như password validation, pagination và AI prompt policy nằm trong `domain`; DTO/service không import concrete utility có I/O.
+- Effect có request phụ thuộc route, filter hoặc lựa chọn hiện tại phải dùng `AbortController` (hoặc cơ chế tương đương) và không cập nhật state sau khi request bị huỷ.
+
+## 12. Curriculum và đánh giá — Iteration 3 (HuyTGCE182405)
+
+Quan hệ đã triển khai: `Course <- Section.courseId <- Lesson.sectionId`.
+Lesson vẫn giữ `courseId` để tương thích các reference video/material/assessment/progress.
+Application service xác minh Section tồn tại, chưa bị xóa và có cùng Course trước khi
+ghi Lesson. Không tạo DAO; Section/Gradebook/VideoUpload có repository port và adapter
+Mongoose, được inject tại composition root.
+
+- Section hỗ trợ tạo và danh sách theo Course; chưa có API xóa/đổi tên/reorder Section.
+- Section.order có phạm vi Course; Lesson.order có phạm vi Section. Khi trùng order,
+  dùng ID làm thứ tự phụ xác định. Reorder Lesson nhận thêm sectionId; chỉ chấp nhận
+  toàn bộ tập Lesson của Section, không trùng ID hoặc lẫn Section khác.
+- API cũ thiếu sectionId khi tạo sẽ dùng Section mặc định General. Cập nhật bỏ qua
+  sectionId giữ liên kết hiện tại; sectionId null yêu cầu chuyển vào General.
+- Schema sectionId còn nullable trong giai đoạn expand. Migration có dry-run,
+  journal và rollback, chỉ CLI explicit local/test; không chạy tự động khi startup.
+- Repository trả danh sách phẳng theo thứ tự Section rồi Lesson, kèm sectionTitle và
+  sectionOrder. Student navigation, Teacher curriculum và nguồn Lesson cho AI dùng thứ tự này.
+- Course cleanup soft-delete cả Section và Lesson. Không có cascade xóa Section riêng.
+
+Assignment bổ sung deadline UTC, maxScore/passingScore được cấu hình tường minh.
+Nộp bài bị chặn khi thời gian server >= deadline. Settings-only update của owner có
+thể thay deadline khi Course đang live; sửa nội dung vẫn tuân thủ trạng thái Course.
+Chấm số khóa thang điểm nguyên tử trên Assignment; cập nhật submission kiểm tra revision.
+Feedback có thể lưu riêng, không thay điểm. Điểm/feedback đã lưu hiển thị ngay cho
+sinh viên tương ứng qua endpoint học được bảo vệ. Resubmit giữ quy tắc cũ: thay bản
+nộp hiện tại và xóa grade/feedback cũ; chưa có lịch sử bài nộp/chấm điểm.
+
+Gradebook là read model: roster từ Enrollment, điểm Assignment từ AssignmentSubmission,
+điểm Quiz từ QuizAttempt submitted. Không tạo nguồn điểm override hoặc bảng điểm sao
+chép. Nhập thủ công dùng lại API chấm một bài Assignment đã tồn tại; chưa có batch,
+điểm ngoài assessment hoặc Quiz override. Null/unsubmitted/ungraded khác điểm 0.
+
+Course completion now has one authority: CourseCompletionPolicy.evaluateCompletion,
+loaded by ProgressTrackingService.evaluateCourseProgress. It requires all published
+accessible Lesson/video requirements, the latest submitted Quiz passing its own
+configured threshold, and every current Assignment submission passing its own scale.
+Student dashboard/course/resume/lesson views, Gradebook and report consume this result.
+Both issuance paths route through EnrollmentLifecycleService.completeCourse and check
+fresh eligibility plus public/nondeleted Course availability, even when the stored
+enrollment was completed earlier. Certificate upsert uses the existing unique
+user/Course index. New ungraded/failing work hides certificate visibility until all
+requirements are met; stored certificate history is retained.
+No weighted average, rounding/provisional algorithm or highest-attempt choice remains.
+Legacy Course.gradePolicy is ignored; policy writes return410 after ownership checks.
+Existing progress40/30/30 weights describe completed activities, never score averages.
+
+Grade report được backend kiểm tra Course ownership, dùng cùng GradebookService;
+frontend xuất PDF bằng html2pdf.js hiện có, dùng textContent cho dữ liệu người dùng.
+Chưa có snapshot bảng điểm chính thức hoặc workflow công bố riêng.
+
+Video vẫn dùng local filesystem. Upload yêu cầu Course ownership trước khi nhận file,
+MIME allowlist, tối đa 200 MiB và kiểm tra chữ ký container cơ bản. VideoUpload lưu
+owner/Course/metadata và hạn giữ tạm 24 giờ; Lesson lưu videoRef/videoMetadata khi save.
+Hủy upload có API discard; startup và timer dọn upload hết hạn, giữ registry khi xóa
+file thất bại để thử lại. Storage cũng quét file tên do ứng dụng sinh đã quá 24 giờ,
+không có registry và không được Lesson sử dụng, để xử lý trường hợp tạo registry thất bại.
+Không public thư mục video; quyền xem vẫn qua media endpoint.
+
+Đặc tả, trạng thái kiểm chứng và hướng dẫn migration:
+`docs/use-cases/iteration-3-huy/README.md`, `REVIEW_CHECKLIST.md`, `SECTION_MIGRATION.md`.
+
+
+### 12.1 Follow-up: separate Section form and private Assignment files (2026-11-08)
+Section creation is a separate name/description page; storage retains Section.title
+and adds description. Lesson form only selects an existing/default Section.
+Teacher prompt and Student answer support one PDF/DOC/DOCX each,25 MiB, on existing
+Assignment POST/PATCH/submission endpoints: multipart data JSON + file.
+AssignmentDocumentService and storage/repository ports validate file containers,
+serve ownership/enrollment-protected downloads and clean unused files. Documents
+are never public static uploads. Submission replacement clears grade/feedback and
+checks deadline at pre-upload and write boundaries. Quiz start/submission also
+check deadline and use the earlier time-limit/deadline expiry. Teacher forms use
+neutral panels and success/error save toasts. Full rules and manual tests:
+docs/use-cases/iteration-3-huy/COMPLETION_UPDATE.md.

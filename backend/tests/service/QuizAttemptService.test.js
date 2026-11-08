@@ -8,6 +8,7 @@ const QuizAttemptRepository = require('../../src/infrastructure/persistence/mong
 const EnrollmentRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/EnrollmentRepository');
 const ProgressRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/ProgressRepository');
 const CourseRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/CourseRepository');
+const LessonRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/LessonRepository');
 const ServiceError = require('../../src/service/common/ServiceError');
 const { COURSE_STATUS } = require('../../src/domain/learning/CourseStatus');
 
@@ -51,6 +52,7 @@ function startOriginals() {
     create: QuizAttemptRepository.create,
     questions: QuestionRepository.findByQuizId,
     quizQuestions: QuizQuestionRepository.findQuestionIdsByQuizId,
+    lesson: LessonRepository.findById,
   };
 }
 
@@ -62,6 +64,7 @@ function restoreStart(originals) {
   QuizAttemptRepository.create = originals.create;
   QuestionRepository.findByQuizId = originals.questions;
   QuizQuestionRepository.findQuestionIdsByQuizId = originals.quizQuestions;
+  LessonRepository.findById = originals.lesson;
 }
 
 function mockStart({ currentQuiz = quiz, course = { _id: COURSE_ID, status: COURSE_STATUS.PUBLIC }, enrollment = { _id: 'enrollment' }, attemptCount = 0 } = {}) {
@@ -72,6 +75,7 @@ function mockStart({ currentQuiz = quiz, course = { _id: COURSE_ID, status: COUR
   QuizAttemptRepository.create = async (data) => ({ _id: ATTEMPT_ID, ...data });
   QuizQuestionRepository.findQuestionIdsByQuizId = async () => [];
   QuestionRepository.findByQuizId = async () => questions;
+  LessonRepository.findById = async () => ({ _id: LESSON_ID, courseId: COURSE_ID, isPublished: true });
 }
 
 test('student starts an available public-course quiz without receiving correct answers', async () => {
@@ -107,12 +111,14 @@ test('available quizzes expose only the student\'s most recent submitted score f
     enrollment: EnrollmentRepository.findAccessibleEnrollment,
     quizzes: QuizRepository.findByCourseId,
     latestAttempts: QuizAttemptRepository.findLatestSubmittedByUserAndQuizIds,
+    lesson: LessonRepository.findById,
   };
   const olderAttempt = { _id: '507f1f77bcf86cd799439019', quizId: QUIZ_ID, score: 40, passed: false, submittedAt: new Date('2026-01-01') };
   const latestAttempt = { _id: ATTEMPT_ID, quizId: QUIZ_ID, score: 90, passed: true, submittedAt: new Date('2026-01-02') };
   CourseRepository.findById = async () => ({ _id: COURSE_ID, status: COURSE_STATUS.PUBLIC });
   EnrollmentRepository.findAccessibleEnrollment = async () => ({ _id: 'enrollment' });
   QuizRepository.findByCourseId = async () => [{ ...quiz, toObject: () => ({ ...quiz }) }];
+  LessonRepository.findById = async () => ({ _id: LESSON_ID, courseId: COURSE_ID, isPublished: true });
   QuizAttemptRepository.findLatestSubmittedByUserAndQuizIds = async (userId, quizIds) => {
     assert.equal(userId, user._id);
     assert.deepEqual(quizIds, [QUIZ_ID]);
@@ -128,6 +134,7 @@ test('available quizzes expose only the student\'s most recent submitted score f
     EnrollmentRepository.findAccessibleEnrollment = originals.enrollment;
     QuizRepository.findByCourseId = originals.quizzes;
     QuizAttemptRepository.findLatestSubmittedByUserAndQuizIds = originals.latestAttempts;
+    LessonRepository.findById = originals.lesson;
   }
 });
 
@@ -138,7 +145,7 @@ test('student cannot start when attempts are exhausted or the course is unpublis
     await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.publicMessage === 'No quiz attempts remaining.');
 
     mockStart({ course: { _id: COURSE_ID, status: 'DRAFT' } });
-    await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.status === 404 && error.publicMessage === 'Quiz not found.');
+    await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.status === 409 && /not published/i.test(error.publicMessage));
 
     mockStart({ currentQuiz: { ...quiz, isPublished: false } });
     await assert.rejects(QuizService.startQuiz(QUIZ_ID, user), (error) => error.status === 404 && error.publicMessage === 'Quiz not found.');
@@ -167,7 +174,7 @@ test('submission auto-grades persisted answers and updates the existing lesson p
 
   try {
     const result = await QuizService.submitQuiz(ATTEMPT_ID, user, {
-      toObject: () => ({ answers: [{ questionId: QUESTION_ONE_ID, answer: 'A' }, { questionId: QUESTION_TWO_ID, answer: 'C' }] }),
+      answers: [{ questionId: QUESTION_ONE_ID, answer: 'A' }, { questionId: QUESTION_TWO_ID, answer: 'C' }],
     });
     assert.equal(result.score, 50);
     assert.equal(result.passed, true);
@@ -187,7 +194,7 @@ test('submission rejects a duplicate or expired attempt', async () => {
   QuizAttemptRepository.findByIdForUser = async () => activeAttempt({ status: 'submitted', submittedAt: new Date() });
   try {
     await assert.rejects(
-      QuizService.submitQuiz(ATTEMPT_ID, user, { toObject: () => ({ answers: [] }) }),
+      QuizService.submitQuiz(ATTEMPT_ID, user, { answers: [] }),
       (error) => error instanceof ServiceError && error.status === 409 && error.publicMessage === 'This quiz attempt has already been submitted.',
     );
   } finally {
@@ -197,7 +204,7 @@ test('submission rejects a duplicate or expired attempt', async () => {
   QuizAttemptRepository.findByIdForUser = async () => activeAttempt({ expiresAt: new Date(Date.now() - 1000) });
   try {
     await assert.rejects(
-      QuizService.submitQuiz(ATTEMPT_ID, user, { toObject: () => ({ answers: [] }) }),
+      QuizService.submitQuiz(ATTEMPT_ID, user, { answers: [] }),
       (error) => error instanceof ServiceError && error.status === 409 && error.publicMessage === 'The quiz attempt is invalid or no longer active.',
     );
   } finally {
@@ -266,11 +273,13 @@ test('listAvailableQuizzes ignores in-progress attempts and returns only latest 
     enrollment: EnrollmentRepository.findAccessibleEnrollment,
     quizzes: QuizRepository.findByCourseId,
     latestAttempts: QuizAttemptRepository.findLatestSubmittedByUserAndQuizIds,
+    lesson: LessonRepository.findById,
   };
 
   CourseRepository.findById = async () => ({ _id: COURSE_ID, status: COURSE_STATUS.PUBLIC });
   EnrollmentRepository.findAccessibleEnrollment = async () => ({ _id: 'enrollment' });
   QuizRepository.findByCourseId = async () => [{ ...quiz, toObject: () => ({ ...quiz }) }];
+  LessonRepository.findById = async () => ({ _id: LESSON_ID, courseId: COURSE_ID, isPublished: true });
 
   // Repository only returns submitted attempts according to query status: 'submitted'
   const submittedAttempt = { _id: ATTEMPT_ID, quizId: QUIZ_ID, score: 85, passed: true, status: 'submitted', submittedAt: new Date() };
@@ -289,5 +298,6 @@ test('listAvailableQuizzes ignores in-progress attempts and returns only latest 
     EnrollmentRepository.findAccessibleEnrollment = originals.enrollment;
     QuizRepository.findByCourseId = originals.quizzes;
     QuizAttemptRepository.findLatestSubmittedByUserAndQuizIds = originals.latestAttempts;
+    LessonRepository.findById = originals.lesson;
   }
 });

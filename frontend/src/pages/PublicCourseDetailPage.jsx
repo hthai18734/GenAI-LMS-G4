@@ -4,7 +4,7 @@ import { publicService } from '../features/public/api.js';
 import { studentService } from '../features/student/api.js';
 import { wishlistService } from '../features/learning/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import VoucherPreview from '../components/VoucherPreview';
 import ReviewsPanel from '../components/ReviewsPanel';
 
@@ -22,10 +22,11 @@ export default function PublicCourseDetailPage() {
   const [isEnrolled, setIsEnrolled] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchDetail() {
       setLoading(true);
       try {
-        const res = await publicService.getCourseDetail(courseId);
+        const res = await publicService.getCourseDetail(courseId, { signal: controller.signal });
         if (res.data) {
           setCourse(res.data.course);
           setInstructor(res.data.instructor);
@@ -33,7 +34,7 @@ export default function PublicCourseDetailPage() {
 
         if (isAuthenticated) {
           try {
-            const enrolledRes = await studentService.getEnrolledCourses();
+            const enrolledRes = await studentService.getEnrolledCourses({ signal: controller.signal });
             const list = enrolledRes?.data?.courses || enrolledRes?.courses || [];
             const found = list.some(
               (c) => String(c.id || c._id || c.courseId) === String(courseId)
@@ -46,15 +47,17 @@ export default function PublicCourseDetailPage() {
           }
         }
       } catch (err) {
+        if (err.name === 'AbortError') return;
         addToast(err.message || 'Course not found', 'error');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     if (courseId) {
       fetchDetail();
     }
-  }, [courseId, isAuthenticated]);
+    return () => controller.abort();
+  }, [courseId, isAuthenticated, addToast]);
 
   const handleAddToWishlist = async () => {
     if (!isAuthenticated) {

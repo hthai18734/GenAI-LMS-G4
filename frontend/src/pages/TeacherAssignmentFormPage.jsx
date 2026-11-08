@@ -1,13 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
-
-const initialForm = { courseId: '', lessonId: '', title: '', content: '' };
+import { useToast } from '../components/toastContext';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import AssignmentAttachment from '../features/learning/AssignmentAttachment.jsx';
+import { ASSIGNMENT_FILE_ACCEPT, validateAssignmentFile } from '../shared/assignment/documents.js';
+import {
+  INITIAL_ASSIGNMENT_FORM,
+  assignmentPayload,
+  assignmentToForm,
+  validateAssignmentForm,
+} from '../features/teacher/assignmentModel.js';
 
 export default function TeacherAssignmentFormPage() {
+  const { assignmentId: routeAssignmentId = '' } = useParams();
   const [searchParams] = useSearchParams();
-  const [form, setForm] = useState({ ...initialForm, courseId: searchParams.get('courseId') || '' });
+  const requestedAssignmentId = routeAssignmentId || searchParams.get('assignmentId') || '';
+  const [form, setForm] = useState({ ...INITIAL_ASSIGNMENT_FORM, courseId: searchParams.get('courseId') || '' });
   const [courses, setCourses] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [lessons, setLessons] = useState([]);
@@ -16,62 +26,137 @@ export default function TeacherAssignmentFormPage() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [created, setCreated] = useState(null);
+  const [editingId, setEditingId] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState(null);
 
   const { addToast } = useToast();
   const navigate = useNavigate();
   const courseBackPath = form.courseId ? `/teacher/courses/${form.courseId}/edit#activities` : '/teacher/courses';
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
-        const result = await teacherService.getCourses();
+        const result = await teacherService.getCourses('', { signal: controller.signal });
         setCourses(result.data?.courses || []);
       } catch (err) {
+        if (err.name === 'AbortError') return;
         setError(err.message || 'Unable to load your courses.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     })();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    if (!form.courseId) { setAssignments([]); setLessons([]); return; }
-    Promise.all([teacherService.listAssignments(form.courseId), teacherService.getLessons(form.courseId)])
-      .then(([assignmentResult, lessonResult]) => { setAssignments(assignmentResult.data?.assignments || []); setLessons(lessonResult.data?.lessons || []); })
-      .catch((err) => { setAssignments([]); setLessons([]); setError(err.message || 'Unable to load assignments for this course.'); });
-  }, [form.courseId]);
+    if (!requestedAssignmentId || form.courseId) return;
+    const controller = new AbortController();
+    teacherService.getAssignment(requestedAssignmentId, { signal: controller.signal })
+      .then((result) => {
+        const assignment = result.data?.assignment;
+        if (!assignment) throw new Error('Assignment not found.');
+        setEditingId(assignment._id);
+        setForm(assignmentToForm(assignment));
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError(err.message || 'Unable to load this assignment.');
+      });
+    return () => controller.abort();
+  }, [requestedAssignmentId, form.courseId]);
+
+  useEffect(() => {
+    if (!form.courseId) return;
+    const controller = new AbortController();
+    Promise.all([
+      teacherService.listAssignments(form.courseId, { signal: controller.signal }),
+      teacherService.getLessons(form.courseId, { signal: controller.signal }),
+      requestedAssignmentId ? teacherService.getAssignment(requestedAssignmentId, { signal: controller.signal }) : Promise.resolve(null),
+    ])
+      .then(([assignmentResult, lessonResult, requestedResult]) => {
+        const loadedAssignments = assignmentResult.data?.assignments || [];
+        setAssignments(loadedAssignments); setLessons(lessonResult.data?.lessons || []);
+        const requested = requestedResult?.data?.assignment;
+        if (requested) {
+          setEditingId(requested._id);
+          setForm(assignmentToForm(requested, form.courseId));
+        }
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+        setAssignments([]); setLessons([]); setError(err.message || 'Unable to load assignments for this course.');
+      });
+    return () => controller.abort();
+  }, [form.courseId, requestedAssignmentId]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (name === 'courseId') {
+      setAssignments([]);
+      setLessons([]);
+    }
     setForm((current) => ({ ...current, [name]: value, ...(name === 'courseId' ? { lessonId: '' } : {}) }));
     setFieldErrors((current) => ({ ...current, [name]: null }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const errors = {};
-    if (!form.courseId) errors.courseId = 'Please select a course.';
-    if (!form.title.trim()) errors.title = 'Assignment title is required.';
-    if (!form.content.trim()) errors.content = 'Assignment content is required.';
+    const errors = validateAssignmentForm(form);
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(errors).length > 0) { addToast('Check the highlighted fields before saving.', 'error'); return; }
 
     setSaving(true);
     setError('');
     try {
-      const result = await teacherService.createAssignment(form.courseId, {
-        title: form.title.trim(),
-        content: form.content.trim(),
-        lessonId: form.lessonId || null,
-      });
+      const payload = assignmentPayload(form);
+      const result = editingId
+        ? await teacherService.updateAssignment(editingId, payload, attachmentFile)
+        : await teacherService.createAssignment(form.courseId, payload, attachmentFile);
       const assignment = result.data?.assignment;
       setCreated(assignment || { title: form.title.trim(), courseId: form.courseId });
-      if (assignment) setAssignments((current) => [assignment, ...current]);
-      setForm((current) => ({ ...initialForm, courseId: current.courseId }));
-      addToast(result.message || 'Assignment created successfully!', 'success');
+      if (assignment) setAssignments((current) => editingId
+        ? current.map(item => item._id === editingId ? assignment : item)
+        : [assignment, ...current]);
+      setForm((current) => ({ ...INITIAL_ASSIGNMENT_FORM, courseId: current.courseId }));
+      setEditingId('');
+      setAttachmentFile(null);
+      addToast(result.message || (editingId ? 'Assignment updated successfully!' : 'Assignment created successfully!'), 'success');
     } catch (err) {
       setError(err.message || 'Unable to create assignment.');
       setFieldErrors(err.errors || {});
+      addToast(err.message || 'Unable to save assignment.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelEditing = () => {
+    navigate(courseBackPath);
+  };
+
+  const saveSettings = async () => {
+    const errors = validateAssignmentForm(form); setFieldErrors(errors);
+    if (Object.keys(errors).length) { addToast('Check the highlighted fields before saving.', 'error'); return; }
+    setSaving(true); setError('');
+    try {
+      const { deadline, maxScore, passingScore } = assignmentPayload(form);
+      const r = await teacherService.updateAssignment(editingId, { deadline, maxScore, passingScore });
+      setAssignments(items => items.map(item => item._id === editingId ? r.data.assignment : item));
+      addToast('Deadline and grading settings saved.', 'success');
+    } catch (e) { setError(e.message); setFieldErrors(e.errors || {}); addToast(e.message, 'error'); } finally { setSaving(false); }
+  };
+
+  const deleteAssignment = async (assignment) => {
+    if (!window.confirm(`Delete assignment "${assignment.title}"?`)) return;
+    setSaving(true);
+    setError('');
+    try {
+      const result = await teacherService.deleteAssignment(assignment._id);
+      setAssignments((current) => current.filter((item) => item._id !== assignment._id));
+      if (editingId === assignment._id) cancelEditing();
+      addToast(result.message || 'Assignment deleted successfully.', 'success');
+    } catch (err) {
+      setError(err.message || 'Unable to delete assignment.');
     } finally {
       setSaving(false);
     }
@@ -86,7 +171,7 @@ export default function TeacherAssignmentFormPage() {
   }
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '40px' }}>
+    <div className="assessment-workspace assignment-editor" style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '40px' }}>
       {/* Top Breadcrumb */}
       <div style={{ marginBottom: '16px' }}>
         <Link
@@ -105,33 +190,10 @@ export default function TeacherAssignmentFormPage() {
         </Link>
       </div>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '28px' }}>
-        <div
-          style={{
-            width: '52px',
-            height: '52px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            color: '#fff',
-            boxShadow: '0 8px 16px rgba(14, 165, 233, 0.25)',
-          }}
-        >
-          📋
-        </div>
-        <div>
-          <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 700, margin: '0 0 4px', color: 'var(--ink)' }}>
-            Create Course Assignment
-          </h2>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--muted)' }}>
-            Publish homework prompts, reading projects, or coding challenges for enrolled students.
-          </p>
-        </div>
-      </div>
+      <header className="assessment-header"><div>
+        <h1>{editingId ? 'Edit Assignment' : 'Create Assignment'}</h1>
+        <p>Set the instructions, deadline and passing score. Attach a PDF or Word document if needed.</p>
+      </div></header>
 
       {error && (
         <div className="page-error" style={{ marginBottom: '20px' }}>
@@ -154,7 +216,7 @@ export default function TeacherAssignmentFormPage() {
           }}
         >
           <div>
-            <strong>✓ Assignment Created Successfully: </strong>
+            <strong>✓ Assignment Saved Successfully: </strong>
             <span>{created.title}</span>
           </div>
 
@@ -168,8 +230,12 @@ export default function TeacherAssignmentFormPage() {
       )}
 
       {/* Main Card Form */}
-      <div className="profile-card-panel" style={{ padding: '30px' }}>
+      <div className="assessment-panel">
         <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          {editingId && <button type="button" className="assessment-button" disabled={saving} onClick={saveSettings}>Save Deadline and Scale Only (also available for live courses)</button>}
+          <div className="form-group"><label htmlFor="assignment-deadline">Deadline (your local timezone; closes at this instant)</label><input id="assignment-deadline" type="datetime-local" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} disabled={saving} />{fieldErrors.deadline && <p role="alert">{fieldErrors.deadline}</p>}</div>
+          <div className="form-group"><label htmlFor="assignment-max">Maximum score (leave blank for legacy Passed / Not passed)</label><input id="assignment-max" type="number" min="0.000001" max="1000000" step="any" value={form.maxScore} onChange={e => setForm(f => ({ ...f, maxScore: e.target.value }))} disabled={saving} />{fieldErrors.maxScore && <p role="alert">{fieldErrors.maxScore}</p>}</div>
+          <div className="form-group"><label htmlFor="assignment-pass">Passing score (optional, on the same scale)</label><input id="assignment-pass" type="number" min="0" step="any" value={form.passingScore} onChange={e => setForm(f => ({ ...f, passingScore: e.target.value }))} disabled={saving} />{fieldErrors.passingScore && <p role="alert">{fieldErrors.passingScore}</p>}</div>
           {/* Target Course */}
           <div className="form-group" style={{ margin: 0 }}>
             <label htmlFor="courseId" style={{ fontWeight: 600, fontSize: '13px', color: 'var(--ink)', marginBottom: '6px', display: 'block' }}>
@@ -180,7 +246,7 @@ export default function TeacherAssignmentFormPage() {
               name="courseId"
               value={form.courseId}
               onChange={handleChange}
-              disabled={saving}
+              disabled={saving || Boolean(editingId)}
               style={{
                 width: '100%',
                 height: '44px',
@@ -208,6 +274,7 @@ export default function TeacherAssignmentFormPage() {
               <option value="">Course-level assignment</option>
               {lessons.map((lesson) => <option key={lesson._id || lesson.id} value={lesson._id || lesson.id}>{lesson.order}. {lesson.title}</option>)}
             </select>
+            <small style={{ display: 'block', color: 'var(--muted)', marginTop: '5px' }}>This changes only the lesson linked to the current assignment.</small>
           </div>
 
           {/* Assignment Title */}
@@ -260,12 +327,20 @@ export default function TeacherAssignmentFormPage() {
             {fieldErrors.content && <small style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block' }}>{fieldErrors.content}</small>}
           </div>
 
+          <div className="form-group"><label htmlFor="assignment-prompt-file">Assignment document (optional)</label>
+            <small>Attach one PDF, DOC or DOCX, up to 25 MB. A new file replaces the current document when you save.</small>
+            {editingId && <AssignmentAttachment attachment={assignments.find(a => a._id === editingId)?.attachment} url={`/api/teacher/assignments/${editingId}/attachment`} />}
+            <input key={`${editingId}-${attachmentFile ? 'selected' : 'empty'}`} id="assignment-prompt-file" type="file" accept={ASSIGNMENT_FILE_ACCEPT} disabled={saving} onChange={e => {
+              const file = e.target.files?.[0]; try { validateAssignmentFile(file); setAttachmentFile(file || null); } catch (err) { addToast(err.message, 'error'); e.target.value = ''; }
+            }} />
+            {attachmentFile && <small>Selected: {attachmentFile.name} <button type="button" onClick={() => setAttachmentFile(null)}>Clear selection</button></small>}
+          </div>
           {/* Action Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
             <button
               type="submit"
               disabled={saving}
-              className="btn btn-primary"
+              className="assessment-button assessment-button-primary"
               style={{
                 minWidth: '170px',
                 height: '44px',
@@ -276,12 +351,13 @@ export default function TeacherAssignmentFormPage() {
                 gap: '8px',
               }}
             >
-              {saving ? 'Creating assignment...' : 'Publish Assignment'}
+              {saving ? (editingId ? 'Saving changes...' : 'Creating assignment...') : editingId ? 'Save Assignment Changes' : 'Publish Assignment'}
             </button>
+            {editingId && <button type="button" onClick={cancelEditing} disabled={saving} className="assessment-button" style={{ height: '44px', padding: '0 20px' }}>Cancel Editing</button>}
             <button
               type="button"
               onClick={() => navigate(courseBackPath)}
-              className="btn btn-secondary"
+              className="assessment-button"
               style={{ height: '44px', padding: '0 20px' }}
             >
               Back to Course Activities
@@ -294,9 +370,16 @@ export default function TeacherAssignmentFormPage() {
         <p style={{ margin: '0 0 20px', color: 'var(--muted)' }}>Assignments already saved in the selected course.</p>
         {assignments.length === 0 ? <div className="assessment-empty"><strong>No assignments in this course yet.</strong><span>Create one above or use AI Content Studio.</span></div> : <div style={{ display: 'grid', gap: '14px' }}>
           {assignments.map((assignment) => <article key={assignment._id} style={{ padding: '18px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
-            <strong style={{ display: 'block', marginBottom: '8px' }}>{assignment.title}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+              <strong>{assignment.title}</strong>
+              <Link className="assessment-button" to={`/teacher/assignments/${assignment._id}/submissions`}>View submissions / Grade</Link>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="assessment-button" onClick={() => navigate(`/teacher/assignments/${assignment._id}/edit?courseId=${form.courseId}`)} disabled={saving} style={{ padding: '7px 14px', flexShrink: 0 }}>Edit</button>
+                <button type="button" className="assessment-button" onClick={() => deleteAssignment(assignment)} disabled={saving} style={{ padding: '7px 14px', flexShrink: 0, color: '#dc2626' }}>Delete</button>
+              </div>
+            </div>
             <small style={{ display: 'block', marginBottom: '8px', color: '#4f46e5', fontWeight: 700 }}>{assignment.lessonId ? `Lesson: ${lessons.find((lesson) => (lesson._id || lesson.id) === String(assignment.lessonId))?.title || 'Linked lesson'}` : 'Course-level assignment'}</small>
-            <p style={{ margin: 0, color: 'var(--muted)', whiteSpace: 'pre-wrap', maxHeight: '120px', overflow: 'auto' }}>{assignment.content}</p>
+            <div className="markdown-body" style={{ margin: 0, color: 'var(--muted)', maxHeight: '160px', overflow: 'auto' }}><ReactMarkdown remarkPlugins={[remarkGfm]}>{assignment.content}</ReactMarkdown></div>
           </article>)}
         </div>}
       </section>}

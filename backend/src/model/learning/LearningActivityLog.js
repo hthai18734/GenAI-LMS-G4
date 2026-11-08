@@ -11,10 +11,15 @@ const learningActivityLogSchema = new mongoose.Schema({
   endedAt: { type: Date, required: true },
   activeSeconds: { type: Number, required: true, min: 0 },
   date: { type: String, required: true, index: true }, // Format YYYY-MM-DD
+  eventKey: { type: String, default: null },
 }, { timestamps: true, versionKey: false });
 
 learningActivityLogSchema.index({ studentId: 1, startedAt: 1 });
 learningActivityLogSchema.index({ studentId: 1, courseId: 1, startedAt: 1 });
+learningActivityLogSchema.index(
+  { eventKey: 1 },
+  { unique: true, partialFilterExpression: { eventKey: { $type: 'string' } } }
+);
 
 const LearningActivityLog = mongoose.models.LearningActivityLog || mongoose.model('LearningActivityLog', learningActivityLogSchema);
 LearningActivityLog.ACTIVITY_TYPES = ACTIVITY_TYPES;

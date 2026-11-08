@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { wishlistService } from '../features/learning/api.js';
 import { studentService } from '../features/student/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function WishlistPage() {
   const [courses, setCourses] = useState([]);
@@ -13,7 +13,7 @@ export default function WishlistPage() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const loadWishlist = async (p = 1) => {
+  const loadWishlist = useCallback(async (p = 1) => {
     setLoading(true);
     try {
       const res = await wishlistService.getWishlist(p, 12);
@@ -26,11 +26,11 @@ export default function WishlistPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    loadWishlist(1);
-  }, []);
+    void Promise.resolve().then(() => loadWishlist(1));
+  }, [loadWishlist]);
 
   const handleRemove = async (courseId) => {
     setActionInProgress((prev) => ({ ...prev, [courseId]: 'removing' }));

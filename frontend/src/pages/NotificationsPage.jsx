@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { notificationService } from '../features/engagement/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function NotificationsPage() {
   const { addToast } = useToast();

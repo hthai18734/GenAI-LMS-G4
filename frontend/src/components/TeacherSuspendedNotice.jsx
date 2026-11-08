@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../features/auth/useAuth.js';
 import { studentService } from '../features/student/api.js';
-import { useToast } from './Toast';
+import { useToast } from './toastContext';
 
 export default function TeacherSuspendedNotice() {
   const { user, updateUser } = useAuth();

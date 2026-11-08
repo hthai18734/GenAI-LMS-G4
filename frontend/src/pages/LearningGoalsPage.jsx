@@ -1,13 +1,19 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { learningGoalService } from '../features/learning/api.js';
 import { studentService } from '../features/student/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const GOAL_TYPES = [
   { value: 'REACH_PROGRESS_PERCENT', label: 'Reach Progress Percent (%)', defaultTarget: 80, unit: '%' },
   { value: 'COMPLETE_LESSONS_COUNT', label: 'Complete Lesson Count', defaultTarget: 5, unit: 'lessons' },
   { value: 'COMPLETE_COURSE', label: 'Complete Entire Course (100%)', defaultTarget: 100, unit: '%' },
 ];
+
+function defaultDeadline() {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return date.toISOString().split('T')[0];
+}
 
 export default function LearningGoalsPage() {
   const [goals, setGoals] = useState([]);
@@ -18,16 +24,17 @@ export default function LearningGoalsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [currentTime] = useState(() => Date.now());
   const { addToast } = useToast();
 
   const [form, setForm] = useState({
     courseId: '',
     goalType: 'REACH_PROGRESS_PERCENT',
     targetValue: 80,
-    deadline: '',
+    deadline: defaultDeadline(),
   });
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [goalsRes, coursesRes] = await Promise.all([
@@ -39,23 +46,22 @@ export default function LearningGoalsPage() {
       setGoals(fetchedGoals);
       setEnrolledCourses(fetchedCourses);
 
-      if (fetchedCourses.length > 0 && !form.courseId) {
-        setForm((prev) => ({ ...prev, courseId: fetchedCourses[0].courseId || fetchedCourses[0].id }));
+      if (fetchedCourses.length > 0) {
+        setForm((prev) => prev.courseId ? prev : ({
+          ...prev,
+          courseId: fetchedCourses[0].courseId || fetchedCourses[0].id,
+        }));
       }
     } catch (err) {
       addToast(err.message || 'Unable to load learning goals.', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    // Default deadline: 7 days from now
-    const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() + 7);
-    setForm((prev) => ({ ...prev, deadline: defaultDate.toISOString().split('T')[0] }));
-    loadData();
-  }, []);
+    void Promise.resolve().then(loadData);
+  }, [loadData]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -359,7 +365,7 @@ export default function LearningGoalsPage() {
             const isCancelled = goal.status === 'CANCELLED';
             const progressRatio = goal.targetValue > 0 ? Math.min(100, Math.round((goal.currentValue / goal.targetValue) * 100)) : 0;
             const deadlineFormatted = goal.deadline ? new Date(goal.deadline).toLocaleDateString() : 'None';
-            const isOverdue = !isCompleted && !isCancelled && new Date(goal.deadline) < new Date();
+            const isOverdue = !isCompleted && !isCancelled && new Date(goal.deadline).getTime() < currentTime;
 
             return (
               <div

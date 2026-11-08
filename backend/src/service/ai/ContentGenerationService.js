@@ -1,4 +1,3 @@
-const GeminiClient = require('../../utils/ai/GeminiClient');
 const ServiceError = require('../common/ServiceError');
 
 const languageProfiles = {
@@ -45,7 +44,10 @@ const instructions = {
 };
 
 class ContentGenerationService {
-  constructor({ gemini } = {}) { this.gemini = gemini || new GeminiClient({ timeoutMs: 30000 }); }
+  constructor({ gemini } = {}) {
+    if (!gemini) throw new TypeError('ContentGenerationService requires an AI gateway.');
+    this.gemini = gemini;
+  }
 
   async generate(input) {
     const task = typeof instructions[input.type] === 'function' ? instructions[input.type](input) : instructions[input.type];

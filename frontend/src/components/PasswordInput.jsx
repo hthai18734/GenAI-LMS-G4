@@ -13,6 +13,7 @@ export default function PasswordInput({ disabled, ...props }) {
         aria-label={visible ? 'Hide password' : 'Show password'}
         aria-pressed={visible}
         title={visible ? 'Hide password' : 'Show password'}
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => setVisible((value) => !value)}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

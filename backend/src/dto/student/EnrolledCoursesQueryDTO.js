@@ -5,8 +5,8 @@ Description: UC-10.3 View Enrolled Courses
  */
 
 class EnrolledCoursesQueryDTO {
-  constructor({ user = {} } = {}) {
-    this.userId = user._id || null;
+  constructor({ userId = null } = {}) {
+    this.userId = userId;
   }
 
   validate() {

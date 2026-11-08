@@ -1,4 +1,5 @@
-const { enrollmentLifecycleService: EnrollmentLifecycleService } = require('../../composition/services');
+module.exports = function createController(UseCases) {
+const { enrollmentLifecycleService: EnrollmentLifecycleService } = UseCases;
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 
 class EnrollmentLifecycleController {
@@ -23,4 +24,5 @@ class EnrollmentLifecycleController {
   }
 }
 
-module.exports = new EnrollmentLifecycleController();
+return  new EnrollmentLifecycleController();
+};

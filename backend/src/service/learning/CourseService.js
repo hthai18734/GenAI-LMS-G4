@@ -4,34 +4,35 @@ Created at: 29/09/2026
 Description: Course Management
  */
 const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
-const LoggerUtil = require('../../utils/common/LoggerUtil');
 const { COURSE_STATUS, canTransition } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
 class CourseService {
-  constructor({ courseRepository, categoryRepository, lessonRepository, materialRepository, courseCleanupRepository } = {}) {
+  constructor({ courseRepository, categoryRepository, lessonRepository, materialRepository, courseCleanupRepository, loggerGateway, sectionService, lessonVideoService } = {}) {
+    this.lessonVideoService = lessonVideoService;
+    this.sectionService = sectionService;
     this.courseRepository = courseRepository;
     this.categoryRepository = categoryRepository;
     this.lessonRepository = lessonRepository;
     this.materialRepository = materialRepository;
     this.courseCleanupRepository = courseCleanupRepository;
+    this.logger = loggerGateway || { error() {} };
   }
   assertValidId(id, field = 'Course') {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} ID is invalid.`);
   }
 
-  async createCourse(user, dto) {
-    const data = dto.toObject();
+  async createCourse(user, input) {
+    const data = { ...input };
     await this.resolveCategory(data);
     return this.courseRepository.create({ ...data, teacherId: user._id, status: COURSE_STATUS.DRAFT });
   }
 
-  async getTeacherCourses(user, queryDto) {
-    const result = await this.courseRepository.findAllByTeacher(user._id, queryDto.toObject());
+  async getTeacherCourses(user, query) {
+    const result = await this.courseRepository.findAllByTeacher(user._id, query);
     const courses = await Promise.all(result.courses.map(async (course) => {
       const lessonCount = await this.lessonRepository.countValidByCourseId(course._id);
-      const serialized = typeof course.toObject === 'function' ? course.toObject() : course;
-      return { ...serialized, lessonCount, contentComplete: this.isMetadataComplete(course) && lessonCount > 0 };
+      return { ...course, lessonCount, contentComplete: this.isMetadataComplete(course) && lessonCount > 0 };
     }));
     return { ...result, courses };
   }
@@ -52,10 +53,10 @@ class CourseService {
     if (String(course.teacherId) !== String(user._id)) throw new ServiceError(403, 'You do not have permission to perform this action.');
   }
 
-  async updateCourse(courseId, user, dto) {
+  async updateCourse(courseId, user, input) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
-    const updates = dto.toObject();
+    const updates = { ...input };
     await this.resolveCategory(updates, course);
     return this.courseRepository.update(courseId, updates);
   }
@@ -63,7 +64,7 @@ class CourseService {
   async deleteCourse(courseId, user) {
     const course = await this.getOwnedCourse(courseId, user);
     if (course.status === COURSE_STATUS.PENDING_REVIEW) throw new ServiceError(409, 'A course pending review cannot be deleted.');
-    
+
     // Soft-delete the course
     const deletedCourse = await this.courseRepository.softDelete(courseId);
 
@@ -71,7 +72,7 @@ class CourseService {
     try {
       await this.courseCleanupRepository.removeAssociatedData(courseId);
     } catch (cleanupError) {
-      LoggerUtil.error('Cascading course deletion failed', cleanupError, { courseId });
+      this.logger.error('Cascading course deletion failed', cleanupError, { courseId });
     }
 
     return deletedCourse;
@@ -150,19 +151,27 @@ class CourseService {
     return this.lessonRepository.findByCourseId(courseId);
   }
 
-  async createLesson(courseId, user, dto) {
+  async createLesson(courseId, user, input) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
-    return this.lessonRepository.create({ ...dto.toObject(), courseId });
+    const section = this.sectionService ? await this.sectionService.resolve(courseId, input.sectionId) : null;
+    const data = { ...input, courseId, ...(section ? { sectionId: section._id } : {}) };
+    return this.lessonVideoService ? this.lessonVideoService.withMetadata(courseId, user, data, null, payload => this.lessonRepository.create(payload)) : this.lessonRepository.create(data);
   }
 
-  async updateLesson(courseId, lessonId, user, dto) {
+  async updateLesson(courseId, lessonId, user, input) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
     this.assertValidId(lessonId, 'Lesson');
     const lesson = await this.lessonRepository.findById(lessonId);
     if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
-    return this.lessonRepository.update(lessonId, dto.toObject());
+    if (this.sectionService) {
+      if (lesson.sectionId) await this.sectionService.resolve(courseId, lesson.sectionId);
+      const section = await this.sectionService.resolve(courseId, Object.hasOwn(input, 'sectionId') ? input.sectionId : lesson.sectionId);
+      input = { ...input, sectionId: section._id };
+      if (String(section._id) !== String(lesson.sectionId) && input.order === undefined) input.order = (await this.lessonRepository.maxActiveOrder(courseId, section._id)) + 1;
+    }
+    return this.lessonVideoService ? this.lessonVideoService.withMetadata(courseId, user, input, lesson, payload => this.lessonRepository.update(lessonId, payload)) : this.lessonRepository.update(lessonId, { ...input });
   }
 
   async deleteLesson(courseId, lessonId, user) {
@@ -173,7 +182,7 @@ class CourseService {
     if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
     await this.materialRepository.softDeleteByLessonId(lessonId);
     await this.lessonRepository.softDelete(lessonId);
-    await this.lessonRepository.normalizeOrder(course._id);
+    await this.lessonRepository.normalizeOrder(course._id, lesson.sectionId);
     return true;
   }
 

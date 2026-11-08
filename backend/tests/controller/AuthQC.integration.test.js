@@ -175,7 +175,7 @@ test('QC registration, Google OAuth and account security with MongoDB', { skip: 
       assert.equal((await User.findById(user._id)).emailVerifiedAt, null);
       assert.equal(await OAuthAccount.countDocuments({ userId: user._id }), 0);
       assert.equal((await request('/api/auth/login', { method: 'POST', body: { email: user.email, password: 'Strong1!' } })).status, 403);
-      const session = await require('../../src/controller/auth/AuthController').createSession(user);
+      const session = await require('../../src/composition/http').controllers.AuthController.createSession(user);
       assert.equal((await request('/api/student/profile', { token: session.accessToken })).status, 403);
       assert.equal((await request('/api/auth/refresh-token', { method: 'POST', body: { refreshToken: session.refreshToken } })).status, 403);
       const code = await OAuthLoginTicketRepository.create(user._id);

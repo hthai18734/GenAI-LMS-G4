@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const User = require('../../src/model/identity/User');
 const Course = require('../../src/model/learning/Course');
 const Review = require('../../src/model/engagement/Review');
+const Enrollment = require('../../src/model/learning/Enrollment');
 const RefreshSession = require('../../src/model/identity/RefreshSession');
 const PasswordUtil = require('../../src/utils/auth/PasswordUtil');
 const JWTUtil = require('../../src/utils/auth/JWTUtil');
@@ -14,7 +15,7 @@ test('account, user and review use cases with MongoDB', { skip: !process.env.TES
   const oldSecret = process.env.JWT_ACCESS_SECRET;
   process.env.JWT_ACCESS_SECRET = 'user-review-integration-secret';
   await mongoose.connect(process.env.TEST_MONGODB_URI, { dbName: `ai_lms_test_${crypto.randomBytes(8).toString('hex')}` });
-  await Promise.all([User.init(), Review.init(), Course.init(), RefreshSession.init()]);
+  await Promise.all([User.init(), Review.init(), Course.init(), Enrollment.init(), RefreshSession.init()]);
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(async () => {
@@ -39,6 +40,10 @@ test('account, user and review use cases with MongoDB', { skip: !process.env.TES
   const tokens = { admin: JWTUtil.createAccessToken(admin), student: JWTUtil.createAccessToken(student), otherStudent: JWTUtil.createAccessToken(otherStudent), teacher: JWTUtil.createAccessToken(teacher), otherTeacher: JWTUtil.createAccessToken(otherTeacher) };
   const course = await Course.create({ title: 'Review course', teacherId: teacher._id, status: 'PUBLIC' });
   const draft = await Course.create({ title: 'Draft course', teacherId: teacher._id });
+  await Enrollment.create([
+    { userId: student._id, courseId: course._id, status: 'active' },
+    { userId: otherStudent._id, courseId: course._id, status: 'active' },
+  ]);
   const validUser = { fullName: 'Created User', email: 'created@test.edu', password: 'Strong1!', role: 'student' };
   let createdId;
   let reviewId;

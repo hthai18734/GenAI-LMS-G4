@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function CertificatesPage() {
   const [certificates, setCertificates] = useState([]);
@@ -11,7 +11,7 @@ export default function CertificatesPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
 
-  const fetchCertificates = async () => {
+  const fetchCertificates = useCallback(async () => {
     setLoading(true);
     try {
       const res = await studentService.getCertificates();
@@ -21,11 +21,11 @@ export default function CertificatesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    fetchCertificates();
-  }, []);
+    void Promise.resolve().then(fetchCertificates);
+  }, [fetchCertificates]);
 
   const handlePrint = () => {
     window.print();

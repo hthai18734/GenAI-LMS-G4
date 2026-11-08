@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminService } from '../features/admin/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import PasswordInput from '../components/PasswordInput';
 
 export default function AdminUserFormPage() {

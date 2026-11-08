@@ -1,14 +1,27 @@
-const { text, hasOwn, unknownFields } = require('../common/DTOUtil');
+const { text, hasOwn, unknownFields, isObjectPayload, strictNumber, objectId } = require('../common/DTOUtil');
+
+function validVideoRef(value) {
+  if (value === null || value === '') return true;
+  if (typeof value !== 'string') return false;
+  if (/^\/uploads\/lesson-videos\/[a-zA-Z0-9._-]+$/.test(value.trim())) return true;
+  try {
+    const url = new URL(value.trim());
+    return ['http:', 'https:'].includes(url.protocol);
+  } catch { return false; }
+}
 
 class LessonDTO {
   constructor(body = {}, { partial = false } = {}) {
-    this.body = body;
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
     this.partial = partial;
   }
 
   validate() {
     const errors = {};
-    const allowed = ['title', 'content', 'order', 'duration'];
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
+    const allowed = ['title', 'content', 'order', 'duration', 'videoRef', 'isPublished', 'sectionId'];
+    if (hasOwn(this.body, 'sectionId') && this.body.sectionId !== null && (typeof this.body.sectionId !== 'string' || !objectId(this.body.sectionId))) errors.sectionId = 'Select a valid section.';
     const unknown = unknownFields(this.body, allowed);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (this.partial && !Object.keys(this.body).length) errors.payload = 'At least one lesson field is required.';
@@ -22,22 +35,31 @@ class LessonDTO {
       if (!text(this.body.content)) errors.content = 'Lesson content is required.';
     }
     if (!this.partial || hasOwn(this.body, 'order')) {
-      const order = Number(this.body.order);
+      const order = strictNumber(this.body.order);
       if (!Number.isInteger(order) || order < 1) errors.order = 'Lesson order must be an integer greater than zero.';
     }
     if (hasOwn(this.body, 'duration')) {
-      const duration = Number(this.body.duration);
+      const duration = strictNumber(this.body.duration);
       if (!Number.isFinite(duration) || duration < 0) errors.duration = 'Lesson duration must be a non-negative number.';
+    }
+    if (hasOwn(this.body, 'videoRef') && !validVideoRef(this.body.videoRef)) {
+      errors.videoRef = 'Video must be an HTTP(S) URL or an uploaded lesson video.';
+    }
+    if (hasOwn(this.body, 'isPublished') && typeof this.body.isPublished !== 'boolean') {
+      errors.isPublished = 'Lesson publication status must be a boolean.';
     }
     return errors;
   }
 
   toObject() {
     const result = {};
+    if (hasOwn(this.body, 'sectionId')) result.sectionId = this.body.sectionId;
     if (hasOwn(this.body, 'title')) result.title = text(this.body.title);
     if (hasOwn(this.body, 'content')) result.content = text(this.body.content);
-    if (hasOwn(this.body, 'order')) result.order = Number(this.body.order);
-    if (hasOwn(this.body, 'duration')) result.duration = Number(this.body.duration);
+    if (hasOwn(this.body, 'order')) result.order = strictNumber(this.body.order);
+    if (hasOwn(this.body, 'duration')) result.duration = strictNumber(this.body.duration);
+    if (hasOwn(this.body, 'videoRef')) result.videoRef = text(this.body.videoRef) || null;
+    if (hasOwn(this.body, 'isPublished')) result.isPublished = this.body.isPublished;
     return result;
   }
 }

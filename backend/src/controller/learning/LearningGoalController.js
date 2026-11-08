@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { learningGoalService: LearningGoalService } = require('../../composition/services');
+const { learningGoalService: LearningGoalService } = UseCases;
 
 class LearningGoalController {
   async create(req, res, next) {
@@ -57,4 +58,5 @@ class LearningGoalController {
   }
 }
 
-module.exports = new LearningGoalController();
+return  new LearningGoalController();
+};

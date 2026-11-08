@@ -2,6 +2,59 @@ const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const ServiceError = require('../common/ServiceError');
 
 const MIN_ACTIVE_MINUTES_PER_DAY = 10;
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function localDateKey(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function shiftDateKey(key, amount) {
+  const [year, month, day] = key.split('-').map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + amount));
+  return shifted.toISOString().slice(0, 10);
+}
+
+function dateKeysBetween(fromKey, toKey) {
+  const keys = [];
+  for (let key = fromKey; key <= toKey; key = shiftDateKey(key, 1)) keys.push(key);
+  return keys;
+}
+
+function zonedDayBoundary(key, timeZone, endOfDay = false) {
+  const [year, month, day] = key.split('-').map(Number);
+  const target = Date.UTC(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+  let instant = target;
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = Object.fromEntries(formatter.formatToParts(new Date(instant)).map((part) => [part.type, part.value]));
+    const represented = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second), endOfDay ? 999 : 0);
+    instant += target - represented;
+  }
+  return new Date(instant);
+}
+
+function inputDateKey(value, parsed, timeZone) {
+  if (typeof value === 'string' && DATE_KEY_PATTERN.test(value)) return value;
+  return localDateKey(parsed, timeZone);
+}
+
+function isValidDateKey(key) {
+  if (!DATE_KEY_PATTERN.test(key)) return false;
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10) === key;
+}
 
 class LearningStatisticsService {
   constructor({ learningActivityLogRepository, enrollmentRepository, courseProgressRepository, progressRepository, lessonRepository } = {}) {
@@ -10,6 +63,7 @@ class LearningStatisticsService {
     this.courseProgressRepository = courseProgressRepository;
     this.progressRepository = progressRepository;
     this.lessonRepository = lessonRepository;
+    this.now = () => new Date();
   }
   assertValidId(id, field = 'ID') {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} is invalid.`);
@@ -58,17 +112,35 @@ class LearningStatisticsService {
 
     if (courseId) this.assertValidId(courseId, 'Course ID');
 
-    // Default based on range (week = 7 days, month = 30 days)
+    // Calendar ranges are inclusive and use the requested timezone. Subtracting
+    // seven 24-hour periods and then including both endpoints produces 8 days.
     const days = range === 'month' ? 30 : 7;
-    const toDate = to ? new Date(to) : new Date();
-    const fromDate = from ? new Date(from) : new Date(toDate.getTime() - days * 24 * 60 * 60 * 1000);
+    let toDate = to ? new Date(to) : this.now();
+    let fromDate = from ? new Date(from) : null;
 
-    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    if ((fromDate && Number.isNaN(fromDate.getTime())) || Number.isNaN(toDate.getTime())) {
       throw new ServiceError(422, 'Invalid date range provided.');
+    }
+    let toKey;
+    let fromKey;
+    try {
+      toKey = inputDateKey(to, toDate, tz);
+      fromKey = from ? inputDateKey(from, fromDate, tz) : shiftDateKey(toKey, -(days - 1));
+      if (!isValidDateKey(fromKey) || !isValidDateKey(toKey)) {
+        throw new ServiceError(422, 'Invalid date range provided.');
+      }
+      if (!to) toDate = zonedDayBoundary(toKey, tz, true);
+      if (!from) fromDate = zonedDayBoundary(fromKey, tz, false);
+      else if (typeof from === 'string' && DATE_KEY_PATTERN.test(from)) fromDate = zonedDayBoundary(fromKey, tz, false);
+      if (typeof to === 'string' && DATE_KEY_PATTERN.test(to)) toDate = zonedDayBoundary(toKey, tz, true);
+    } catch (error) {
+      if (error instanceof ServiceError) throw error;
+      throw new ServiceError(422, 'Invalid timezone provided.');
     }
     if (fromDate > toDate) {
       throw new ServiceError(422, 'fromDate cannot be after toDate.');
     }
+    const requestedDateKeys = dateKeysBetween(fromKey, toKey);
 
     // 1. Fetch activity logs in current period
     const rawLogs = await this.learningActivityLogRepository.findStudentIntervals(studentId, {
@@ -77,25 +149,54 @@ class LearningStatisticsService {
       courseId,
     });
 
+    // Progress predates activity logging in older installations. Treat a
+    // completedAt value as a zero-duration completion event when no matching
+    // lesson activity exists, so historical completion activity is visible
+    // without inventing study time or double-counting newer records.
+    const completedProgress = await this.progressRepository.findCompletedInRange(studentId, {
+      from: fromDate,
+      to: toDate,
+      courseId,
+    });
+    const progressCompletionEvents = completedProgress.map((record) => ({
+        studentId,
+        courseId: record.courseId,
+        lessonId: record.lessonId,
+        activityType: 'LESSON_ACTIVE',
+        startedAt: record.completedAt,
+        endedAt: record.completedAt,
+        activeSeconds: 0,
+        date: localDateKey(record.completedAt, tz),
+      }));
+    const lessonCompletionEvents = new Map();
+    const addLessonCompletion = (event, fallbackIndex) => {
+      const lessonId = event.lessonId?._id || event.lessonId;
+      const fallback = event._id || event.eventKey
+        || `${event.startedAt?.toISOString?.() || event.startedAt}:${event.endedAt?.toISOString?.() || event.endedAt}:${fallbackIndex}`;
+      const key = lessonId ? `lesson:${lessonId}` : `event:${fallback}`;
+      if (!lessonCompletionEvents.has(key)) lessonCompletionEvents.set(key, event);
+    };
+    rawLogs.filter((log) => log.activityType === 'LESSON_ACTIVE')
+      .forEach((event, index) => addLessonCompletion(event, `log-${index}`));
+    progressCompletionEvents.forEach((event, index) => addLessonCompletion(event, `progress-${index}`));
+    const dedupedLessonCompletionEvents = [...lessonCompletionEvents.values()];
+    const activityEvents = [
+      ...rawLogs.filter((log) => log.activityType !== 'LESSON_ACTIVE'),
+      ...dedupedLessonCompletionEvents,
+    ];
+
     const validStudySeconds = this.calculateValidStudySeconds(rawLogs, fromDate, toDate);
     const validStudyMinutes = Math.round(validStudySeconds / 60);
 
     // 2. Daily aggregation
     const dayMap = {};
-    // Pre-populate days in range
-    const cursor = new Date(fromDate);
-    cursor.setHours(0, 0, 0, 0);
-    const endCursor = new Date(toDate);
-    endCursor.setHours(23, 59, 59, 999);
-
-    while (cursor <= endCursor) {
-      const key = cursor.toISOString().split('T')[0];
+    // Pre-populate the exact requested local-calendar days.
+    for (const key of requestedDateKeys) {
       dayMap[key] = { date: key, activeSeconds: 0, completedActivities: 0 };
-      cursor.setDate(cursor.getDate() + 1);
     }
 
-    rawLogs.forEach((log) => {
-      const key = log.date || (log.startedAt ? log.startedAt.toISOString().split('T')[0] : null);
+    activityEvents.forEach((log) => {
+      const key = log.startedAt ? localDateKey(new Date(log.startedAt), tz) : log.date;
       if (key && dayMap[key]) {
         dayMap[key].activeSeconds += log.activeSeconds || 0;
         if (['LESSON_ACTIVE', 'QUIZ_SUBMIT', 'COURSE_COMPLETE'].includes(log.activityType)) {
@@ -113,23 +214,29 @@ class LearningStatisticsService {
       }));
 
     // 3. Learning streak algorithm
+    const isActiveDay = (day) => day.activeMinutes >= MIN_ACTIVE_MINUTES_PER_DAY || day.completedActivities > 0;
     let currentStreakDays = 0;
     const sortedDaysDesc = [...daily].reverse();
     for (const d of sortedDaysDesc) {
-      if (d.activeMinutes >= MIN_ACTIVE_MINUTES_PER_DAY) {
+      if (isActiveDay(d)) {
         currentStreakDays += 1;
       } else {
         break;
       }
     }
+    let longestStreak = 0;
+    let runningStreak = 0;
+    for (const d of daily) {
+      if (isActiveDay(d)) {
+        runningStreak += 1;
+        longestStreak = Math.max(longestStreak, runningStreak);
+      } else {
+        runningStreak = 0;
+      }
+    }
 
     // 4. Lessons completed count in range
-    const lessonsCompleted = await this.learningActivityLogRepository.countActivities(studentId, {
-      from: fromDate,
-      to: toDate,
-      courseId,
-      activityType: 'LESSON_ACTIVE',
-    });
+    const lessonsCompleted = dedupedLessonCompletionEvents.length;
 
     // 5. Completion rate (average progress across student's enrolled courses)
     const enrollments = await this.enrollmentRepository.findByUserId(studentId);
@@ -146,9 +253,9 @@ class LearningStatisticsService {
     const completionRate = enrolledCount > 0 ? Math.round((totalProgress / enrolledCount) * 10) / 10 : 0;
 
     // 6. Period comparison (equal-length preceding range)
-    const periodDurationMs = toDate.getTime() - fromDate.getTime();
-    const prevToDate = new Date(fromDate.getTime());
-    const prevFromDate = new Date(fromDate.getTime() - periodDurationMs);
+    const periodDurationMs = toDate.getTime() - fromDate.getTime() + 1;
+    const prevToDate = new Date(fromDate.getTime() - 1);
+    const prevFromDate = new Date(prevToDate.getTime() - periodDurationMs + 1);
 
     const prevLogs = await this.learningActivityLogRepository.findStudentIntervals(studentId, {
       from: prevFromDate,
@@ -167,7 +274,7 @@ class LearningStatisticsService {
       studyMinutesDeltaPercent = 0.0;
     }
 
-    const activeDays = daily.filter((d) => d.activeMinutes >= MIN_ACTIVE_MINUTES_PER_DAY).length;
+    const activeDays = daily.filter(isActiveDay).length;
     const totalHours = Math.round((validStudyMinutes / 60) * 10) / 10;
 
     return {
@@ -180,6 +287,7 @@ class LearningStatisticsService {
         completionRate,
         currentStreakDays,
         currentStreak: currentStreakDays,
+        longestStreak,
         lessonsCompleted,
         periodDeltaPercent: studyMinutesDeltaPercent,
       },

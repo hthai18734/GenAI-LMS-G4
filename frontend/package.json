@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node --test src/**/*.test.js",
+    "test:browser:iteration3": "node scripts/iteration3-browser-smoke.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

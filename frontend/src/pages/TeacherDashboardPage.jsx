@@ -3,10 +3,10 @@
  * Created at: 01/10/2026
  * Description: Teacher Instructor Dashboard & Analytics Control Center
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import { useAuth } from '../features/auth/useAuth.js';
 
 const statusLabels = {
@@ -27,7 +27,7 @@ export default function TeacherDashboardPage() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const loadDashboardData = async (isManualRefresh = false) => {
+  const loadDashboardData = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
     else setLoading(true);
     setError('');
@@ -63,18 +63,18 @@ export default function TeacherDashboardPage() {
           courses: courses.slice(0, 5),
           recentEnrollments: [],
         });
-      } catch (fallbackErr) {
+      } catch {
         setError(err.message || 'Unable to load the teacher dashboard.');
       }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    void Promise.resolve().then(loadDashboardData);
+  }, [loadDashboardData]);
 
   if (loading) {
     return (

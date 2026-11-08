@@ -3,15 +3,21 @@
  * Created at: 29/09/2026
  * Description: Course Management Form & Curriculum Workspace
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
 import { materialService, discussionService } from '../features/learning/api.js';
 import { getUser } from '../features/auth/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
+import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
+import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
+import CourseSections from '../features/teacher/CourseSections.jsx';
+import CourseAssignments from '../features/teacher/CourseAssignments.jsx';
+import CourseQuizzes from '../features/teacher/CourseQuizzes.jsx';
+import DiscussionPostEditor from '../components/DiscussionPostEditor';
 
 const initial = { title: '', description: '', categoryId: '', thumbnail: '', duration: '' };
-const initialLesson = { title: '', content: '', order: 1, duration: 0, videoRef: '', isPublished: true };
+const initialLesson = { title: '', content: '', sectionId: '', order: 1, duration: 0, videoRef: '', isPublished: true };
 const supportedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
 const statusBadgeConfig = {
@@ -58,6 +64,8 @@ export default function TeacherCourseFormPage() {
   const [lessonErrors, setLessonErrors] = useState({});
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoFileName, setVideoFileName] = useState('');
+  const pendingVideoRef = useRef(null);
+  useEffect(() => () => { if (pendingVideoRef.current) teacherService.discardVideoUpload(pendingVideoRef.current).catch(() => {}); }, []);
 
   // Materials state
   const [activeMaterialLesson, setActiveMaterialLesson] = useState(null);
@@ -79,6 +87,8 @@ export default function TeacherCourseFormPage() {
   const [threadRepliesMap, setThreadRepliesMap] = useState({});
   const [loadingRepliesMap, setLoadingRepliesMap] = useState({});
   const [expandedThreadId, setExpandedThreadId] = useState(null);
+  const [editingPost, setEditingPost] = useState(null);
+  const [savingPostEdit, setSavingPostEdit] = useState(false);
 
   const canEdit = !isEdit || ['DRAFT', 'REJECTED', 'APPROVED'].includes(courseStatus);
 
@@ -88,7 +98,7 @@ export default function TeacherCourseFormPage() {
     setLessons(result.data?.lessons || []);
   };
 
-  const loadDiscussions = async () => {
+  const loadDiscussions = useCallback(async () => {
     if (!isEdit) return;
     setLoadingDiscussions(true);
     try {
@@ -99,7 +109,7 @@ export default function TeacherCourseFormPage() {
     } finally {
       setLoadingDiscussions(false);
     }
-  };
+  }, [courseId, isEdit]);
 
   const loadThreadReplies = async (postId) => {
     setLoadingRepliesMap((prev) => ({ ...prev, [postId]: true }));
@@ -175,6 +185,24 @@ export default function TeacherCourseFormPage() {
     }
   };
 
+  const handleUpdatePost = async (event) => {
+    event.preventDefault();
+    const body = editingPost?.body.trim();
+    if (!body) return;
+    setSavingPostEdit(true);
+    try {
+      await discussionService.updatePost(editingPost.id, { body });
+      if (editingPost.parentId) await loadThreadReplies(editingPost.parentId);
+      else await loadDiscussions();
+      setEditingPost(null);
+      addToast('Discussion post updated.', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to update post.', 'error');
+    } finally {
+      setSavingPostEdit(false);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -203,7 +231,7 @@ export default function TeacherCourseFormPage() {
           if (requestedLesson) {
             setActiveTab('lessons');
             setEditingLessonId(requestedLesson._id);
-            setLessonForm({ title: requestedLesson.title, content: requestedLesson.content, order: requestedLesson.order, duration: requestedLesson.duration || 0, videoRef: requestedLesson.videoRef || '' });
+            setLessonForm({ title: requestedLesson.title, content: requestedLesson.content, sectionId: requestedLesson.sectionId || '', order: requestedLesson.order, duration: requestedLesson.duration || 0, videoRef: requestedLesson.videoRef || '', isPublished: requestedLesson.isPublished === true });
             setTimeout(() => document.getElementById('lesson-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
           }
           setQuizzes(quizRes.data?.quizzes || []);
@@ -216,13 +244,13 @@ export default function TeacherCourseFormPage() {
         setLoading(false);
       }
     })();
-  }, [courseId, isEdit]);
+  }, [courseId, isEdit, loadDiscussions]);
 
   useEffect(() => {
     if (isEdit && activeTab === 'discussions') {
-      loadDiscussions();
+      void Promise.resolve().then(loadDiscussions);
     }
-  }, [activeTab, courseId, isEdit]);
+  }, [activeTab, isEdit, loadDiscussions]);
 
   const change = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
 
@@ -287,6 +315,7 @@ export default function TeacherCourseFormPage() {
       }
     } catch (err) {
       setError(err.message || 'Unable to save course.');
+      addToast(err.message || 'Unable to save course.', 'error');
       setFieldErrors(err.errors || {});
     } finally {
       setSaving(false);
@@ -301,9 +330,11 @@ export default function TeacherCourseFormPage() {
     }
     setUploadingVideo(true);
     try {
-      const res = await teacherService.uploadLessonVideo(file);
+      const res = await teacherService.uploadLessonVideo(file, courseId);
       const videoUrl = res.data?.videoUrl;
       if (videoUrl) {
+        if (pendingVideoRef.current) await teacherService.discardVideoUpload(pendingVideoRef.current).catch(() => {});
+        pendingVideoRef.current = res.data.filename;
         setLessonForm((prev) => ({ ...prev, videoRef: videoUrl }));
         setVideoFileName(file.name);
         addToast('Video uploaded successfully!', 'success');
@@ -319,6 +350,7 @@ export default function TeacherCourseFormPage() {
     setEditingLessonId(lesson._id || lesson.id);
     setLessonForm({
       title: lesson.title,
+      sectionId: lesson.sectionId || '',
       content: lesson.content,
       order: lesson.order,
       duration: lesson.duration || 0,
@@ -330,6 +362,8 @@ export default function TeacherCourseFormPage() {
   };
 
   const resetLesson = () => {
+    if (pendingVideoRef.current) teacherService.discardVideoUpload(pendingVideoRef.current).catch(() => {});
+    pendingVideoRef.current = null;
     setEditingLessonId(null);
     setLessonForm({ ...initialLesson, order: lessons.length + 1, isPublished: true });
     setVideoFileName('');
@@ -343,6 +377,7 @@ export default function TeacherCourseFormPage() {
     try {
       const payload = {
         title: lessonForm.title.trim(),
+        sectionId: lessonForm.sectionId || null,
         content: lessonForm.content.trim(),
         order: Number(lessonForm.order),
         duration: Number(lessonForm.duration || 0),
@@ -360,6 +395,7 @@ export default function TeacherCourseFormPage() {
       await loadLessons();
     } catch (err) {
       setLessonErrors(err.errors || { payload: err.message || 'Unable to save lesson.' });
+      addToast(err.message || 'Unable to save lesson.', 'error');
     } finally {
       setSavingLesson(false);
     }
@@ -381,16 +417,18 @@ export default function TeacherCourseFormPage() {
   const handleMoveLesson = async (index, direction) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= lessons.length) return;
+    if (String(lessons[index].sectionId || '') !== String(lessons[targetIndex].sectionId || '')) return;
 
     const newLessons = [...lessons];
     const [moved] = newLessons.splice(index, 1);
     newLessons.splice(targetIndex, 0, moved);
 
-    const lessonIds = newLessons.map((l) => l._id || l.id);
+    const sectionId = moved.sectionId;
+    const lessonIds = newLessons.filter(l => String(l.sectionId || '') === String(sectionId || '')).map((l) => l._id || l.id);
     setReordering(true);
     try {
-      await teacherService.reorderLessons(courseId, lessonIds);
-      setLessons(newLessons.map((l, i) => ({ ...l, order: i + 1 })));
+      await teacherService.reorderLessons(courseId, lessonIds, sectionId);
+      await loadLessons();
       addToast('Lesson order updated!', 'success');
     } catch (err) {
       addToast(err.message || 'Unable to reorder lessons.', 'error');
@@ -537,7 +575,7 @@ export default function TeacherCourseFormPage() {
         {isEdit && (
           <div style={{ display: 'flex', gap: '10px' }}>
             <Link
-              to={`/courses/${courseId}/learn`}
+              to={`/teacher/courses/${courseId}/preview`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary"
@@ -857,6 +895,7 @@ export default function TeacherCourseFormPage() {
                   )}
                 </div>
               )}
+              {fieldErrors.thumbnail && <small style={{ color: '#ef4444', fontSize: '12px' }}>{fieldErrors.thumbnail}</small>}
             </div>
 
             {/* Actions */}
@@ -944,7 +983,7 @@ export default function TeacherCourseFormPage() {
                       </span>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span>{lesson.title}</span>
+                          <span>{lesson.sectionTitle || 'General'} · {lesson.order}. {lesson.title}</span>
                           {lesson.isPublished !== false ? (
                             <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#059669', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
                               ✓ Published
@@ -971,7 +1010,7 @@ export default function TeacherCourseFormPage() {
                         <button
                           type="button"
                           className="ghost compact"
-                          disabled={idx === 0 || reordering}
+                          disabled={idx === 0 || reordering || String(lessons[idx - 1]?.sectionId || '') !== String(lesson.sectionId || '')}
                           title="Move Up"
                           onClick={() => handleMoveLesson(idx, -1)}
                           style={{ padding: '4px 8px' }}
@@ -981,7 +1020,7 @@ export default function TeacherCourseFormPage() {
                         <button
                           type="button"
                           className="ghost compact"
-                          disabled={idx === lessons.length - 1 || reordering}
+                          disabled={idx === lessons.length - 1 || reordering || String(lessons[idx + 1]?.sectionId || '') !== String(lesson.sectionId || '')}
                           title="Move Down"
                           onClick={() => handleMoveLesson(idx, 1)}
                           style={{ padding: '4px 8px' }}
@@ -1028,7 +1067,10 @@ export default function TeacherCourseFormPage() {
               </h3>
               {lessonErrors.payload && <div className="page-error" style={{ marginBottom: '14px' }}>{lessonErrors.payload}</div>}
 
+              {canEdit && <Link className="assessment-button" style={{ alignSelf: 'flex-start' }} to={`/teacher/courses/${courseId}/sections/new`}>Create Section</Link>}
               <form onSubmit={saveLesson} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <CourseSections courseId={courseId} editable={canEdit} value={lessonForm.sectionId} onChange={sectionId => setLessonForm(current => ({ ...current, sectionId, order: Math.max(0, ...lessons.filter(l => String(l.sectionId || '') === sectionId).map(l => l.order)) + 1 }))} />
+                {lessonErrors.sectionId && <p role="alert">{lessonErrors.sectionId}</p>}
                 <div className="form-group" style={{ margin: 0 }}>
                   <label htmlFor="lTitle" style={{ fontWeight: 600, fontSize: '13px', color: 'var(--ink)', marginBottom: '6px', display: 'block' }}>
                     Lesson Title <span style={{ color: '#ef4444' }}>*</span>
@@ -1160,13 +1202,11 @@ export default function TeacherCourseFormPage() {
                           );
                         }
                         return (
-                          <video
+                          <AuthenticatedVideo
                             src={url}
                             controls
                             style={{ width: '100%', maxHeight: '220px', borderRadius: '6px', background: '#000' }}
-                          >
-                            <source src={url} />
-                          </video>
+                          />
                         );
                       })()}
                     </div>
@@ -1299,97 +1339,15 @@ export default function TeacherCourseFormPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
             gap: '24px',
           }}
         >
           {/* Card 1: Quizzes */}
-          <div className="profile-card-panel" style={{ padding: '30px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  color: '#fff',
-                  marginBottom: '16px',
-                }}
-              >
-                📝
-              </div>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
-                Course Quizzes
-              </h3>
-              <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 20px' }}>
-                Test student retention with automated multiple-choice quizzes attached to specific lessons or the entire course.
-              </p>
-              {quizzes.length > 0 && <div style={{ marginBottom: '16px' }}>{quizzes.map((quiz) => <button key={quiz._id} type="button" className="btn btn-secondary btn-sm" style={{ margin: '0 8px 8px 0' }} onClick={() => navigate(`/teacher/quizzes/${quiz._id}`)}>{quiz.title}</button>)}</div>}
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate(`/teacher/quizzes/new?courseId=${courseId}`)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '44px',
-                fontWeight: 600,
-              }}
-            >
-              <span>➕</span> Create New Quiz
-            </button>
-          </div>
+          <CourseQuizzes courseId={courseId} quizzes={quizzes} />
 
           {/* Card 2: Assignments */}
-          <div className="profile-card-panel" style={{ padding: '30px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  color: '#fff',
-                  marginBottom: '16px',
-                }}
-              >
-                📋
-              </div>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
-                Course Assignments
-              </h3>
-              <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 20px' }}>
-                Assign hands-on practical exercises, coding problems, or essay questions for enrolled students.
-              </p>
-              {assignments.length > 0 && <ul style={{ margin: '0 0 16px', paddingLeft: '20px', fontSize: '14px' }}>{assignments.map((assignment) => <li key={assignment._id}>{assignment.title}</li>)}</ul>}
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate(`/teacher/assignments/new?courseId=${courseId}`)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '44px',
-                fontWeight: 600,
-              }}
-            >
-              <span>➕</span> Create New Assignment
-            </button>
-          </div>
+          <CourseAssignments courseId={courseId} assignments={assignments} />
         </div>
       )}
 
@@ -1465,6 +1423,7 @@ export default function TeacherCourseFormPage() {
                   const isExpanded = expandedThreadId === t.id;
                   const replies = threadRepliesMap[t.id] || [];
                   const loadingReplies = loadingRepliesMap[t.id];
+                  const isAuthor = currentUser && String(t.author?.id) === String(currentUser._id || currentUser.id);
 
                   return (
                     <div
@@ -1499,17 +1458,15 @@ export default function TeacherCourseFormPage() {
                           </span>
                         </div>
 
-                        {/* Teacher Moderation: Delete button */}
-                        {t.status !== 'deleted' && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePost(t.id)}
-                            className="ghost compact"
-                            style={{ color: '#ef4444', fontSize: '12px' }}
-                            title="Delete this discussion thread"
-                          >
-                            🗑️ Delete
-                          </button>
+                        {isAuthor && t.status !== 'deleted' && (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button type="button" onClick={() => setEditingPost({ id: t.id, parentId: null, body: t.body })} className="ghost compact" style={{ fontSize: '12px' }}>
+                              Edit
+                            </button>
+                            <button type="button" onClick={() => handleDeletePost(t.id)} className="ghost compact" style={{ color: '#ef4444', fontSize: '12px' }} title="Delete this discussion thread">
+                              Delete
+                            </button>
+                          </div>
                         )}
                       </div>
 
@@ -1519,18 +1476,19 @@ export default function TeacherCourseFormPage() {
                           {t.title}
                         </div>
                       )}
-                      <div
-                        style={{
-                          fontSize: '14px',
-                          color: t.status === 'deleted' ? 'var(--muted)' : '#334155',
-                          fontStyle: t.status === 'deleted' ? 'italic' : 'normal',
-                          lineHeight: 1.5,
-                          marginBottom: '14px',
-                          whiteSpace: 'pre-wrap',
-                        }}
-                      >
-                        {t.status === 'deleted' ? '[This post has been removed]' : t.body}
-                      </div>
+                      {editingPost?.id === t.id ? (
+                        <DiscussionPostEditor
+                          body={editingPost.body}
+                          onBodyChange={(body) => setEditingPost((post) => ({ ...post, body }))}
+                          onSave={handleUpdatePost}
+                          onCancel={() => setEditingPost(null)}
+                          saving={savingPostEdit}
+                        />
+                      ) : (
+                        <div style={{ fontSize: '14px', color: t.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: t.status === 'deleted' ? 'italic' : 'normal', lineHeight: 1.5, marginBottom: '14px', whiteSpace: 'pre-wrap' }}>
+                          {t.status === 'deleted' ? '[This post has been removed]' : t.body}
+                        </div>
+                      )}
 
                       {/* Expand / Hide Replies Toggle */}
                       {t.status !== 'deleted' && (
@@ -1579,61 +1537,41 @@ export default function TeacherCourseFormPage() {
                               No replies yet. Be the first to respond!
                             </p>
                           ) : (
-                            replies.map((r) => (
-                              <div
-                                key={r.id}
-                                style={{
-                                  background: '#f8fafc',
-                                  borderRadius: '8px',
-                                  padding: '10px 14px',
-                                  border: '1px solid #e2e8f0',
-                                }}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span style={{ fontWeight: 600, fontSize: '13px' }}>
-                                      👤 {r.author?.fullName || 'User'}
-                                    </span>
-                                    <span
-                                      className="badge"
-                                      style={{
-                                        fontSize: '9px',
-                                        background: r.author?.role === 'teacher' ? '#ede9fe' : '#e0e7ff',
-                                        color: r.author?.role === 'teacher' ? '#7c3aed' : '#2563eb',
-                                      }}
-                                    >
-                                      {r.author?.role === 'teacher' ? '👨‍🏫 Teacher' : '🎓 Student'}
-                                    </span>
-                                    <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
-                                      {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}
-                                    </span>
+                            replies.map((r) => {
+                              const isReplyAuthor = currentUser && String(r.author?.id) === String(currentUser._id || currentUser.id);
+                              return (
+                                <div key={r.id} style={{ background: '#f8fafc', borderRadius: '8px', padding: '10px 14px', border: '1px solid #e2e8f0' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{ fontWeight: 600, fontSize: '13px' }}>👤 {r.author?.fullName || 'User'}</span>
+                                      <span className="badge" style={{ fontSize: '9px', background: r.author?.role === 'teacher' ? '#ede9fe' : '#e0e7ff', color: r.author?.role === 'teacher' ? '#7c3aed' : '#2563eb' }}>
+                                        {r.author?.role === 'teacher' ? '👨‍🏫 Teacher' : '🎓 Student'}
+                                      </span>
+                                      <span style={{ fontSize: '10px', color: 'var(--muted)' }}>{r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</span>
+                                    </div>
+                                    {isReplyAuthor && r.status !== 'deleted' && (
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button type="button" onClick={() => setEditingPost({ id: r.id, parentId: t.id, body: r.body })} className="ghost compact" style={{ fontSize: '11px' }}>Edit</button>
+                                        <button type="button" onClick={() => handleDeletePost(r.id, t.id)} className="ghost compact" style={{ color: '#ef4444', fontSize: '11px' }} title="Delete reply">Delete</button>
+                                      </div>
+                                    )}
                                   </div>
-
-                                  {r.status !== 'deleted' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeletePost(r.id, t.id)}
-                                      className="ghost compact"
-                                      style={{ color: '#ef4444', fontSize: '11px' }}
-                                      title="Delete reply"
-                                    >
-                                      Delete
-                                    </button>
+                                  {editingPost?.id === r.id ? (
+                                    <DiscussionPostEditor
+                                      body={editingPost.body}
+                                      onBodyChange={(body) => setEditingPost((post) => ({ ...post, body }))}
+                                      onSave={handleUpdatePost}
+                                      onCancel={() => setEditingPost(null)}
+                                      saving={savingPostEdit}
+                                    />
+                                  ) : (
+                                    <div style={{ fontSize: '13px', color: r.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: r.status === 'deleted' ? 'italic' : 'normal', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                                      {r.status === 'deleted' ? '[Reply removed]' : r.body}
+                                    </div>
                                   )}
                                 </div>
-                                <div
-                                  style={{
-                                    fontSize: '13px',
-                                    color: r.status === 'deleted' ? 'var(--muted)' : '#334155',
-                                    fontStyle: r.status === 'deleted' ? 'italic' : 'normal',
-                                    lineHeight: 1.4,
-                                    whiteSpace: 'pre-wrap',
-                                  }}
-                                >
-                                  {r.status === 'deleted' ? '[Reply removed]' : r.body}
-                                </div>
-                              </div>
-                            ))
+                              );
+                            })
                           )}
                         </div>
                       )}
@@ -1773,25 +1711,25 @@ export default function TeacherCourseFormPage() {
                             >
                               ✏️ Edit
                             </button>
-                            <a
-                              href={materialService.getDownloadUrl(m.id, { view: true })}
-                              target="_blank"
-                              rel="noreferrer"
+                            <MaterialAccessButton
+                              materialId={m.id}
+                              mode="view"
+                              onError={(error) => addToast(error.message || 'Unable to view material.', 'error')}
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '12px', padding: '4px 10px', textDecoration: 'none' }}
                             >
                               👁️ View
-                            </a>
-                            <a
-                              href={materialService.getDownloadUrl(m.id)}
-                              target="_blank"
-                              rel="noreferrer"
+                            </MaterialAccessButton>
+                            <MaterialAccessButton
+                              materialId={m.id}
+                              filename={m.originalName || m.name}
+                              mode="download"
+                              onError={(error) => addToast(error.message || 'Unable to download material.', 'error')}
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '12px', padding: '4px 10px', textDecoration: 'none' }}
-                              download
                             >
                               ⬇️ Download
-                            </a>
+                            </MaterialAccessButton>
                             <button
                               type="button"
                               onClick={() => handleDeleteMaterial(m.id)}

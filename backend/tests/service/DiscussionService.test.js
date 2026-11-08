@@ -85,3 +85,40 @@ test('deletePost applies tombstone when user is author', async () => {
     });
   }
 });
+
+test('updatePost changes only the author own active discussion post', async () => {
+  const origPostFind = DiscussionPostRepository.findById;
+  const origUpdateBody = DiscussionPostRepository.updateBody;
+  let updatedBody = null;
+
+  DiscussionPostRepository.findById = async () => ({
+    _id: POST_ID,
+    parentId: null,
+    authorId: { _id: STUDENT_ID },
+    status: 'ACTIVE',
+  });
+  DiscussionPostRepository.updateBody = async (id, body) => {
+    assert.equal(id, POST_ID);
+    updatedBody = body;
+    return {
+      _id: id,
+      parentId: null,
+      authorId: { _id: STUDENT_ID, fullName: 'Student A', role: 'student' },
+      body,
+      status: 'ACTIVE',
+    };
+  };
+
+  try {
+    const updated = await DiscussionService.updatePost(POST_ID, student, { body: '  Updated explanation  ' });
+    assert.equal(updated.body, 'Updated explanation');
+    assert.equal(updatedBody, 'Updated explanation');
+
+    await assert.rejects(
+      DiscussionService.updatePost(POST_ID, { _id: '507f1f77bcf86cd799439099' }, { body: 'Not mine' }),
+      (error) => error instanceof ServiceError && error.status === 403,
+    );
+  } finally {
+    restore(DiscussionPostRepository, { findById: origPostFind, updateBody: origUpdateBody });
+  }
+});

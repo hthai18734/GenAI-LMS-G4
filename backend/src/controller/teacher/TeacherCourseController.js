@@ -1,16 +1,17 @@
+module.exports = function createController(UseCases) {
 /**
 Author: HuyTG - CE182405
 Created at: 29/09/2026
 Description: Course Management
  */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { courseService: CourseService } = require('../../composition/services');
+const { courseService: CourseService } = UseCases;
 const CreateCourseDTO = require('../../dto/course/CreateCourseDTO');
 const UpdateCourseDTO = require('../../dto/course/UpdateCourseDTO');
 const CourseQueryDTO = require('../../dto/course/CourseQueryDTO');
 const LessonDTO = require('../../dto/course/LessonDTO');
-const { categoryService: CategoryService } = require('../../composition/services');
-const { teacherDashboardService: TeacherDashboardService } = require('../../composition/services');
+const { categoryService: CategoryService } = UseCases;
+const { teacherDashboardService: TeacherDashboardService } = UseCases;
 
 class TeacherCourseController {
   validationError(res, errors) { return ResponseUtil.error(res, { status: 400, message: 'Validation failed.', errors }); }
@@ -20,7 +21,7 @@ class TeacherCourseController {
       const dto = new CreateCourseDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const course = await CourseService.createCourse(req.user, dto);
+      const course = await CourseService.createCourse(req.user, dto.toObject());
       return ResponseUtil.success(res, { status: 201, message: 'Course created successfully.', data: { course } });
     } catch (error) { return next(error); }
   }
@@ -30,7 +31,7 @@ class TeacherCourseController {
       const dto = new CourseQueryDTO(req.query);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const result = await CourseService.getTeacherCourses(req.user, dto);
+      const result = await CourseService.getTeacherCourses(req.user, dto.toObject());
       return ResponseUtil.success(res, { data: result });
     } catch (error) { return next(error); }
   }
@@ -54,7 +55,7 @@ class TeacherCourseController {
       const dto = new UpdateCourseDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const course = await CourseService.updateCourse(req.params.courseId, req.user, dto);
+      const course = await CourseService.updateCourse(req.params.courseId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Course updated successfully.', data: { course } });
     } catch (error) { return next(error); }
   }
@@ -113,7 +114,7 @@ class TeacherCourseController {
       const dto = new LessonDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const lesson = await CourseService.createLesson(req.params.courseId, req.user, dto);
+      const lesson = await CourseService.createLesson(req.params.courseId, req.user, dto.toObject());
       return ResponseUtil.success(res, { status: 201, message: 'Lesson created successfully.', data: { lesson } });
     } catch (error) { return next(error); }
   }
@@ -123,7 +124,7 @@ class TeacherCourseController {
       const dto = new LessonDTO(req.body, { partial: true });
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const lesson = await CourseService.updateLesson(req.params.courseId, req.params.lessonId, req.user, dto);
+      const lesson = await CourseService.updateLesson(req.params.courseId, req.params.lessonId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Lesson updated successfully.', data: { lesson } });
     } catch (error) { return next(error); }
   }
@@ -144,8 +145,10 @@ class TeacherCourseController {
     });
   }
 
-  async uploadVideo(req, res) {
+  async uploadVideo(req, res, next) {
     if (!req.file) return ResponseUtil.error(res, { status: 400, message: 'Please select a video file to upload.' });
+    try { await UseCases.lessonVideoService.registerUpload(req.query.courseId, req.user, req.file); }
+    catch (error) { return next(error); }
     return ResponseUtil.success(res, {
       status: 201,
       message: 'Lesson video uploaded successfully.',
@@ -170,4 +173,5 @@ class TeacherCourseController {
     }
   }
 }
-module.exports = new TeacherCourseController();
+return  new TeacherCourseController();
+};

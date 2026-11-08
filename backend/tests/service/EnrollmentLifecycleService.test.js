@@ -5,6 +5,7 @@ const EnrollmentRepository = require('../../src/infrastructure/persistence/mongo
 const CertificateRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/CertificateRepository');
 const { progressTrackingService: ProgressTrackingService } = require('../../src/composition/services');
 const ServiceError = require('../../src/service/common/ServiceError');
+const CourseRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/CourseRepository');
 
 const STUDENT_ID = '507f1f77bcf86cd799439011';
 const COURSE_ID = '507f1f77bcf86cd799439012';
@@ -61,6 +62,8 @@ test('cancelEnrollment rejects completed enrollment with 409', async () => {
 });
 
 test('completeCourse validates eligibility and issues certificate', async () => {
+  const origCourse = CourseRepository.findById;
+  CourseRepository.findById = async () => ({ status: 'PUBLIC' });
   const origFind = EnrollmentRepository.findById;
   const origMarkCompleted = EnrollmentRepository.markCompleted;
   const origIssueCert = CertificateRepository.issueCertificate;
@@ -104,5 +107,6 @@ test('completeCourse validates eligibility and issues certificate', async () => 
     restore(EnrollmentRepository, { findById: origFind, markCompleted: origMarkCompleted });
     restore(CertificateRepository, { issueCertificate: origIssueCert });
     ProgressTrackingService.recalculateCourseProgress = origRecalc;
+    CourseRepository.findById = origCourse;
   }
 });

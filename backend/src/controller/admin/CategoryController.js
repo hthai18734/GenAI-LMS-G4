@@ -1,10 +1,11 @@
+module.exports = function createController(UseCases) {
 /**
 Author: HuyTG - CE182405
 Created at: 01/10/2026
 Description: Category Management
  */
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { categoryService: CategoryService } = require('../../composition/services');
+const { categoryService: CategoryService } = UseCases;
 const CreateCategoryDTO = require('../../dto/category/CreateCategoryDTO');
 const UpdateCategoryDTO = require('../../dto/category/UpdateCategoryDTO');
 
@@ -15,7 +16,7 @@ class CategoryController {
       const dto = new CreateCategoryDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const category = await CategoryService.createCategory(dto);
+      const category = await CategoryService.createCategory(dto.toObject());
       return ResponseUtil.success(res, { status: 201, message: 'Category created successfully.', data: { category } });
     } catch (error) { return next(error); }
   }
@@ -30,7 +31,7 @@ class CategoryController {
       const dto = new UpdateCategoryDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const category = await CategoryService.updateCategory(req.params.categoryId, dto);
+      const category = await CategoryService.updateCategory(req.params.categoryId, dto.toObject());
       return ResponseUtil.success(res, { message: 'Category updated successfully.', data: { category } });
     } catch (error) { return next(error); }
   }
@@ -41,4 +42,5 @@ class CategoryController {
     } catch (error) { return next(error); }
   }
 }
-module.exports = new CategoryController();
+return  new CategoryController();
+};

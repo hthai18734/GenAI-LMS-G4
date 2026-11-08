@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { publicService } from '../services/api';
-import { useAuth } from '../services/AuthContext';
+import { Link } from 'react-router-dom';
+import { publicService } from '../features/public/api.js';
+import { useAuth } from '../features/auth/useAuth.js';
 
 export default function LandingPage() {
   const { isAuthenticated, user } = useAuth();
-  const navigate = useNavigate();
 
   // Metadata state
   const [categories, setCategories] = useState([]);
@@ -24,25 +23,30 @@ export default function LandingPage() {
 
   // 1. Initial metadata loading
   useEffect(() => {
-    publicService.getHomepage()
+    const controller = new AbortController();
+    publicService.getHomepage(6, { signal: controller.signal })
       .then((res) => {
         if (res.data) {
           if (res.data.categories) setCategories(res.data.categories);
           if (res.data.teachers) setTeachers(res.data.teachers);
         }
       })
-      .catch((err) => console.error('Failed to load metadata:', err));
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error('Failed to load metadata:', err);
+      });
+    return () => controller.abort();
   }, []);
 
   // 2. Query courses whenever search, category, price, sort or page changes
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchCourses() {
       setLoadingCourses(true);
       try {
         let res;
         if (activeKeyword.trim()) {
           // Search courses
-          res = await publicService.searchCourses(activeKeyword.trim(), page, 9);
+          res = await publicService.searchCourses(activeKeyword.trim(), page, 9, { signal: controller.signal });
         } else if (selectedCategory !== 'all' || selectedPrice !== 'all' || sortBy !== 'newest') {
           // Filter & Sort courses
           const minPrice = selectedPrice === 'paid' ? 1 : undefined;
@@ -54,10 +58,10 @@ export default function LandingPage() {
             sortBy,
             page,
             limit: 9,
-          });
+          }, { signal: controller.signal });
         } else {
           // Browse all courses
-          res = await publicService.browseCourses(page, 9);
+          res = await publicService.browseCourses(page, 9, { signal: controller.signal });
         }
 
         if (res && res.data) {
@@ -65,15 +69,17 @@ export default function LandingPage() {
           setPagination(res.data.pagination || { page, limit: 9, total: 0, totalPages: 1 });
         }
       } catch (err) {
+        if (err.name === 'AbortError') return;
         console.error('Error fetching courses:', err);
         setCourses([]);
         setPagination({ page, limit: 9, total: 0, totalPages: 1 });
       } finally {
-        setLoadingCourses(false);
+        if (!controller.signal.aborted) setLoadingCourses(false);
       }
     }
 
     fetchCourses();
+    return () => controller.abort();
   }, [activeKeyword, selectedCategory, selectedPrice, sortBy, page]);
 
   // Handle Search Submission
@@ -136,24 +142,6 @@ export default function LandingPage() {
 
         {/* Right Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          {user?.role === 'admin' && (
-            <Link
-              to="/admin/dashboard"
-              style={{
-                textDecoration: 'none',
-                color: '#4338ca',
-                background: '#eef2ff',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                border: '1px solid #c7d2fe',
-              }}
-            >
-              📊 Bảng điều khiển Admin
-            </Link>
-          )}
-
           {isAuthenticated ? (
             <Link
               to={user?.role === 'admin' ? '/admin/dashboard' : user?.role === 'teacher' ? '/teacher/courses' : '/dashboard'}
@@ -167,7 +155,7 @@ export default function LandingPage() {
                 fontWeight: '600'
               }}
             >
-              {user?.role === 'admin' ? 'Bảng quản trị Admin →' : user?.role === 'teacher' ? 'Quản lý khóa học →' : `My Dashboard (${user?.fullName || 'Student'}) →`}
+              {user?.role === 'admin' ? 'Admin Dashboard →' : user?.role === 'teacher' ? 'Manage Courses →' : `My Dashboard (${user?.fullName || 'Student'}) →`}
             </Link>
           ) : (
             <>

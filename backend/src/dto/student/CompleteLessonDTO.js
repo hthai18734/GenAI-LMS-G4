@@ -6,10 +6,10 @@ Description: UC-10.4 Complete Lesson (Progress tracking)
 const { objectId } = require('../common/DTOUtil');
 
 class CompleteLessonDTO {
-  constructor({ params = {}, user = {} } = {}) {
-    this.userId = user._id || null;
-    this.courseId = params.courseId || null;
-    this.lessonId = params.lessonId || null;
+  constructor({ userId = null, courseId = null, lessonId = null } = {}) {
+    this.userId = userId;
+    this.courseId = courseId;
+    this.lessonId = lessonId;
   }
 
   validate() {

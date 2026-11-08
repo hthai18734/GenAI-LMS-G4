@@ -1,6 +1,7 @@
+module.exports = function createController(UseCases) {
 const path = require('path');
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { materialService: MaterialService } = require('../../composition/services');
+const { materialService: MaterialService } = UseCases;
 
 class MaterialController {
   async upload(req, res, next) {
@@ -70,4 +71,5 @@ class MaterialController {
   }
 }
 
-module.exports = new MaterialController();
+return  new MaterialController();
+};

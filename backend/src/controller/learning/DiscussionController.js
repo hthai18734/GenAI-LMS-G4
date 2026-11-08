@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { discussionService: DiscussionService } = require('../../composition/services');
+const { discussionService: DiscussionService } = UseCases;
 
 class DiscussionController {
   async listThreads(req, res, next) {
@@ -70,4 +71,5 @@ class DiscussionController {
   }
 }
 
-module.exports = new DiscussionController();
+return  new DiscussionController();
+};

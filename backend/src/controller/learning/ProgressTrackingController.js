@@ -1,4 +1,5 @@
-const { progressTrackingService: ProgressTrackingService } = require('../../composition/services');
+module.exports = function createController(UseCases) {
+const { progressTrackingService: ProgressTrackingService } = UseCases;
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 
 class ProgressTrackingController {
@@ -43,4 +44,5 @@ class ProgressTrackingController {
   }
 }
 
-module.exports = new ProgressTrackingController();
+return  new ProgressTrackingController();
+};

@@ -43,7 +43,7 @@ test('add question verifies quiz access and persists the parent quiz relationshi
 
   try {
     const saved = await QuestionService.createQuestion(QUIZ_ID, teacher, {
-      toObject: () => ({ questionText: question.questionText, options: question.options, correctAnswer: question.correctAnswer }),
+      questionText: question.questionText, options: question.options, correctAnswer: question.correctAnswer,
     });
     assert.equal(saved.quizId, QUIZ_ID);
     assert.deepEqual(created, {
@@ -73,7 +73,7 @@ test('update question rejects a correct answer that does not belong to the resul
 
   try {
     await assert.rejects(
-      QuestionService.updateQuestion(QUESTION_ID, teacher, { toObject: () => ({ options: ['One', 'Two'] }) }),
+      QuestionService.updateQuestion(QUESTION_ID, teacher, { options: ['One', 'Two'] }),
       (error) => error instanceof ServiceError && error.status === 400 && error.publicMessage === 'Invalid question content.',
     );
   } finally {
@@ -103,7 +103,7 @@ test('update and delete enforce quiz ownership through the question relationship
   CourseService.assertContentEditable = () => {};
 
   try {
-    const updated = await QuestionService.updateQuestion(QUESTION_ID, teacher, { toObject: () => ({ correctAnswer: 'A framework' }) });
+    const updated = await QuestionService.updateQuestion(QUESTION_ID, teacher, { correctAnswer: 'A framework' });
     assert.equal(updated.correctAnswer, 'A framework');
     assert.deepEqual(updateData, { id: QUESTION_ID, data: { correctAnswer: 'A framework' } });
     await QuestionService.deleteQuestion(QUESTION_ID, teacher);
@@ -160,7 +160,7 @@ test('createBankQuestion creates standalone question in Bank without QuizQuestio
 
   try {
     const saved = await QuestionService.createBankQuestion(teacher, {
-      toObject: () => ({ questionText: question.questionText, options: question.options, correctAnswer: question.correctAnswer }),
+      questionText: question.questionText, options: question.options, correctAnswer: question.correctAnswer,
     });
 
     assert.equal(saved.quizId, null);

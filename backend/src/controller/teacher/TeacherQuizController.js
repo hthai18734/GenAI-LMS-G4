@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { quizService: QuizService } = require('../../composition/services');
+const { quizService: QuizService } = UseCases;
 const CreateQuizDTO = require('../../dto/quiz/CreateQuizDTO');
 const UpdateQuizDTO = require('../../dto/quiz/UpdateQuizDTO');
 
@@ -16,7 +17,7 @@ class TeacherQuizController {
       const dto = new CreateQuizDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const quiz = await QuizService.createQuiz(req.params.courseId, req.user, dto);
+      const quiz = await QuizService.createQuiz(req.params.courseId, req.user, dto.toObject());
       return ResponseUtil.success(res, { status: 201, message: 'Quiz created successfully.', data: { quiz } });
     } catch (error) { return next(error); }
   }
@@ -54,7 +55,7 @@ class TeacherQuizController {
       const dto = new UpdateQuizDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const quiz = await QuizService.updateQuiz(req.params.quizId, req.user, dto);
+      const quiz = await QuizService.updateQuiz(req.params.quizId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Quiz updated successfully.', data: { quiz } });
     } catch (error) { return next(error); }
   }
@@ -67,4 +68,5 @@ class TeacherQuizController {
   }
 }
 
-module.exports = new TeacherQuizController();
+return  new TeacherQuizController();
+};

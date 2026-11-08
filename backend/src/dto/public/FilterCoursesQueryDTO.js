@@ -5,14 +5,17 @@
  */
 
 const ALLOWED_SORTS = ['newest', 'oldest', 'popular', 'rating', 'price-asc', 'price-desc'];
+const { isObjectPayload, strictNumber, strictInteger } = require('../common/DTOUtil');
 
 class FilterCoursesQueryDTO {
   constructor(query = {}) {
-    this.query = query;
+    this.payloadIsObject = isObjectPayload(query);
+    this.query = this.payloadIsObject ? query : {};
   }
 
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Query parameters must be an object.';
     const { minPrice, maxPrice, sort, sortBy } = this.query;
 
     let min = null;
@@ -21,15 +24,15 @@ class FilterCoursesQueryDTO {
     const isPresent = (val) => val !== undefined && val !== null && val !== '' && val !== 'undefined' && val !== 'null';
 
     if (isPresent(minPrice)) {
-      min = Number(minPrice);
-      if (isNaN(min) || min < 0) {
+      min = strictNumber(minPrice);
+      if (min === null || min < 0) {
         errors.minPrice = 'Invalid filter options';
       }
     }
 
     if (isPresent(maxPrice)) {
-      max = Number(maxPrice);
-      if (isNaN(max) || max < 0) {
+      max = strictNumber(maxPrice);
+      if (max === null || max < 0) {
         errors.maxPrice = 'Invalid filter options';
       }
     }
@@ -37,8 +40,6 @@ class FilterCoursesQueryDTO {
     if (
       min !== null &&
       max !== null &&
-      !isNaN(min) &&
-      !isNaN(max) &&
       min > max
     ) {
       errors.priceRange = 'Invalid filter options';
@@ -46,25 +47,25 @@ class FilterCoursesQueryDTO {
 
     const rawSort = sortBy || sort;
     if (isPresent(rawSort)) {
-      const sortOption = String(rawSort).replace('_', '-');
+      const sortOption = typeof rawSort === 'string' ? rawSort.replace('_', '-') : '';
       if (!ALLOWED_SORTS.includes(sortOption)) {
         errors.sort = 'Invalid filter options';
       }
     }
 
     if (isPresent(this.query.page)) {
-      const pageNum = Number(this.query.page);
-      if (!Number.isInteger(pageNum) || pageNum < 1) {
+      if (strictInteger(this.query.page, { min: 1, max: 1000000 }) === null) {
         errors.page = 'Page must be an integer greater than zero.';
       }
     }
 
     if (isPresent(this.query.limit)) {
-      const limitNum = Number(this.query.limit);
-      if (!Number.isInteger(limitNum) || limitNum < 1) {
+      if (strictInteger(this.query.limit, { min: 1, max: 100 }) === null) {
         errors.limit = 'Limit must be an integer greater than zero.';
       }
     }
+    if (isPresent(this.query.category) && (typeof this.query.category !== 'string' || this.query.category.trim().length > 100)) errors.category = 'Invalid filter options';
+    if (isPresent(this.query.categoryId) && (typeof this.query.categoryId !== 'string' || this.query.categoryId.trim().length > 100)) errors.categoryId = 'Invalid filter options';
 
     return errors;
   }
@@ -86,11 +87,11 @@ class FilterCoursesQueryDTO {
       : undefined;
 
     const minPrice = isPresent(this.query.minPrice)
-      ? Number(this.query.minPrice)
+      ? strictNumber(this.query.minPrice)
       : undefined;
 
     const maxPrice = isPresent(this.query.maxPrice)
-      ? Number(this.query.maxPrice)
+      ? strictNumber(this.query.maxPrice)
       : undefined;
 
     return {

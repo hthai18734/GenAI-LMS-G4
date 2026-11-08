@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { studentService } from '../features/student/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const PREF_INFO_MAP = {
   email: {
@@ -45,14 +45,14 @@ const PREF_INFO_MAP = {
   },
 };
 
+const PREF_ORDER = ['course_update', 'email', 'enrollment', 'system'];
+
 export default function SettingsPage() {
   const [preferences, setPreferences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingType, setTestingType] = useState(null);
   const { addToast } = useToast();
-
-  const PREF_ORDER = ['course_update', 'email', 'enrollment', 'system'];
 
   const handleTestNotification = async (type) => {
     const current = preferences.find((p) => p.type === type);
@@ -79,7 +79,7 @@ export default function SettingsPage() {
     }
   };
 
-  const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
     setLoading(true);
     try {
       const res = await studentService.getNotificationPreferences();
@@ -95,11 +95,11 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    fetchPreferences();
-  }, []);
+    void Promise.resolve().then(fetchPreferences);
+  }, [fetchPreferences]);
 
   const handleToggle = async (type) => {
     const prevPreferences = [...preferences];

@@ -11,7 +11,7 @@ const ATTEMPT_SUBMITTED = 'This quiz attempt has already been submitted.';
 const RESULT_UNAVAILABLE = 'Quiz result is available only after submission.';
 
 class QuizService {
-  constructor({ quizRepository, lessonRepository, questionRepository, quizQuestionRepository, quizAttemptRepository, enrollmentRepository, progressRepository, courseRepository, courseService } = {}) {
+  constructor({ quizRepository, lessonRepository, questionRepository, quizQuestionRepository, quizAttemptRepository, enrollmentRepository, progressRepository, courseRepository, courseService, clock = () => new Date() } = {}) {
     this.quizRepository = quizRepository;
     this.lessonRepository = lessonRepository;
     this.questionRepository = questionRepository;
@@ -21,15 +21,16 @@ class QuizService {
     this.progressRepository = progressRepository;
     this.courseRepository = courseRepository;
     this.courseService = courseService;
+    this.clock = clock;
   }
   assertValidId(id, field = 'Quiz') {
     if (!isValidIdentifier(id)) throw new ServiceError(400, `${field} ID is invalid.`);
   }
 
-  async createQuiz(courseId, user, dto) {
+  async createQuiz(courseId, user, input) {
     const course = await this.courseService.getOwnedCourse(courseId, user);
     this.courseService.assertContentEditable(course);
-    const data = dto.toObject();
+    const data = { ...input };
     await this.assertLessonBelongsToCourse(data.lessonId, course._id);
     return this.quizRepository.create({ ...data, courseId: course._id });
   }
@@ -61,10 +62,16 @@ class QuizService {
   async listAvailableQuizzes(courseId, user) {
     this.assertValidId(courseId, 'Course');
     const course = await this.courseRepository.findById(courseId);
-    if (!course || (course.status !== COURSE_STATUS.PUBLIC && course.status !== COURSE_STATUS.APPROVED)) throw new ServiceError(404, 'Course not found.');
+    if (!course || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, 'Course not found.');
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
-    const quizzes = await this.quizRepository.findByCourseId(courseId, { publishedOnly: true });
+    const publishedQuizzes = await this.quizRepository.findByCourseId(courseId, { publishedOnly: true });
+    const quizVisibility = await Promise.all(publishedQuizzes.map(async (quiz) => {
+      if (!quiz.lessonId) return true;
+      const lesson = await this.lessonRepository.findById(quiz.lessonId);
+      return Boolean(lesson?.isPublished && String(lesson.courseId) === String(courseId));
+    }));
+    const quizzes = publishedQuizzes.filter((_, index) => quizVisibility[index]);
     const attempts = await this.quizAttemptRepository.findLatestSubmittedByUserAndQuizIds(user._id, quizzes.map((quiz) => quiz._id));
     const latestAttemptByQuizId = new Map();
     for (const attempt of attempts) {
@@ -75,16 +82,16 @@ class QuizService {
     return quizzes.map((quiz) => {
       const latestAttempt = latestAttemptByQuizId.get(String(quiz._id));
       return {
-        ...(typeof quiz.toObject === 'function' ? quiz.toObject() : quiz),
+        ...quiz,
         latestAttempt: latestAttempt ? this.toLatestStudentAttempt(latestAttempt) : null,
       };
     });
   }
 
-  async updateQuiz(quizId, user, dto) {
+  async updateQuiz(quizId, user, input) {
     const { quiz, course } = await this.getOwnedQuiz(quizId, user, { includeCourse: true });
     this.courseService.assertContentEditable(course);
-    const updates = dto.toObject();
+    const updates = { ...input };
     if (Object.prototype.hasOwnProperty.call(updates, 'lessonId')) {
       await this.assertLessonBelongsToCourse(updates.lessonId, course._id);
     }
@@ -125,15 +132,28 @@ class QuizService {
     const quiz = await this.quizRepository.findById(quizId);
     if (!quiz || quiz.isPublished === false) throw new ServiceError(404, QUIZ_NOT_FOUND);
     const course = await this.courseRepository.findById(quiz.courseId);
-    if (!course || course.status !== COURSE_STATUS.PUBLIC) throw new ServiceError(404, QUIZ_NOT_FOUND);
+    if (!course || course.deletedAt) throw new ServiceError(404, QUIZ_NOT_FOUND);
+    if (course.status !== COURSE_STATUS.PUBLIC) {
+      throw new ServiceError(409, 'This course is not published. The teacher must publish it before you can start this quiz.');
+    }
+    if (quiz.lessonId) {
+      const lesson = await this.lessonRepository.findById(quiz.lessonId);
+      if (!lesson?.isPublished || String(lesson.courseId) !== String(quiz.courseId)) {
+        throw new ServiceError(404, QUIZ_NOT_FOUND);
+      }
+    }
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(user._id, quiz.courseId);
     if (!enrollment) throw new ServiceError(403, 'You do not have permission to perform this action.');
+    if (quiz.deadline && this.clock() >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
     const attemptCount = await this.quizAttemptRepository.countByUserAndQuiz(user._id, quiz._id);
     if (attemptCount >= quiz.attemptLimit) throw new ServiceError(409, NO_ATTEMPTS_REMAINING);
 
     const questions = await this.getQuizQuestions(quiz._id);
-    const startedAt = new Date();
-    const expiresAt = new Date(startedAt.getTime() + (Number(quiz.timeLimit) * 60 * 1000));
+    const startedAt = this.clock();
+    if (quiz.deadline && startedAt >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
+    if (!questions.length) throw new ServiceError(409, 'This quiz has no questions yet.');
+    const expiresAt = new Date(Math.min(startedAt.getTime() + Number(quiz.timeLimit) * 60 * 1000,
+      quiz.deadline ? new Date(quiz.deadline).getTime() : Infinity));
 
     const questionsSnapshot = questions.map((q) => ({
       questionId: q._id,
@@ -160,10 +180,11 @@ class QuizService {
     };
   }
 
-  async submitQuiz(attemptId, user, dto) {
+  async submitQuiz(attemptId, user, input) {
     const attempt = await this.getActiveAttempt(attemptId, user);
     const quiz = await this.quizRepository.findById(attempt.quizId);
     if (!quiz) throw new ServiceError(409, INVALID_ATTEMPT);
+    if (quiz.deadline && this.clock() >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
 
     // Chấm điểm bằng snapshot nếu có, ngược lại fallback sang questions hiện hành
     let questions = attempt.questionsSnapshot;
@@ -171,11 +192,12 @@ class QuizService {
       questions = await this.getQuizQuestions(quiz._id);
     }
 
-    const submittedAnswers = dto.toObject().answers;
+    const submittedAnswers = input.answers;
     const answers = this.gradeAnswers(questions, submittedAnswers);
     const correctCount = answers.filter((answer) => answer.isCorrect).length;
     const score = questions.length ? Math.round((correctCount / questions.length) * 100) : 0;
-    const submittedAt = new Date();
+    const submittedAt = this.clock();
+    if (quiz.deadline && submittedAt >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
 
     const updated = await this.quizAttemptRepository.submit(attempt._id, user._id, {
       status: 'submitted',

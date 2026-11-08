@@ -31,8 +31,16 @@ test('lesson must belong to specified course', async () => {
   service.source.lesson = async () => ({ courseId: 'another-course' });
   await assert.rejects(service.resolve(user, { courseId, lessonId }), e => e.status === 404);
 });
+test('context boundary rejects invalid persisted identifiers without importing an HTTP DTO', async () => {
+  await assert.rejects(
+    setup().resolve(user, { courseId: 'bad', lessonId }),
+    e => e.status === 400,
+  );
+});
 test('DTO rejects forged policies, invalid IDs, oversized questions and invalid modes', () => {
   assert.throws(() => ChatDTO.create({ lessonId }), e => e.status === 400);
+  assert.throws(() => ChatDTO.create(null), e => e.status === 400);
+  assert.throws(() => ChatDTO.message([]), e => e.status === 400);
   assert.throws(() => ChatDTO.create({ courseId: 'bad', lessonId }), e => e.status === 400);
   assert.throws(() => ChatDTO.message({ text: 'a'.repeat(4001), requestId: 'request-123' }));
   assert.throws(() => ChatDTO.message({ text: 'hi', mode: 'admin', requestId: 'request-123' }));

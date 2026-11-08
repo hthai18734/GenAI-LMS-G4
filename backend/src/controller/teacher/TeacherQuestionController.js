@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { questionService: QuestionService } = require('../../composition/services');
+const { questionService: QuestionService } = UseCases;
 const CreateQuestionDTO = require('../../dto/question/CreateQuestionDTO');
 const UpdateQuestionDTO = require('../../dto/question/UpdateQuestionDTO');
 
@@ -39,7 +40,7 @@ class TeacherQuestionController {
       const dto = new CreateQuestionDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const question = await QuestionService.createBankQuestion(req.user, dto);
+      const question = await QuestionService.createBankQuestion(req.user, dto.toObject());
       return ResponseUtil.success(res, {
         status: 201,
         message: 'Question added to question bank successfully.',
@@ -55,7 +56,7 @@ class TeacherQuestionController {
       const dto = new CreateQuestionDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const question = await QuestionService.createQuestion(req.params.quizId, req.user, dto);
+      const question = await QuestionService.createQuestion(req.params.quizId, req.user, dto.toObject());
       return ResponseUtil.success(res, {
         status: 201,
         message: 'Question added successfully.',
@@ -71,7 +72,7 @@ class TeacherQuestionController {
       const dto = new UpdateQuestionDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const question = await QuestionService.updateQuestion(req.params.questionId, req.user, dto);
+      const question = await QuestionService.updateQuestion(req.params.questionId, req.user, dto.toObject());
       return ResponseUtil.success(res, { message: 'Question updated successfully.', data: { question } });
     } catch (error) {
       return next(error);
@@ -127,4 +128,5 @@ class TeacherQuestionController {
   }
 }
 
-module.exports = new TeacherQuestionController();
+return  new TeacherQuestionController();
+};

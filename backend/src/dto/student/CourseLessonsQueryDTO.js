@@ -6,9 +6,9 @@ Description: UC-10.4 View Course Lessons
 const { objectId } = require('../common/DTOUtil');
 
 class CourseLessonsQueryDTO {
-  constructor({ params = {}, user = {} } = {}) {
-    this.userId = user._id || null;
-    this.courseId = params.courseId || null;
+  constructor({ userId = null, courseId = null } = {}) {
+    this.userId = userId;
+    this.courseId = courseId;
   }
 
   validate() {

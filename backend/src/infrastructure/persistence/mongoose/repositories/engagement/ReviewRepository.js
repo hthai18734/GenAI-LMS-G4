@@ -40,7 +40,7 @@ class ReviewRepository {
         // Local standalone MongoDB has no transactions. Serialize this app's writes
         // and leave a durable repair marker if the process exits between writes.
         return await serializeRating(courseId, async () => {
-          const course = await Course.findOneAndUpdate({ _id: courseId, ...(publicOnly ? { status: { $in: [Course.COURSE_STATUS.PUBLIC, Course.COURSE_STATUS.APPROVED, 'published', 'open'] }, deletedAt: null } : {}) },
+          const course = await Course.findOneAndUpdate({ _id: courseId, ...(publicOnly ? { status: Course.COURSE_STATUS.PUBLIC, deletedAt: null } : {}) },
             { $inc: { reviewRevision: 1 }, $set: { ratingDirty: true } }, { new: true });
           if (!course) throw persistenceError('COURSE_NOT_FOUND');
           const review = await mutation();
@@ -50,7 +50,7 @@ class ReviewRepository {
         });
       }
       return await mongoose.connection.transaction(async (session) => {
-        const course = await Course.findOneAndUpdate({ _id: courseId, ...(publicOnly ? { status: { $in: [Course.COURSE_STATUS.PUBLIC, Course.COURSE_STATUS.APPROVED, 'published', 'open'] }, deletedAt: null } : {}) },
+        const course = await Course.findOneAndUpdate({ _id: courseId, ...(publicOnly ? { status: Course.COURSE_STATUS.PUBLIC, deletedAt: null } : {}) },
           { $inc: { reviewRevision: 1 } }, { new: true, session });
         if (!course) throw persistenceError('COURSE_NOT_FOUND');
         const review = await mutation(session);

@@ -1,6 +1,6 @@
 const express = require('express');
 const NoCacheFilter = require('../filter/NoCacheFilter');
-const AuthController = require('../controller/auth/AuthController');
+const AuthController = require('../composition/http').controllers.AuthController;
 const { AuthFilter } = require('../composition/http');
 
 const router = express.Router();

@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { overallLearningProgress } from '../features/student/learningModel.js';
 import { studentService } from '../features/student/api.js';
+import { learningStatsService } from '../features/learning/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 /* ─── Animated Counter Hook ───────────────────────────────────── */
 function useCountUp(target, duration = 1200, delay = 0) {
@@ -159,7 +161,7 @@ function StatCard({ icon, label, value, gradient, delay = 0, suffix = '' }) {
 }
 
 /* ─── Course Card Component ───────────────────────────────────── */
-function CourseCard({ course, index, onAction, actionLabel, actionVariant = 'primary' }) {
+function CourseCard({ course, index, onAction }) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
   useEffect(() => {
@@ -168,7 +170,7 @@ function CourseCard({ course, index, onAction, actionLabel, actionVariant = 'pri
   }, [index]);
 
   const progress = course.progressPercent || 0;
-  const isCompleted = progress === 100 || course.enrollmentStatus === 'completed';
+  const isCompleted = course.enrollmentStatus === 'completed';
 
   return (
     <div
@@ -466,6 +468,8 @@ export default function DashboardPage() {
   const [enrollingId, setEnrollingId] = useState(null);
   const [courseFilter, setCourseFilter] = useState('all');
   const [headerVisible, setHeaderVisible] = useState(false);
+  const [learningStreak, setLearningStreak] = useState(0);
+  const [currentHour] = useState(() => new Date().getHours());
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -473,21 +477,25 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [dashRes, catRes] = await Promise.all([
+      const [dashRes, catRes, statsRes] = await Promise.all([
         studentService.getDashboard(),
         studentService.getCatalog().catch(() => ({ data: { courses: [] } })),
+        learningStatsService.getStatistics('week').catch(() => ({ data: null })),
       ]);
       setData(dashRes.data?.dashboard || null);
       setCatalog(catRes.data?.courses || []);
+      const summary = statsRes.data?.stats?.summary || statsRes.data?.summary || null;
+      const streak = Number(summary?.currentStreak ?? summary?.currentStreakDays ?? 0);
+      setLearningStreak(Number.isFinite(streak) && streak > 0 ? Math.floor(streak) : 0);
     } catch (err) {
       addToast(err.message || 'Unable to load your learning data.', 'error');
     } finally {
       setLoading(false);
       setTimeout(() => setHeaderVisible(true), 100);
     }
-  }, []);
+  }, [addToast]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { void Promise.resolve().then(loadData); }, [loadData]);
 
   const handleEnroll = async (courseId) => {
     setEnrollingId(courseId);
@@ -561,18 +569,17 @@ export default function DashboardPage() {
   const recent = data?.recentActivity || [];
 
   const totalCompletedLessons = courses.reduce((sum, c) => sum + (c.completedLessons || 0), 0);
-  const avgProgress = courses.length > 0
-    ? Math.round(courses.reduce((sum, c) => sum + (c.progressPercent || 0), 0) / courses.length)
-    : 0;
+  const overallProgress = overallLearningProgress(courses);
+  const avgProgress = overallProgress.percentage;
 
   const filteredCourses = courses.filter((c) => {
-    if (courseFilter === 'active') return c.enrollmentStatus === 'active' && c.progressPercent < 100;
-    if (courseFilter === 'completed') return c.enrollmentStatus === 'completed' || c.progressPercent === 100;
+    if (courseFilter === 'active') return c.enrollmentStatus !== 'completed';
+    if (courseFilter === 'completed') return c.enrollmentStatus === 'completed';
     return true;
   });
 
-  const inProgressCourses = courses.filter(c => (c.progressPercent || 0) < 100 && c.enrollmentStatus !== 'completed');
-  const completedCoursesList = courses.filter(c => (c.progressPercent || 0) === 100 || c.enrollmentStatus === 'completed');
+  const inProgressCourses = courses.filter(c => c.enrollmentStatus !== 'completed');
+  const completedCoursesList = courses.filter(c => c.enrollmentStatus === 'completed');
 
   let resumeCourse = null;
   let resumeLessonTitle = '';
@@ -582,12 +589,12 @@ export default function DashboardPage() {
   }
   if (!resumeCourse && inProgressCourses.length > 0) resumeCourse = inProgressCourses[0];
   if (!resumeCourse && completedCoursesList.length > 0) resumeCourse = completedCoursesList[0];
-  const isCourseCompleted = resumeCourse && ((resumeCourse.progressPercent || 0) === 100 || resumeCourse.enrollmentStatus === 'completed');
+  const isCourseCompleted = resumeCourse && (resumeCourse.enrollmentStatus === 'completed');
 
   const enrolledIds = new Set(courses.map(c => String(c.id || c._id || c.courseId)));
   const recommendedCourses = catalog.filter(c => !enrolledIds.has(String(c.id || c._id || c.courseId))).slice(0, 4);
 
-  const hour = new Date().getHours();
+  const hour = currentHour;
   const greeting = hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const greetingEmoji = hour < 5 ? '🌙' : hour < 12 ? '☀️' : hour < 18 ? '🌤️' : '🌙';
   const firstName = user?.fullName ? user.fullName.split(' ').slice(-1)[0] : 'there';
@@ -683,7 +690,7 @@ export default function DashboardPage() {
                 border: '1px solid rgba(255,255,255,0.12)',
                 color: '#fff', fontSize: '13px', fontWeight: 600,
               }}>
-                🔥 Learning Streak: <strong style={{ color: '#fbbf24' }}>3 days</strong>
+                🔥 Learning Streak: <strong style={{ color: '#fbbf24' }}>{learningStreak} {learningStreak === 1 ? 'day' : 'days'}</strong>
               </div>
               <div
                 style={{
@@ -730,8 +737,8 @@ export default function DashboardPage() {
               { num: active, label: 'In Progress', icon: '📚', color: '#818cf8' },
               { num: completed, label: 'Completed', icon: '🏆', color: '#34d399' },
               { num: `${avgProgress}%`, label: 'Avg Progress', icon: '⚡', color: '#fbbf24' },
-            ].map((stat, i) => (
-              <div key={i} style={{
+            ].map((stat) => (
+              <div key={stat.label} style={{
                 background: 'rgba(255,255,255,0.07)',
                 backdropFilter: 'blur(16px)',
                 border: '1px solid rgba(255,255,255,0.12)',
@@ -789,9 +796,10 @@ export default function DashboardPage() {
                 🎓 Overall Learning Progress
               </span>
               <span style={{ color: '#fff', fontSize: '14px', fontWeight: 800 }}>
-                {avgProgress}% Complete
+                {avgProgress}% progress
               </span>
             </div>
+            <p style={{ color: '#e0e7ff', fontSize: '12px' }}>Average of current course progress, including lessons, quizzes and assignments. Progress is not a final grade.</p>
             <AnimatedProgress percent={avgProgress} color="linear-gradient(90deg, #818cf8, #a78bfa, #60a5fa)" delay={400} />
             <div style={{
               display: 'flex', justifyContent: 'space-between',
@@ -799,7 +807,7 @@ export default function DashboardPage() {
               marginTop: '6px',
             }}>
               <span>{totalCompletedLessons} lessons completed</span>
-              <span>{enrolled} courses enrolled</span>
+              <span>{overallProgress.total} courses · {overallProgress.ready} meet all requirements</span>
             </div>
           </div>
         )}
@@ -1102,8 +1110,8 @@ export default function DashboardPage() {
             }}>
               {[
                 { key: 'all', label: `All (${courses.length})` },
-                { key: 'active', label: `Active (${courses.filter(c => c.progressPercent < 100).length})` },
-                { key: 'completed', label: `Done (${courses.filter(c => c.progressPercent === 100).length})` },
+                { key: 'active', label: `Active (${courses.filter(c => c.enrollmentStatus !== 'completed').length})` },
+                { key: 'completed', label: `Done (${courses.filter(c => c.enrollmentStatus === 'completed').length})` },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -1192,7 +1200,7 @@ export default function DashboardPage() {
                 course={c}
                 index={i}
                 onAction={(course) => {
-                  if (course.progressPercent === 100 || course.enrollmentStatus === 'completed') {
+                  if (course.enrollmentStatus === 'completed') {
                     navigate('/certificates');
                   } else {
                     navigate(`/courses/${course.courseId}/learn`);

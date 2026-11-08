@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { reviewService } from '../features/engagement/api.js';
 import { studentService } from '../features/student/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
-import { useToast } from './Toast';
+import { useToast } from './toastContext';
 
 export function StarRating({ value = 0, onChange, readOnly = false, size = '20px' }) {
   const [hover, setHover] = useState(0);
@@ -97,8 +97,9 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
         .then((res) => {
           const list = res.data?.courses || res.courses || [];
           setEnrolledCourses(list);
-          if (list.length > 0 && !selectedCourseId) {
-            setSelectedCourseId(list[0].courseId || list[0].id || list[0]._id);
+          if (list.length > 0) {
+            const defaultCourseId = list[0].courseId || list[0].id || list[0]._id;
+            setSelectedCourseId((current) => current || defaultCourseId);
           }
         })
         .catch(() => {});

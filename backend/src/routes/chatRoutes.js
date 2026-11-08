@@ -1,8 +1,8 @@
 const express = require('express');
-const { AuthFilter, RoleFilter } = require('../filter/AuthFilter');
+const { AuthFilter, RoleFilter } = require('../composition/http');
 const NoCacheFilter = require('../filter/NoCacheFilter');
 const ChatLimitFilter = require('../filter/ChatLimitFilter');
-const controller = require('../controller/chat/ChatController');
+const controller = require('../composition/http').controllers.ChatController;
 const upload = require('../utils/upload/ChatDocumentUpload');
 const router = express.Router();
 router.use(NoCacheFilter, AuthFilter, RoleFilter('student', 'teacher', 'admin'), ChatLimitFilter);

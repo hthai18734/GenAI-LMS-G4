@@ -13,8 +13,8 @@ class CategoryService {
   }
   assertValidId(id) { if (!isValidIdentifier(id)) throw new ServiceError(400, 'Category ID is invalid.'); }
   normalize(name) { return name.trim().toLocaleLowerCase(); }
-  async createCategory(dto) {
-    const data = dto.toObject();
+  async createCategory(input) {
+    const data = { ...input };
     const normalizedName = this.normalize(data.name);
     if (await this.categoryRepository.findByNameCaseInsensitive(normalizedName)) throw new ServiceError(409, 'A category with this name already exists.');
     return this.categoryRepository.create({ ...data, normalizedName });
@@ -27,9 +27,9 @@ class CategoryService {
     if (!category) throw new ServiceError(404, 'Category not found.');
     return category;
   }
-  async updateCategory(categoryId, dto) {
+  async updateCategory(categoryId, input) {
     const category = await this.getCategory(categoryId);
-    const updates = dto.toObject();
+    const updates = { ...input };
     if (updates.name !== undefined) {
       const normalizedName = this.normalize(updates.name);
       if (await this.categoryRepository.findByNameCaseInsensitive(normalizedName, category._id)) throw new ServiceError(409, 'A category with this name already exists.');

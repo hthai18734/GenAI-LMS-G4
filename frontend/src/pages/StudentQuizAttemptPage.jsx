@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { studentService, getQuizAttemptSession, saveQuizAttemptSession } from '../features/student/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 function remainingLabel(expiresAt) {
   const milliseconds = new Date(expiresAt).getTime() - Date.now();
@@ -16,7 +16,7 @@ export default function StudentQuizAttemptPage() {
   const navigate = useNavigate();
   const { addToast, confirmToast } = useToast();
   const [session, setSession] = useState(() => getQuizAttemptSession(attemptId));
-  const [now, setNow] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');

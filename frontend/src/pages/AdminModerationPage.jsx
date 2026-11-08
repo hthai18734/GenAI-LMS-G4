@@ -3,9 +3,9 @@ Author: HuyTG - CE182405
 Created at: 29/09/2026
 Description: Course Management
  */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { adminService } from '../features/admin/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const labels = {
   PENDING_REVIEW: 'Pending Review',
@@ -24,7 +24,7 @@ export default function AdminModerationPage() {
   const [busy, setBusy] = useState(false);
   const { addToast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -36,9 +36,9 @@ export default function AdminModerationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [status]);
 
-  useEffect(() => { load(); }, [status]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   const select = async (id) => {
     try {

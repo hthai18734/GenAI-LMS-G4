@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const initialForm = {
   courseId: '',
@@ -45,50 +45,54 @@ export default function TeacherQuizFormPage() {
   const courseBackPath = form.courseId ? `/teacher/courses/${form.courseId}/edit#activities` : '/teacher/courses';
 
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
-        const result = await teacherService.getCourses();
+        const result = await teacherService.getCourses('', { signal: controller.signal });
         const list = result.data?.courses || [];
         setCourses(list);
-        if (!form.courseId && list.length > 0) {
-          // Keep empty or leave for user to choose
-        }
       } catch (err) {
+        if (err.name === 'AbortError') return;
         setError(err.message || 'Unable to load your courses.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     })();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
     if (!form.courseId) {
-      setLessons([]);
-      setQuizzes([]);
       return;
     }
+    const controller = new AbortController();
     (async () => {
       setLoadingLessons(true);
       try {
         const [lessonResult, quizResult] = await Promise.all([
-          teacherService.getLessons(form.courseId),
-          teacherService.listQuizzes(form.courseId),
+          teacherService.getLessons(form.courseId, { signal: controller.signal }),
+          teacherService.listQuizzes(form.courseId, { signal: controller.signal }),
         ]);
         setLessons(lessonResult.data?.lessons || []);
         setQuizzes(quizResult.data?.quizzes || []);
       } catch (err) {
+        if (err.name === 'AbortError') return;
         setLessons([]);
         setQuizzes([]);
         setError(err.message || 'Unable to load lessons for this course.');
       } finally {
-        setLoadingLessons(false);
+        if (!controller.signal.aborted) setLoadingLessons(false);
       }
     })();
+    return () => controller.abort();
   }, [form.courseId]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    if (name === 'courseId') setLessons([]);
+    if (name === 'courseId') {
+      setLessons([]);
+      setQuizzes([]);
+    }
     setForm((current) => ({
       ...current,
       [name]: value,

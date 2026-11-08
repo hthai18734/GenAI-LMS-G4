@@ -1,6 +1,7 @@
+module.exports = function createController(UseCases) {
 const TeacherQueryDTO = require('../../dto/admin/TeacherQueryDTO');
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { adminTeacherService: AdminTeacherService } = require('../../composition/services');
+const { adminTeacherService: AdminTeacherService } = UseCases;
 const { handleError } = require('../common/ControllerUtil');
 
 class AdminTeacherController {
@@ -21,4 +22,5 @@ class AdminTeacherController {
     } catch (error) { return handleError(res, next, error); }
   }
 }
-module.exports = new AdminTeacherController();
+return  new AdminTeacherController();
+};

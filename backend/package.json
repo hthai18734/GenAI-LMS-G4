@@ -7,10 +7,14 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "test": "node --test tests/**/*.test.js",
-    "check": "node --check src/index.js"
+    "test:integration": "node scripts/run-isolated-integration-tests.js",
+    "test:architecture": "node --test tests/architecture/*.test.js",
+    "check": "node --check src/index.js",
+    "repair:legacy-lessons": "node scripts/restore-legacy-lessons.js",
+    "migrate:sections": "node scripts/migrate-sections.js"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "google-auth-library": "^9.14.1",
@@ -22,5 +26,8 @@
     "word-extractor": "^1.0.4",
     "yauzl": "^3.4.0"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
+  }
 }

@@ -1,8 +1,9 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 const { USER_ROLES } = require('../../domain/identity/UserPolicy');
 const UserQueryDTO = require('../../dto/admin/UserQueryDTO');
 const UserWriteDTO = require('../../dto/admin/UserWriteDTO');
-const { accountService: AccountService } = require('../../composition/services');
+const { accountService: AccountService } = UseCases;
 const { handleError } = require('../common/ControllerUtil');
 
 class AccountController {
@@ -41,4 +42,5 @@ class AccountController {
     return this.respond(res, next, () => AccountService.updateStatus(req.params.userId, body.status), { message: body.status === 'inactive' ? 'Account locked successfully.' : 'Account unlocked successfully.' });
   }
 }
-module.exports = new AccountController();
+return  new AccountController();
+};

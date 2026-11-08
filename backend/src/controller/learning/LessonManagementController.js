@@ -1,5 +1,6 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
-const { lessonManagementService: LessonManagementService } = require('../../composition/services');
+const { lessonManagementService: LessonManagementService } = UseCases;
 
 class LessonManagementController {
   async create(req, res, next) {
@@ -50,7 +51,8 @@ class LessonManagementController {
       const lessons = await LessonManagementService.reorderLessons(
         req.params.courseId,
         req.user,
-        req.body.orderedLessonIds
+        req.body.orderedLessonIds,
+        req.body.sectionId
       );
       return ResponseUtil.success(res, {
         message: 'Lessons reordered successfully.',
@@ -71,4 +73,5 @@ class LessonManagementController {
   }
 }
 
-module.exports = new LessonManagementController();
+return  new LessonManagementController();
+};

@@ -1,6 +1,7 @@
+module.exports = function createController(UseCases) {
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 const { REVIEW_STATUSES } = require('../../domain/engagement/ReviewPolicy');
-const { reviewService: ReviewService } = require('../../composition/services');
+const { reviewService: ReviewService } = UseCases;
 const ReviewQueryDTO = require('../../dto/review/ReviewQueryDTO');
 const ReviewWriteDTO = require('../../dto/review/ReviewWriteDTO');
 const { unknownFields } = require('../../dto/common/DTOUtil');
@@ -30,7 +31,7 @@ class ReviewController {
       const dto = new ReviewWriteDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const review = await ReviewService.create(req.params.courseId, dto, req.user);
+      const review = await ReviewService.create(req.params.courseId, dto.toObject(), req.user);
       return ResponseUtil.success(res, { status: 201, message: 'Review created successfully.', data: { review } });
     } catch (error) { return next(error); }
   }
@@ -39,7 +40,7 @@ class ReviewController {
       const dto = new ReviewWriteDTO(req.body);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const review = await ReviewService.update(req.params.reviewId, dto, req.user);
+      const review = await ReviewService.update(req.params.reviewId, dto.toObject(), req.user);
       return ResponseUtil.success(res, { message: 'Review updated successfully.', data: { review } });
     } catch (error) { return next(error); }
   }
@@ -55,9 +56,10 @@ class ReviewController {
       const dto = new ReviewWriteDTO(req.body, true);
       const errors = dto.validate();
       if (Object.keys(errors).length) return this.validationError(res, errors);
-      const review = await ReviewService.reply(req.params.reviewId, dto, req.user);
+      const review = await ReviewService.reply(req.params.reviewId, dto.toObject(), req.user);
       return ResponseUtil.success(res, { message: 'Reply saved successfully.', data: { review } });
     } catch (error) { return next(error); }
   }
 }
-module.exports = new ReviewController();
+return  new ReviewController();
+};

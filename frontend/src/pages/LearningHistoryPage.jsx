@@ -1,50 +1,54 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { learningStatsService } from '../features/learning/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 export default function LearningHistoryPage() {
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState(null);
   const [range, setRange] = useState('week');
   const [loading, setLoading] = useState(true);
-  const [loadingStats, setLoadingStats] = useState(false);
   const { addToast } = useToast();
 
-  const fetchStats = async (selectedRange = range) => {
-    setLoadingStats(true);
+  const fetchStats = useCallback(async (selectedRange, signal) => {
     try {
-      const res = await learningStatsService.getStatistics(selectedRange);
+      const res = await learningStatsService.getStatistics(selectedRange, { signal });
       setStats(res.data?.stats || res.data || null);
-    } catch {
+    } catch (error) {
+      if (error.name === 'AbortError') return;
       // stats may be empty if no logs yet
       setStats(null);
-    } finally {
-      setLoadingStats(false);
     }
-  };
+  }, []);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async (signal) => {
     setLoading(true);
     try {
-      const res = await studentService.getLearningHistory();
+      const res = await studentService.getLearningHistory({ signal });
       setHistory(res.data?.history || []);
-      await fetchStats();
     } catch (err) {
+      if (err.name === 'AbortError') return;
       addToast(err.message || 'Unable to load learning history.', 'error');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    const controller = new AbortController();
+    void Promise.resolve().then(() => fetchHistory(controller.signal));
+    return () => controller.abort();
+  }, [fetchHistory]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.resolve().then(() => fetchStats(range, controller.signal));
+    return () => controller.abort();
+  }, [fetchStats, range]);
 
   const handleRangeChange = (newRange) => {
     setRange(newRange);
-    fetchStats(newRange);
   };
 
   if (loading) {
@@ -71,7 +75,7 @@ export default function LearningHistoryPage() {
             Track your actual study time, consecutive learning streaks, and completed lesson history
           </p>
         </div>
-        <button onClick={fetchHistory} className="btn btn-secondary btn-sm">
+        <button onClick={() => fetchHistory()} className="btn btn-secondary btn-sm">
           🔄 Refresh
         </button>
       </div>
@@ -210,8 +214,8 @@ export default function LearningHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {history.map((record, index) => (
-              <tr key={index}>
+            {history.map((record) => (
+              <tr key={record.id || `${record.courseId}-${record.lessonId}`}>
                 <td style={{ fontWeight: 600, color: 'var(--ink)' }}>{record.courseTitle}</td>
                 <td>{record.lessonTitle}</td>
                 <td>

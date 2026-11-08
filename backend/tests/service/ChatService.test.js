@@ -6,7 +6,7 @@ const user = { _id: id, role: 'student' };
 const input = { text: 'Explain', mode: 'ask', style: 'friendly', requestId: 'request-123' };
 function setup() {
   const state = { row: { _id: id, title: 'Chat', turns: [] }, calls: 0, unlocked: 0 };
-  const dao = {
+  const chatRepository = {
     get: async (owner) => String(owner) === id ? state.row : null,
     lock: async () => ({ row: state.row, token: 'lock' }),
     unlock: async () => { state.unlocked++; },
@@ -15,7 +15,7 @@ function setup() {
   };
   const context = { resolve: async () => ({ title: 'Math', content: 'Private source' }) };
   const gemini = { generateContent: async payload => { state.calls++; state.payload = payload; return { text: 'Answer', model: 'fallback' }; } };
-  return { state, dao, context, gemini, service: new ChatService({ dao, context, gemini }) };
+  return { state, chatRepository, context, gemini, service: new ChatService({ chatRepository, context, gemini }) };
 }
 test('send persists successful pair, includes authorized context, retries idempotently', async () => {
   const { service, state } = setup();
@@ -25,7 +25,8 @@ test('send persists successful pair, includes authorized context, retries idempo
   assert.equal(state.row.turns.length, 1);
   assert.equal(state.row.turns[0].model, 'fallback');
   assert.match(JSON.stringify(state.payload.contents), /Private source/);
-  assert.match(JSON.stringify(state.payload.systemInstruction), /gia sư/);
+  assert.match(JSON.stringify(state.payload.systemInstruction), /gia sư/i);
+  assert.match(JSON.stringify(state.payload.systemInstruction), /ngôn ngữ khác/i);
   assert.equal(state.unlocked, 2);
 });
 test('foreign conversation does not call Gemini', async () => {
@@ -55,18 +56,18 @@ test('conversation limit requires new chat instead of dropping old turns', async
 });
 
 test('PDF source uses exactly the uploaded bytes, not the backing buffer', async () => {
-  const { service, dao, state } = setup();
+  const { service, chatRepository, state } = setup();
   const bytes = Buffer.from('%PDF-1.4\n%%EOF');
-  dao.documents = async () => [{ name: 'scan.pdf', mimeType: 'application/pdf', data: bytes }];
+  chatRepository.documents = async () => [{ name: 'scan.pdf', mimeType: 'application/pdf', data: bytes }];
   await service.send(user, id, input);
   const part = state.payload.contents.at(-1).parts.find(p => p.inlineData);
   assert.equal(part.inlineData.data, bytes.toString('base64'));
 });
 
 test('history filters by lesson before pagination and returns a continuation cursor', async () => {
-  const { service, dao } = setup();
+  const { service, chatRepository } = setup();
   const context = { courseId: '507f1f77bcf86cd799439012', lessonId: '507f1f77bcf86cd799439013' };
-  dao.list = async (owner, actualContext, before) => {
+  chatRepository.list = async (owner, actualContext, before) => {
     assert.equal(owner, id); assert.deepEqual(actualContext, context); assert.equal(before, id);
     return Array.from({ length: 31 }, (_, index) => ({ _id: String(index), title: 'Lesson chat', ...context }));
   };
@@ -75,8 +76,8 @@ test('history filters by lesson before pagination and returns a continuation cur
 });
 
 test('upload refuses a fourth attachment before parsing it', async () => {
-  const { service, dao, state } = setup();
-  dao.documents = async () => [{}, {}, {}];
+  const { service, chatRepository, state } = setup();
+  chatRepository.documents = async () => [{}, {}, {}];
   await assert.rejects(service.upload(user, id, null), e => e.status === 400 && /3/.test(e.message));
   assert.equal(state.unlocked, 1);
 });

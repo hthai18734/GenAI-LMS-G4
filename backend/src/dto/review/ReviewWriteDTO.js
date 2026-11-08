@@ -1,9 +1,14 @@
-const { text, unknownFields } = require('../common/DTOUtil');
+const { text, unknownFields, isObjectPayload } = require('../common/DTOUtil');
 
 class ReviewWriteDTO {
-  constructor(body = {}, replying = false) { this.body = body || {}; this.replying = replying; }
+  constructor(body = {}, replying = false) {
+    this.payloadIsObject = isObjectPayload(body);
+    this.body = this.payloadIsObject ? body : {};
+    this.replying = replying;
+  }
   validate() {
     const errors = {};
+    if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
     const unknown = unknownFields(this.body, this.replying ? ['content'] : ['rating', 'content']);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (!text(this.body.content) || text(this.body.content).length > 2000) errors.content = 'Content must be 1–2000 characters.';

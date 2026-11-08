@@ -1,11 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { materialService, discussionService, enrollmentService, progressService, learningReportService } from '../features/learning/api.js';
 import { getUser } from '../features/auth/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 import { useChatContext } from '../components/chat/useChatContext';
 import ReviewsPanel from '../components/ReviewsPanel';
+import DiscussionPostEditor from '../components/DiscussionPostEditor';
+import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
+import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
+import CourseSectionList from '../features/student/CourseSectionList.jsx';
+import CourseProgressSummary from '../features/student/CourseProgressSummary.jsx';
+import { assignmentClosed } from '../features/student/learningModel.js';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import AssignmentAttachment from '../features/learning/AssignmentAttachment.jsx';
+import AssessmentStatus from '../shared/assessment/AssessmentStatus.jsx';
+import { ASSIGNMENT_FILE_ACCEPT, validateAssignmentFile } from '../shared/assignment/documents.js';
 
 export default function CourseLearnPage() {
   const { courseId } = useParams();
@@ -15,6 +26,13 @@ export default function CourseLearnPage() {
 
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [progressError, setProgressError] = useState(null);
+  const [assignmentError, setAssignmentError] = useState(null);
+  const [refreshingAssignments, setRefreshingAssignments] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const assignmentFileInput = useRef(null);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [quizzes, setQuizzes] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [currentLesson, setCurrentLesson] = useState(null);
@@ -38,6 +56,19 @@ export default function CourseLearnPage() {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [videoProgress, setVideoProgress] = useState(null);
 
+  // Assignment states & modal
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [assignmentModalMode, setAssignmentModalMode] = useState('submit'); // 'submit' | 'view'
+  const [assignmentAnswer, setAssignmentAnswer] = useState('');
+  const [assignmentFile, setAssignmentFile] = useState(null);
+  const [submittingAssignment, setSubmittingAssignment] = useState(false);
+  const [assignmentSubmissionNotice, setAssignmentSubmissionNotice] = useState(null);
+  const assignmentNoticeRef = useRef(null);
+
+  useEffect(() => {
+    if (assignmentSubmissionNotice) assignmentNoticeRef.current?.focus();
+  }, [assignmentSubmissionNotice]);
+
   // Tab state: 'content' | 'materials' | 'discussions'
   const [activeTab, setActiveTab] = useState('content');
 
@@ -55,6 +86,8 @@ export default function CourseLearnPage() {
   const [threadRepliesMap, setThreadRepliesMap] = useState({}); // { [threadId]: reply[] }
   const [loadingRepliesMap, setLoadingRepliesMap] = useState({}); // { [threadId]: bool }
   const [expandedThreadId, setExpandedThreadId] = useState(null); // which thread's replies are visible
+  const [editingPost, setEditingPost] = useState(null);
+  const [savingPostEdit, setSavingPostEdit] = useState(false);
 
   // Video heartbeat refs & states
   const videoElementRef = React.useRef(null);
@@ -72,29 +105,53 @@ export default function CourseLearnPage() {
     return () => setLesson(null);
   }, [courseId, course, currentLesson, loading, setLesson]);
 
-  const loadCourseProgress = async () => {
+  const loadCourseProgress = useCallback(async () => {
     try {
       const res = await progressService.getCourseProgress(courseId);
-      setCourseProgress(res.data?.progress || res.data || null);
-    } catch {
-      // ignore
+      const progress = res.data?.progress || res.data || null;
+      setCourseProgress(progress);
+      setProgressError(null);
+      if (progress && !progress.eligibleToComplete) setEnrollmentStatus('active');
+    } catch (error) {
+      setCourseProgress(null);
+      setProgressError(error.message || 'Unable to load course progress.');
     }
+  }, [courseId]);
+
+  const refreshAssignments = async () => {
+    if (submittingAssignment || refreshingAssignments) return;
+    setRefreshingAssignments(true);
+    try {
+      const res = await studentService.getCourseAssignments(courseId);
+      const fresh = res.data?.assignments || [];
+      setAssignments(fresh);
+      setAssignmentError(null);
+      setSelectedAssignment(current => current ? fresh.find(a => a._id === current._id) || null : null);
+      await loadCourseProgress();
+    } catch (error) { setAssignmentError(error.message || 'Unable to refresh assignments.'); }
+    finally { setRefreshingAssignments(false); }
   };
 
-  const loadCourseAndLessons = async () => {
+  const loadCourseAndLessons = useCallback(async () => {
     setLoading(true);
+    setCourseProgress(null);
+    setAssignmentError(null);
+    setSelectedAssignment(null);
+    setCompletedBanner(null);
+    setEnrollmentId(null);
     try {
       // 1. Fetch lessons
       const [lessonsRes, quizzesRes, assignmentsRes] = await Promise.all([
         studentService.getCourseLessons(courseId),
         studentService.getCourseQuizzes(courseId).catch(() => ({ data: { quizzes: [] } })),
-        studentService.getCourseAssignments(courseId).catch(() => ({ data: { assignments: [] } })),
+        studentService.getCourseAssignments(courseId).catch(error => { setAssignmentError(error.message || 'Unable to load assignments.'); return { data: { assignments: [] } }; }),
       ]);
       const fetchedCourse = lessonsRes.data?.course;
       const fetchedLessons = lessonsRes.data?.lessons || [];
 
       setCourse(fetchedCourse);
       setLessons(fetchedLessons);
+      setSections(lessonsRes.data?.sections || []);
       setQuizzes(quizzesRes.data?.quizzes || []);
       setAssignments(assignmentsRes.data?.assignments || []);
       if (lessonsRes.data?.enrollmentId) {
@@ -122,9 +179,9 @@ export default function CourseLearnPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast, courseId, loadCourseProgress]);
 
-  const loadMaterials = async (lessonId) => {
+  const loadMaterials = useCallback(async (lessonId) => {
     if (!lessonId) return;
     setLoadingMaterials(true);
     try {
@@ -135,9 +192,9 @@ export default function CourseLearnPage() {
     } finally {
       setLoadingMaterials(false);
     }
-  };
+  }, []);
 
-  const loadDiscussions = async () => {
+  const loadDiscussions = useCallback(async () => {
     setLoadingDiscussions(true);
     try {
       const res = await discussionService.getThreads(courseId);
@@ -147,33 +204,33 @@ export default function CourseLearnPage() {
     } finally {
       setLoadingDiscussions(false);
     }
-  };
+  }, [courseId]);
 
-  const loadMyReports = async () => {
+  const loadMyReports = useCallback(async () => {
     try {
       const res = await learningReportService.getMyReports();
       setMyReports(res.data?.reports || res.reports || []);
     } catch {
       // ignore
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadCourseAndLessons();
-    loadMyReports();
-  }, [courseId]);
+    void Promise.resolve().then(loadCourseAndLessons);
+    void Promise.resolve().then(loadMyReports);
+  }, [loadCourseAndLessons, loadMyReports]);
 
   useEffect(() => {
     if (currentLesson?.id) {
-      loadMaterials(currentLesson.id);
+      void Promise.resolve().then(() => loadMaterials(currentLesson.id));
     }
-  }, [currentLesson?.id]);
+  }, [currentLesson?.id, loadMaterials]);
 
   useEffect(() => {
     if (activeTab === 'discussions') {
-      loadDiscussions();
+      void Promise.resolve().then(loadDiscussions);
     }
-  }, [activeTab, courseId]);
+  }, [activeTab, loadDiscussions]);
 
   const handleCreateThread = async (e) => {
     e.preventDefault();
@@ -253,16 +310,36 @@ export default function CourseLearnPage() {
     }
   };
 
+  const handleUpdatePost = async (event) => {
+    event.preventDefault();
+    const body = editingPost?.body.trim();
+    if (!body) return;
+    setSavingPostEdit(true);
+    try {
+      await discussionService.updatePost(editingPost.id, { body });
+      if (editingPost.parentId) await loadThreadReplies(editingPost.parentId);
+      else await loadDiscussions();
+      setEditingPost(null);
+      addToast('Discussion post updated.', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to update post.', 'error');
+    } finally {
+      setSavingPostEdit(false);
+    }
+  };
+
   // Video Heartbeat Lifecycle (I3-05)
   useEffect(() => {
     videoSessionIdRef.current = 'sess_' + Math.random().toString(36).substring(2, 9);
     prevPositionRef.current = 0;
     lastTimeRef.current = 0;
     seqRef.current = 1;
-    setVideoProgress(null);
-    setLocalWatchedSeconds(0);
-    setLocalWatchedPercent(0);
-    setVideoDuration(0);
+    queueMicrotask(() => {
+      setVideoProgress(null);
+      setLocalWatchedSeconds(0);
+      setLocalWatchedPercent(0);
+      setVideoDuration(0);
+    });
 
     if (currentLesson?.id) {
       progressService.getVideoProgress(currentLesson.id)
@@ -447,12 +524,54 @@ export default function CourseLearnPage() {
     }
   };
 
+  const handleOpenAssignmentModal = (assignment, mode = 'submit') => {
+    if (submittingAssignment) return;
+    setSelectedAssignment(assignment);
+    setAssignmentSubmissionNotice(null);
+    setAssignmentFile(null);
+    setAssignmentModalMode(mode);
+    setAssignmentAnswer(assignment.latestSubmission?.answer || '');
+  };
+
+  const handleSubmitAssignment = async (e) => {
+    e.preventDefault();
+    if (submittingAssignment || !selectedAssignment || (!assignmentAnswer.trim() && !assignmentFile)) return;
+    if (assignmentClosed(selectedAssignment)) { setAssignmentSubmissionNotice({ type: 'error', message: 'The assignment deadline has passed.' }); return; }
+    setSubmittingAssignment(true);
+    setAssignmentSubmissionNotice(null);
+    try {
+      const res = await studentService.submitAssignment(selectedAssignment._id, assignmentAnswer.trim(), assignmentFile, selectedAssignment.latestSubmission?.revision);
+      setAssignmentFile(null);
+      addToast('Assignment submitted successfully. Awaiting grading.', 'success', 6000);
+      const updatedSubmission = res.data?.submission || {
+        status: 'submitted',
+        answer: assignmentAnswer.trim(),
+        submittedAt: new Date().toISOString(),
+      };
+      setAssignments((prev) =>
+        prev.map((a) => (a._id === selectedAssignment._id ? { ...a, latestSubmission: updatedSubmission } : a))
+      );
+      setSelectedAssignment((prev) => (prev ? { ...prev, latestSubmission: updatedSubmission } : null));
+      setAssignmentModalMode('view');
+      setAssignmentSubmissionNotice({ type: 'success', message: 'Assignment submitted successfully' });
+      loadCourseProgress();
+    } catch (err) {
+      const message = err.message || 'Unable to submit the assignment. Please try again.';
+      setAssignmentSubmissionNotice({ type: 'error', message });
+      addToast(message, 'error');
+    } finally {
+      setSubmittingAssignment(false);
+    }
+  };
+
   const handleCompleteCurrent = async () => {
     if (!currentLesson) return;
     setCompleting(true);
     try {
       const res = await studentService.completeLesson(courseId, currentLesson.id);
       addToast('Lesson marked as completed!', 'success');
+      await loadCourseProgress();
+      setCurrentLesson(previous => previous ? { ...previous, status: 'completed' } : previous);
 
       // Update local state
       setLessons((prev) =>
@@ -495,9 +614,8 @@ export default function CourseLearnPage() {
     );
   }
 
-  const completedCount = lessons.filter((l) => l.status === 'completed').length;
-  const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
-  const effectivePercent = courseProgress?.percentage !== undefined ? Math.round(courseProgress.percentage) : progressPercent;
+  const effectivePercent = courseProgress?.percentage ?? 0;
+  const closed = assignmentClosed(selectedAssignment, now);
 
   return (
     <div>
@@ -572,8 +690,8 @@ export default function CourseLearnPage() {
 
           <div style={{ minWidth: '220px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-              <span style={{ color: 'var(--muted)' }}>Progress ({courseProgress?.completedRequired || completedCount}/{courseProgress?.totalRequired || lessons.length})</span>
-              <span style={{ fontWeight: 600, color: 'var(--purple)' }}>{effectivePercent}%</span>
+              <span style={{ color: 'var(--muted)' }}>{courseProgress ? `Progress (${courseProgress.completedRequired}/${courseProgress.totalRequired})` : 'Progress unavailable'}</span>
+              <span style={{ fontWeight: 600, color: 'var(--purple)' }}>{courseProgress ? `${effectivePercent}%` : '—'}</span>
             </div>
             <div className="progress-wrap" style={{ margin: 0 }}>
               <div className="progress-fill" style={{ width: `${effectivePercent}%` }}></div>
@@ -582,6 +700,10 @@ export default function CourseLearnPage() {
         </div>
       </div>
 
+      <CourseProgressSummary progress={courseProgress} error={progressError} onRefresh={loadCourseProgress} />
+      <div className="student-summary-heading"><h3>Assignments</h3><button type="button" className="btn btn-secondary btn-sm" disabled={refreshingAssignments || submittingAssignment} onClick={refreshAssignments}>{refreshingAssignments ? 'Refreshing...' : 'Refresh assignments & feedback'}</button></div>
+      {assignmentError && <p role="alert">{assignmentError}</p>}
+      {!assignmentError && !assignments.length && <p>No assignments available in this course.</p>}
       {/* Completion Banner */}
       {completedBanner && (
         <div style={{
@@ -632,10 +754,10 @@ export default function CourseLearnPage() {
                   <strong>{quiz.title}</strong>
                 </div>
                 <small style={{ color: 'var(--muted)', display: 'block', marginTop: '4px' }}>
-                  {quiz.timeLimit} phút · Tối đa {quiz.attemptLimit} lượt làm
+                  {quiz.timeLimit} minutes · Up to {quiz.attemptLimit} attempts
                   {quiz.latestAttempt && (
                     <span style={{ marginLeft: '6px', fontWeight: '500' }}>
-                      · Điểm gần nhất: <span style={{ color: quiz.latestAttempt.passed ? '#16a34a' : '#dc2626' }}>{quiz.latestAttempt.score}%</span>
+                      · Latest score: <span style={{ color: quiz.latestAttempt.passed ? '#16a34a' : '#dc2626' }}>{quiz.latestAttempt.score}%</span>
                     </span>
                   )}
                 </small>
@@ -648,7 +770,7 @@ export default function CourseLearnPage() {
                     type="button"
                     onClick={() => navigate(`/quiz-attempts/${quiz.latestAttempt.id}/result`)}
                   >
-                    Xem lại bài làm
+                    View quiz result
                   </button>
                 )}
                 <button
@@ -656,21 +778,89 @@ export default function CourseLearnPage() {
                   type="button"
                   onClick={() => navigate(`/quizzes/${quiz._id}/start`)}
                 >
-                  Làm bài kiểm tra
+                  Start quiz
                 </button>
               </div>
             </div>
           ))}
-          {assignments.map((assignment) => (
-            <div key={assignment._id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
-              <strong>{assignment.title}</strong>
-              <p style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{assignment.content}</p>
-            </div>
-          ))}
+          {assignments.map((assignment) => {
+            const submission = assignment.latestSubmission;
+
+
+            return (
+              <div
+                key={assignment._id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 0',
+                  borderBottom: '1px solid var(--line)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '15px' }}>📋</span>
+                    <strong>{assignment.title}</strong>
+                    {submission?.status ? (
+                      <AssessmentStatus status={submission.status} />
+                    ) : (
+                      <span
+                        style={{
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                        }}
+                      >
+                        Not submitted
+                      </span>
+                    )}
+                  </div>
+                  <small style={{ color: 'var(--muted)', display: 'block', marginTop: '4px' }}>
+                    {assignment.lessonId
+                      ? `Lesson: ${lessons.find((l) => (l._id || l.id) === String(assignment.lessonId))?.title || 'Lesson'}`
+                      : 'Course assignment'}
+                    {submission?.submittedAt && (
+                      <span style={{ marginLeft: '6px' }}>
+                        · Submitted: {new Date(submission.submittedAt).toLocaleString('en-US')}
+                      </span>
+                    )}
+                  </small>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button className="btn btn-secondary btn-sm" type="button" onClick={() => handleOpenAssignmentModal(assignment, 'view')}>View assignment</button>
+                  {submission && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      type="button"
+                      onClick={() => handleOpenAssignmentModal(assignment, 'view')}
+                    >
+                      View submission
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    disabled={assignmentClosed(assignment, now)}
+                    onClick={() => handleOpenAssignmentModal(assignment, 'submit')}
+                  >
+                    {assignmentClosed(assignment, now) ? 'Submission closed' : submission ? 'Resubmit assignment' : 'Start assignment'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </section>
       )}
       {lessons.length === 0 ? (
         <div className="empty-state" style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '40px 24px', textAlign: 'center' }}>
+          <CourseSectionList sections={sections} lessons={lessons} currentLesson={currentLesson} onSelect={setCurrentLesson} />
           <div className="empty-icon" style={{ fontSize: '42px', marginBottom: '12px' }}>📝</div>
           <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 8px' }}>Lessons are being prepared</h3>
           <p style={{ color: 'var(--muted)', maxWidth: '480px', margin: '0 auto 20px', fontSize: '14px' }}>
@@ -683,69 +873,8 @@ export default function CourseLearnPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '24px' }}>
-          {/* Lesson List */}
-          <div style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '16px', height: 'fit-content' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px', paddingBottom: '8px', borderBottom: '1px solid var(--line)' }}>
-              Course Syllabus ({completedCount}/{lessons.length})
-            </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {lessons.map((lesson, idx) => {
-              const isActive = currentLesson?.id === lesson.id;
-              const isDone = lesson.status === 'completed';
-
-              return (
-                <button
-                  key={lesson.id}
-                  onClick={() => setCurrentLesson(lesson)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    textAlign: 'left',
-                    background: isActive ? 'var(--lav)' : isDone ? '#f0fdf4' : 'transparent',
-                    border: isActive ? '1px solid #d4ceff' : '1px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all .2s',
-                  }}
-                >
-                  <span style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    background: isDone ? '#22c55e' : isActive ? 'var(--purple)' : '#e5e7eb',
-                    color: isDone || isActive ? '#fff' : '#4b5563',
-                    flex: '0 0 auto',
-                  }}>
-                    {isDone ? '✓' : idx + 1}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'var(--purple)' : 'var(--ink)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>
-                      {lesson.title}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--muted)', display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
-                      <span>{lesson.videoRef ? '🎬 Video' : '📖 Reading'}</span>
-                      {lesson.duration ? <span>• {lesson.duration} mins</span> : null}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <div className="student-learning-layout">
+          <CourseSectionList sections={sections} lessons={lessons} currentLesson={currentLesson} onSelect={setCurrentLesson} />
 
         {/* Current Lesson View */}
         <div style={{ background: 'var(--panel)', borderRadius: '14px', border: '1px solid #eeeef6', padding: '28px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
@@ -893,7 +1022,7 @@ export default function CourseLearnPage() {
                           </div>
                         ) : (
                           <div>
-                            <video
+                            <AuthenticatedVideo
                               key={activeVideo}
                               src={activeVideo}
                               ref={videoElementRef}
@@ -918,7 +1047,7 @@ export default function CourseLearnPage() {
                             >
                               <source src={activeVideo} />
                               Your browser does not support the video tag.
-                            </video>
+                            </AuthenticatedVideo>
                             {(() => {
                               const effPercent = Math.round(videoProgress?.watchedPercent !== undefined ? videoProgress.watchedPercent : localWatchedPercent);
                               const effSec = Math.round(videoProgress?.watchedSeconds !== undefined ? videoProgress.watchedSeconds : localWatchedSeconds);
@@ -1051,25 +1180,25 @@ export default function CourseLearnPage() {
                           </div>
 
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <a
-                              href={materialService.getDownloadUrl(m.id, { view: true })}
-                              target="_blank"
-                              rel="noreferrer"
+                            <MaterialAccessButton
+                              materialId={m.id}
+                              mode="view"
+                              onError={(error) => addToast(error.message || 'Unable to view material.', 'error')}
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '13px', padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                             >
                               <span>👁️</span> View Material
-                            </a>
-                            <a
-                              href={materialService.getDownloadUrl(m.id)}
-                              target="_blank"
-                              rel="noreferrer"
+                            </MaterialAccessButton>
+                            <MaterialAccessButton
+                              materialId={m.id}
+                              filename={m.originalName || m.name}
+                              mode="download"
+                              onError={(error) => addToast(error.message || 'Unable to download material.', 'error')}
                               className="btn btn-primary btn-sm"
                               style={{ fontSize: '13px', padding: '6px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                              download
                             >
                               <span>⬇️</span> Download Material
-                            </a>
+                            </MaterialAccessButton>
                           </div>
                         </div>
                       ))}
@@ -1128,16 +1257,31 @@ export default function CourseLearnPage() {
                                 <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}</span>
                               </div>
                               {isAuthor && t.status !== 'deleted' && (
-                                <button type="button" onClick={() => handleDeletePost(t.id)} className="ghost compact" style={{ color: '#ef4444', fontSize: '11px' }}>
-                                  Delete
-                                </button>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button type="button" onClick={() => setEditingPost({ id: t.id, parentId: null, body: t.body })} className="ghost compact" style={{ fontSize: '11px' }}>
+                                    Edit
+                                  </button>
+                                  <button type="button" onClick={() => handleDeletePost(t.id)} className="ghost compact" style={{ color: '#ef4444', fontSize: '11px' }}>
+                                    Delete
+                                  </button>
+                                </div>
                               )}
                             </div>
 
                             {t.title && <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '6px' }}>{t.title}</div>}
-                            <div style={{ fontSize: '14px', color: t.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: t.status === 'deleted' ? 'italic' : 'normal', marginBottom: '12px' }}>
-                              {t.status === 'deleted' ? '[This post has been removed]' : t.body}
-                            </div>
+                            {editingPost?.id === t.id ? (
+                              <DiscussionPostEditor
+                                body={editingPost.body}
+                                onBodyChange={(body) => setEditingPost((post) => ({ ...post, body }))}
+                                onSave={handleUpdatePost}
+                                onCancel={() => setEditingPost(null)}
+                                saving={savingPostEdit}
+                              />
+                            ) : (
+                              <div style={{ fontSize: '14px', color: t.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: t.status === 'deleted' ? 'italic' : 'normal', marginBottom: '12px' }}>
+                                {t.status === 'deleted' ? '[This post has been removed]' : t.body}
+                              </div>
+                            )}
 
                             {/* Toggle Replies Button */}
                             {t.status !== 'deleted' && (
@@ -1174,19 +1318,34 @@ export default function CourseLearnPage() {
                                             <span style={{ fontSize: '10px', color: 'var(--muted)' }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</span>
                                           </div>
                                           {isReplyAuthor && r.status !== 'deleted' && (
-                                            <button
-                                              type="button"
-                                              onClick={() => handleDeletePost(r.id, t.id)}
-                                              className="ghost compact"
-                                              style={{ color: '#ef4444', fontSize: '10px' }}
-                                            >
-                                              Delete
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                              <button type="button" onClick={() => setEditingPost({ id: r.id, parentId: t.id, body: r.body })} className="ghost compact" style={{ fontSize: '10px' }}>
+                                                Edit
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleDeletePost(r.id, t.id)}
+                                                className="ghost compact"
+                                                style={{ color: '#ef4444', fontSize: '10px' }}
+                                              >
+                                                Delete
+                                              </button>
+                                            </div>
                                           )}
                                         </div>
-                                        <div style={{ fontSize: '13px', color: r.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: r.status === 'deleted' ? 'italic' : 'normal' }}>
-                                          {r.status === 'deleted' ? '[Reply removed]' : r.body}
-                                        </div>
+                                        {editingPost?.id === r.id ? (
+                                          <DiscussionPostEditor
+                                            body={editingPost.body}
+                                            onBodyChange={(body) => setEditingPost((post) => ({ ...post, body }))}
+                                            onSave={handleUpdatePost}
+                                            onCancel={() => setEditingPost(null)}
+                                            saving={savingPostEdit}
+                                          />
+                                        ) : (
+                                          <div style={{ fontSize: '13px', color: r.status === 'deleted' ? 'var(--muted)' : '#334155', fontStyle: r.status === 'deleted' ? 'italic' : 'normal' }}>
+                                            {r.status === 'deleted' ? '[Reply removed]' : r.body}
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })
@@ -1543,6 +1702,227 @@ export default function CourseLearnPage() {
                     Close
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Assignment Details & Submission */}
+      {selectedAssignment && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: '16px' }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="assignment-modal-title" style={{ background: '#fff', borderRadius: '16px', padding: '28px', maxWidth: '780px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--line)', paddingBottom: '16px', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '20px' }}>📋</span>
+                  <h3 id="assignment-modal-title" style={{ fontFamily: 'Space Grotesk', fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>
+                    {selectedAssignment.title}
+                  </h3>
+                  {selectedAssignment.latestSubmission?.status && (
+                    <AssessmentStatus status={selectedAssignment.latestSubmission.status} />
+                  )}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>
+                  {selectedAssignment.lessonId
+                    ? `Lesson: ${lessons.find((l) => (l._id || l.id) === String(selectedAssignment.lessonId))?.title || 'Lesson'}`
+                    : 'Course assignment'}
+                  <p>Deadline: {selectedAssignment.deadline ? new Date(selectedAssignment.deadline).toLocaleString('en-US') : 'No deadline'}</p>
+                  {selectedAssignment.latestSubmission?.score != null && <p>Score: {selectedAssignment.latestSubmission.score}/{selectedAssignment.latestSubmission.maxScore}</p>}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAssignment(null)}
+                disabled={submittingAssignment}
+                aria-label="Close assignment"
+                style={{ background: 'transparent', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--muted)', lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {assignmentSubmissionNotice && (
+              <div ref={assignmentNoticeRef} tabIndex={-1} role={assignmentSubmissionNotice.type === 'error' ? 'alert' : 'status'} aria-atomic="true" className={`assignment-submission-notice is-${assignmentSubmissionNotice.type}`}>
+                <span aria-hidden="true">{assignmentSubmissionNotice.type === 'success' ? '✓' : '!'}</span>
+                <div>
+                  <strong>{assignmentSubmissionNotice.message}</strong>
+                  {assignmentSubmissionNotice.type === 'success' && <p>Your submission has been saved and is awaiting grading. You can safely close this window.</p>}
+                </div>
+              </div>
+            )}
+
+            {/* Assignment Instructions / Description */}
+            {assignmentModalMode === 'view' && <div>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={refreshingAssignments} onClick={refreshAssignments}>{refreshingAssignments ? 'Refreshing…' : 'Refresh feedback'}</button>
+              {assignmentError && <p role="alert">{assignmentError}</p>}
+            </div>}
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📖</span> Assignment instructions
+              </h4>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '18px',
+                  fontSize: '14px',
+                  lineHeight: 1.65,
+                  color: '#334155',
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedAssignment.content}</ReactMarkdown>
+              </div>
+            </div>
+
+            <AssignmentAttachment attachment={selectedAssignment.attachment} url={`/api/student/assignments/${selectedAssignment._id}/attachment`} />
+            {selectedAssignment.latestSubmission?.attachment && <div><h4>Submitted file</h4><AssignmentAttachment attachment={selectedAssignment.latestSubmission.attachment} url={`/api/student/assignment-submissions/${selectedAssignment.latestSubmission._id}/attachment`} /></div>}
+            {!selectedAssignment.latestSubmission && <p>No submission yet.</p>}
+            {selectedAssignment.latestSubmission && !selectedAssignment.latestSubmission.feedback && <p>{selectedAssignment.latestSubmission.status === 'submitted' ? 'Your submission is awaiting grading. No instructor feedback yet.' : 'No written feedback has been provided.'}</p>}
+            {closed && <p role="status">Submissions are closed. You can still view your accepted work and feedback.</p>}
+            {/* Teacher Feedback (if available) */}
+            {selectedAssignment.latestSubmission?.feedback && (
+              <div
+                style={{
+                  background: selectedAssignment.latestSubmission.status === 'passed' ? '#f0fdf4' : '#fffbeb',
+                  border: `1px solid ${selectedAssignment.latestSubmission.status === 'passed' ? '#86efac' : '#fde68a'}`,
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#166534' : '#92400e' }}>
+                  <span>💬</span> Instructor feedback:
+                </div>
+                <p style={{ margin: '6px 0 0', fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#15803d' : '#b45309', whiteSpace: 'pre-wrap' }}>
+                  "{selectedAssignment.latestSubmission.feedback}"
+                </p>
+                {(selectedAssignment.latestSubmission.feedbackAt || selectedAssignment.latestSubmission.gradedAt) && (
+                  <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
+                    Updated: {new Date(selectedAssignment.latestSubmission.feedbackAt || selectedAssignment.latestSubmission.gradedAt).toLocaleString('en-US')}
+                  </small>
+                )}
+              </div>
+            )}
+
+            {/* Submission Section */}
+            {assignmentModalMode === 'view' ? (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📝</span> Your submission
+                  </h4>
+                  <button
+                    type="button"
+                    disabled={closed || refreshingAssignments}
+                    onClick={() => { setAssignmentSubmissionNotice(null); setAssignmentModalMode('submit'); }}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '12px' }}
+                  >
+                    {selectedAssignment.latestSubmission ? 'Edit / Resubmit' : 'Start assignment'}
+                  </button>
+                </div>
+                <div
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    fontSize: '14px',
+                    lineHeight: 1.6,
+                    color: '#0f172a',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {selectedAssignment.latestSubmission?.answer || (selectedAssignment.latestSubmission?.attachment ? 'Submitted as the file above.' : 'No written answer.')}
+                </div>
+                {selectedAssignment.latestSubmission?.submittedAt && (
+                  <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
+                    Submitted: {new Date(selectedAssignment.latestSubmission.submittedAt).toLocaleString('en-US')}
+                  </small>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitAssignment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="assignment-answer" style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>✍️</span> Submission text (optional when uploading a file)
+                  </label>
+                  {selectedAssignment.latestSubmission && (
+                    <button
+                      type="button"
+                      onClick={() => setAssignmentModalMode('view')}
+                      disabled={submittingAssignment}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--purple)', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      View previous submission
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  id="assignment-answer"
+                  rows="7"
+                  disabled={submittingAssignment}
+                  required={!assignmentFile}
+                  value={assignmentAnswer}
+                  maxLength={10000}
+                  onChange={(e) => { setAssignmentSubmissionNotice(null); setAssignmentAnswer(e.target.value); }}
+                  placeholder="Enter your answer, code, solution or submission link (GitHub, Drive...)."
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    lineHeight: 1.6,
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                  }}
+                />
+                <label htmlFor="assignment-answer-file">Submission file (PDF, DOC, DOCX — max 25 MB)</label>
+                <input ref={assignmentFileInput} id="assignment-answer-file" type="file" accept={ASSIGNMENT_FILE_ACCEPT} disabled={submittingAssignment} onChange={e => {
+                  const file = e.target.files?.[0]; setAssignmentSubmissionNotice(null); setAssignmentFile(null); try { validateAssignmentFile(file); setAssignmentFile(file || null); } catch (err) { setAssignmentSubmissionNotice({ type: 'error', message: err.message }); e.target.value = ''; }
+                }} />
+                {assignmentFile && <div><small>Selected: {assignmentFile.name}</small> <button type="button" className="btn btn-secondary btn-sm" disabled={submittingAssignment} onClick={() => { setAssignmentFile(null); if (assignmentFileInput.current) assignmentFileInput.current.value = ''; }}>Remove file</button></div>}
+                <small>{assignmentAnswer.length}/10000 characters. Text is saved when you submit; there is no automatic draft save.</small>
+                <small>Enter an answer or attach a file. Resubmitting replaces your previous answer and file; grades and feedback are cleared for grading again.</small>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAssignment(null)}
+                    className="btn btn-secondary btn-sm"
+                    disabled={submittingAssignment}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    disabled={closed || refreshingAssignments || submittingAssignment || (!assignmentAnswer.trim() && !assignmentFile)}
+                  >
+                    {submittingAssignment ? 'Submitting...' : selectedAssignment.latestSubmission ? 'Update submission' : 'Submit assignment'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {assignmentModalMode === 'view' && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAssignment(null)}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Close
+                </button>
               </div>
             )}
           </div>

@@ -1,9 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const PublicController = require('../controller/public/PublicController');
+const PublicController = require('../composition/http').controllers.PublicController;
+const ReviewController = require('../composition/http').controllers.ReviewController;
+router.get('/courses/:courseId/reviews', ReviewController.list.bind(ReviewController));
+router.get('/reviews/:reviewId', ReviewController.getById.bind(ReviewController));
 
 // UC-1.1 View Homepage
 router.get('/home', (req, res, next) => PublicController.getHomepage(req, res, next));
+
+
 
 // UC-1.6 View Public Categories
 router.get('/categories', (req, res, next) => PublicController.getPublicCategories(req, res, next));

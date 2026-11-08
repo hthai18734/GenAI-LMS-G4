@@ -1,4 +1,5 @@
-const { learningContentReportService: LearningContentReportService } = require('../../composition/services');
+module.exports = function createController(UseCases) {
+const { learningContentReportService: LearningContentReportService } = UseCases;
 const ResponseUtil = require('../../utils/common/ResponseUtil');
 
 class LearningContentReportController {
@@ -50,4 +51,5 @@ class LearningContentReportController {
   }
 }
 
-module.exports = new LearningContentReportController();
+return  new LearningContentReportController();
+};

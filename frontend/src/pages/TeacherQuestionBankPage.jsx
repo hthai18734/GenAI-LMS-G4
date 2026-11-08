@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
 import { teacherService } from '../features/teacher/api.js';
-import { useToast } from '../components/Toast';
+import { useToast } from '../components/toastContext';
 
 const blankQuestion = { questionText: '', options: ['', ''], correctAnswer: '', explanation: '', categoryId: '' };
 
 export default function TeacherQuestionBankPage() {
-  const navigate = useNavigate();
   const { addToast, confirmToast } = useToast();
 
   const [questions, setQuestions] = useState([]);
@@ -25,43 +23,51 @@ export default function TeacherQuestionBankPage() {
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  // Direct live search & filter with debounce for keyword
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadQuestions(keyword, categoryId);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [keyword, categoryId]);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async (signal) => {
     try {
-      const res = await teacherService.getCategories();
+      const res = await teacherService.getCategories({ signal });
       setCategories(res.data?.categories || []);
-    } catch {
+    } catch (error) {
+      if (error.name === 'AbortError') return;
       // ignore
     }
-  };
+  }, []);
 
-  const loadQuestions = async (kw = keyword, cat = categoryId) => {
+  const loadQuestions = useCallback(async (kw, cat, signal) => {
     setLoading(true);
     try {
       const res = await teacherService.listQuestions({
         keyword: kw,
         categoryId: cat,
         limit: 100,
-      });
+      }, { signal });
       setQuestions(res.data?.items || []);
       setTotal(res.data?.total || 0);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       addToast(err.message || 'Unable to load Question Bank.', 'error');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  };
+  }, [addToast]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.resolve().then(() => loadCategories(controller.signal));
+    return () => controller.abort();
+  }, [loadCategories]);
+
+  // Direct live search & filter with debounce for keyword
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      loadQuestions(keyword, categoryId, controller.signal);
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [keyword, categoryId, loadQuestions]);
 
   const openCreateModal = () => {
     setEditingQuestionId(null);
