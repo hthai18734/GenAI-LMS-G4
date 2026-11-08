@@ -29,6 +29,7 @@ export default function CourseLearnPage() {
   const [assignmentError, setAssignmentError] = useState(null);
   const [refreshingAssignments, setRefreshingAssignments] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const assignmentFileInput = useRef(null);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [quizzes, setQuizzes] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -1873,10 +1874,10 @@ export default function CourseLearnPage() {
                   }}
                 />
                 <label htmlFor="assignment-answer-file">Submission file (PDF, DOC, DOCX — max 25 MB)</label>
-                <input id="assignment-answer-file" type="file" accept={ASSIGNMENT_FILE_ACCEPT} disabled={submittingAssignment} onChange={e => {
-                  const file = e.target.files?.[0]; try { validateAssignmentFile(file); setAssignmentFile(file || null); } catch (err) { addToast(err.message, 'error'); e.target.value = ''; }
+                <input ref={assignmentFileInput} id="assignment-answer-file" type="file" accept={ASSIGNMENT_FILE_ACCEPT} disabled={submittingAssignment} onChange={e => {
+                  const file = e.target.files?.[0]; setAssignmentSubmissionNotice(null); setAssignmentFile(null); try { validateAssignmentFile(file); setAssignmentFile(file || null); } catch (err) { setAssignmentSubmissionNotice({ type: 'error', message: err.message }); e.target.value = ''; }
                 }} />
-                {assignmentFile && <small>Selected: {assignmentFile.name}</small>}
+                {assignmentFile && <div><small>Selected: {assignmentFile.name}</small> <button type="button" className="btn btn-secondary btn-sm" disabled={submittingAssignment} onClick={() => { setAssignmentFile(null); if (assignmentFileInput.current) assignmentFileInput.current.value = ''; }}>Remove file</button></div>}
                 <small>{assignmentAnswer.length}/10000 characters. Text is saved when you submit; there is no automatic draft save.</small>
                 <small>Enter an answer or attach a file. Resubmitting replaces your previous answer and file; grades and feedback are cleared for grading again.</small>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
