@@ -1,5 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { progressTrackingService } = require('../../src/composition/services');
+const originalEvaluate = progressTrackingService.evaluateCourseProgress;
+test.beforeEach(() => {
+  progressTrackingService.evaluateCourseProgress = async () => ({ percentage: 37, eligibleToComplete: false, byType: { LESSON: { completed: 2, total: 5 } } });
+});
+test.afterEach(() => { progressTrackingService.evaluateCourseProgress = originalEvaluate; });
+
 const StudentController = require('../../src/composition/http').controllers.StudentController;
 const UserRepository = require('../../src/infrastructure/persistence/mongoose/repositories/identity/UserRepository');
 const CourseRepository = require('../../src/infrastructure/persistence/mongoose/repositories/learning/CourseRepository');
@@ -191,7 +198,7 @@ test('UC-4.3: getDashboard returns data for authenticated user', async () => {
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.data.dashboard.enrolledCourses, 1);
     assert.equal(res.body.data.dashboard.activeCourses, 1);
-    assert.equal(res.body.data.dashboard.courses[0].progressPercent, 30);
+    assert.equal(res.body.data.dashboard.courses[0].progressPercent, 37);
   } finally {
     EnrollmentRepository.findByUserId = origEnroll;
     ProgressRepository.findByUserId = origProgress;
@@ -254,10 +261,11 @@ test('UC-4.4: getLearningHistory returns empty when no records', async () => {
 // ─── UC-4.5 View Certificates ────────────────────────────────────
 
 test('UC-4.5: getCertificates returns valid certificates for completed courses', async () => {
+  progressTrackingService.evaluateCourseProgress = async () => ({ eligibleToComplete: true });
   const original = CertificateRepository.findByUserId;
   CertificateRepository.findByUserId = async () => [{
     _id: 'cert1',
-    courseId: { title: 'Node.js' },
+    courseId: { _id: VALID_COURSE_ID, title: 'Node.js', status: 'PUBLIC' },
     enrollmentId: { status: 'completed' },
     certificateNumber: 'CERT-001',
     issuedAt: new Date(),
@@ -276,7 +284,7 @@ test('UC-4.5: getCertificates excludes non-completed enrollment certificates', a
   const original = CertificateRepository.findByUserId;
   CertificateRepository.findByUserId = async () => [{
     _id: 'cert1',
-    courseId: { title: 'Node.js' },
+    courseId: { _id: VALID_COURSE_ID, title: 'Node.js', status: 'PUBLIC' },
     enrollmentId: { status: 'active' }, // Not completed
     certificateNumber: 'CERT-001',
     issuedAt: new Date(),
@@ -499,7 +507,7 @@ test('UC-10.3: getEnrolledCourses returns courses with progress', async () => {
     const res = await call(StudentController.getEnrolledCourses, mockReq(mockUser()));
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.data.courses.length, 1);
-    assert.equal(res.body.data.courses[0].progressPercent, 40);
+    assert.equal(res.body.data.courses[0].progressPercent, 37);
   } finally {
     EnrollmentRepository.findByUserId = origEnroll;
     LessonRepository.countByCourseId = origLessonCount;

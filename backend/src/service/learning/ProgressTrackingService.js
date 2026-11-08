@@ -2,7 +2,7 @@ const { isValidIdentifier } = require('../../domain/common/IdentifierPolicy');
 const { COURSE_STATUS } = require('../../domain/learning/CourseStatus');
 const ServiceError = require('../common/ServiceError');
 
-const DEFAULT_WEIGHTS = { LESSON: 40, QUIZ: 30, ASSIGNMENT: 30 };
+const { activeActivities, evaluateCompletion } = require('../../domain/learning/CourseCompletionPolicy');
 const VIDEO_COMPLETION_THRESHOLD = 90; // 90%
 const MAX_PLAYBACK_RATE = 2.0;
 const POSITION_TOLERANCE_SEC = 3.0;
@@ -260,96 +260,37 @@ class ProgressTrackingService {
   }
 
   // ─── I3-06: Calculate Course Progress (Medium) ────────────────────
-  async recalculateCourseProgress(studentId, courseId) {
+  async courseActivities(courseId) {
+    const [lessons, quizzes, assignments] = await Promise.all([
+      this.lessonRepository.findByCourseId(courseId),
+      this.quizRepository.findByCourseId(courseId),
+      this.assignmentRepository.findByCourseId(courseId),
+    ]);
+    return activeActivities({ lessons, quizzes, assignments });
+  }
+
+  async evaluateCourseProgress(studentId, courseId, activities) {
     this.assertValidId(studentId, 'Student ID');
     this.assertValidId(courseId, 'Course ID');
-
-    // 1. Fetch activities
-    const [lessons, quizzes, assignments, progressRecords, passedAssignmentIds] = await Promise.all([
-      this.lessonRepository.findByCourseId(courseId),
-      this.quizRepository.findByCourseId(courseId).catch(() => []),
-      this.assignmentRepository.findByCourseId(courseId),
+    const source = activities || await this.courseActivities(courseId);
+    const [progressRecords, submissions, attempts, videos] = await Promise.all([
       this.progressRepository.findByUserAndCourse(studentId, courseId),
-      this.assignmentSubmissionRepository.findPassedAssignmentIds(studentId, courseId),
+      this.assignmentSubmissionRepository.findByStudentAndCourse(studentId, courseId),
+      Promise.all(source.quizzes.map(q => this.quizAttemptRepository.findLatestCompleted(studentId, q._id))),
+      Promise.all(source.lessons.filter(l => l.videoRef).map(async lesson => {
+        const video = await this.videoProgressRepository.findByStudentAndVideo(studentId, String(lesson._id));
+        return { lessonId: lesson._id, watchedPercent: video?.watchedPercent, completed: video?.completed };
+      })),
     ]);
+    return evaluateCompletion({ ...source, progressRecords, submissions, attempts: attempts.filter(Boolean), videos });
+  }
 
-    const completedLessonIds = new Set(
-      progressRecords
-        .filter((p) => p.status === 'completed')
-        .map((p) => String(p.lessonId?._id || p.lessonId))
-    );
-
-    // Lessons ratio
-    const activeLessons = lessons.filter((l) => !l.deletedAt);
-    const totalLessons = activeLessons.length;
-    const completedLessons = activeLessons.filter((l) => completedLessonIds.has(String(l._id))).length;
-    const lessonRatio = totalLessons > 0 ? completedLessons / totalLessons : 0;
-
-    // Quizzes ratio
-    const activeQuizzes = (quizzes || []).filter((q) => !q.deletedAt);
-    const totalQuizzes = activeQuizzes.length;
-    let completedQuizzes = 0;
-    if (totalQuizzes > 0) {
-      for (const quiz of activeQuizzes) {
-        const attempt = await this.quizAttemptRepository.findLatestCompleted(studentId, quiz._id).catch(() => null);
-        if (attempt && attempt.passed) completedQuizzes++;
-      }
-    }
-    const quizRatio = totalQuizzes > 0 ? completedQuizzes / totalQuizzes : 0;
-
-    const activeAssignments = assignments || [];
-    const passedAssignments = new Set(passedAssignmentIds);
-    const totalAssignments = activeAssignments.length;
-    const completedAssignments = activeAssignments.filter((assignment) => passedAssignments.has(String(assignment._id))).length;
-    const assignmentRatio = totalAssignments > 0 ? completedAssignments / totalAssignments : 0;
-
-    // Remaining activities list
-    const remainingActivities = [];
-    activeLessons.forEach((l) => {
-      if (!completedLessonIds.has(String(l._id))) remainingActivities.push(`Lesson: ${l.title}`);
-    });
-    for (const quiz of activeQuizzes) {
-      const attempt = await this.quizAttemptRepository.findLatestCompleted(studentId, quiz._id).catch(() => null);
-      if (!attempt?.passed) remainingActivities.push(`Quiz: ${quiz.title}`);
-    }
-    activeAssignments.forEach((assignment) => { if (!passedAssignments.has(String(assignment._id))) remainingActivities.push(`Assignment: ${assignment.title}`); });
-
-    // Weight normalization
-    const presentTypes = [];
-    if (totalLessons > 0) presentTypes.push({ type: 'LESSON', weight: DEFAULT_WEIGHTS.LESSON, ratio: lessonRatio, completed: completedLessons, total: totalLessons });
-    if (totalQuizzes > 0) presentTypes.push({ type: 'QUIZ', weight: DEFAULT_WEIGHTS.QUIZ, ratio: quizRatio, completed: completedQuizzes, total: totalQuizzes });
-    if (totalAssignments > 0) presentTypes.push({ type: 'ASSIGNMENT', weight: DEFAULT_WEIGHTS.ASSIGNMENT, ratio: assignmentRatio, completed: completedAssignments, total: totalAssignments });
-
-    let overallPercentage = 0;
-    const byType = {
-      LESSON: { completed: completedLessons, total: totalLessons, ratio: lessonRatio },
-      QUIZ: { completed: completedQuizzes, total: totalQuizzes, ratio: quizRatio },
-      ASSIGNMENT: { completed: completedAssignments, total: totalAssignments, ratio: assignmentRatio },
-    };
-
-    if (presentTypes.length === 0) {
-      overallPercentage = 0;
-    } else {
-      const sumWeights = presentTypes.reduce((acc, pt) => acc + pt.weight, 0);
-      let calculatedSum = 0;
-      for (const pt of presentTypes) {
-        const normalized = pt.weight / sumWeights;
-        calculatedSum += pt.ratio * normalized;
-      }
-      overallPercentage = Math.min(100, Math.round(calculatedSum * 10000) / 100);
-    }
-
-    const totalRequired = totalLessons + totalQuizzes + totalAssignments;
-    const completedRequired = completedLessons + completedQuizzes + completedAssignments;
-    const eligibleToComplete = totalRequired > 0 && completedRequired >= totalRequired && overallPercentage >= 99.9;
-
+  async recalculateCourseProgress(studentId, courseId) {
+    const result = await this.evaluateCourseProgress(studentId, courseId);
+    const { percentage: overallPercentage, completedRequired, totalRequired, eligibleToComplete, byType, remainingActivities } = result;
+    const completedLessons = byType.LESSON.completed;
     const saved = await this.courseProgressRepository.upsertProgress(studentId, courseId, {
-      percentage: overallPercentage,
-      completedRequired,
-      totalRequired,
-      eligibleToComplete,
-      byType,
-      remainingActivities,
+      percentage: overallPercentage, completedRequired, totalRequired, eligibleToComplete, byType, remainingActivities,
     });
 
     // Auto update matching student goals

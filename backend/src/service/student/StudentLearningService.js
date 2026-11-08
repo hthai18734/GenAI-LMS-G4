@@ -14,7 +14,7 @@ class StudentLearningService {
   constructor({
     courseRepository, enrollmentRepository, progressRepository, lessonRepository,
     certificateRepository, videoProgressRepository, notificationPreferenceRepository,
-    notificationRepository, learningActivityLogRepository,
+    notificationRepository, learningActivityLogRepository, progressTrackingService, enrollmentLifecycleService,
   } = {}) {
     this.courseRepository = courseRepository;
     this.enrollmentRepository = enrollmentRepository;
@@ -25,6 +25,8 @@ class StudentLearningService {
     this.notificationPreferenceRepository = notificationPreferenceRepository;
     this.notificationRepository = notificationRepository;
     this.learningActivityLogRepository = learningActivityLogRepository;
+    this.progressTrackingService = progressTrackingService;
+    this.enrollmentLifecycleService = enrollmentLifecycleService;
   }
 
   async getDashboard(userId) {
@@ -40,16 +42,14 @@ class StudentLearningService {
       const course = enrollment.courseId?._id ? enrollment.courseId : null;
       if (!course || course.deletedAt) continue;
       const courseId = String(course._id);
-      const [totalLessons, completedLessons] = await Promise.all([
-        this.lessonRepository.countByCourseId(courseId, { publishedOnly: true }),
-        this.progressRepository.countByUserAndCourse(userId, courseId, { publishedOnly: true }),
-      ]);
+      const progress = await this.progressTrackingService.evaluateCourseProgress(userId, courseId);
+      const { total: totalLessons, completed: completedLessons } = progress.byType.LESSON;
       courses.push({
         id: courseId, _id: courseId, courseId, title: course.title || 'Unknown Course',
         thumbnail: course.thumbnail || null, category: course.category || null,
-        enrollmentStatus: enrollment.status, enrolledAt: enrollment.enrolledAt,
+        enrollmentStatus: progress.eligibleToComplete && enrollment.status === 'completed' ? 'completed' : 'active', enrolledAt: enrollment.enrolledAt,
         totalLessons, completedLessons,
-        progressPercent: totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0,
+        progressPercent: progress.percentage, eligibleToComplete: progress.eligibleToComplete,
       });
     }
     const recentActivity = progressRecords
@@ -66,8 +66,8 @@ class StudentLearningService {
     return {
       dashboard: {
         enrolledCourses: enrollments.length,
-        activeCourses: enrollments.filter((enrollment) => enrollment.status === 'active').length,
-        completedCourses: enrollments.filter((enrollment) => enrollment.status === 'completed').length,
+        activeCourses: courses.filter(course => course.enrollmentStatus === 'active').length,
+        completedCourses: courses.filter(course => course.enrollmentStatus === 'completed').length,
         courses,
         recentActivity,
       },
@@ -92,16 +92,16 @@ class StudentLearningService {
 
   async getCertificates(userId) {
     const certificates = await this.certificateRepository.findByUserId(userId);
-    return {
-      certificates: certificates
-        .filter((certificate) => certificate.courseId && !certificate.courseId.deletedAt && certificate.enrollmentId?.status === 'completed')
-        .map((certificate) => ({
-          id: String(certificate._id),
-          courseTitle: certificate.courseId?.title || 'Unknown Course',
-          certificateNumber: certificate.certificateNumber,
-          issuedAt: certificate.issuedAt,
-        })),
-    };
+    const visible = [];
+    for (const certificate of certificates) {
+      if (!certificate.courseId || certificate.courseId.deletedAt || certificate.courseId.status !== COURSE_STATUS.PUBLIC || certificate.enrollmentId?.status !== 'completed') continue;
+      const progress = await this.progressTrackingService.evaluateCourseProgress(userId, certificate.courseId._id);
+      if (progress.eligibleToComplete) visible.push({
+        id: String(certificate._id), courseTitle: certificate.courseId.title,
+        certificateNumber: certificate.certificateNumber, issuedAt: certificate.issuedAt,
+      });
+    }
+    return { certificates: visible };
   }
 
   async enroll(userId, courseId) {
@@ -137,17 +137,15 @@ class StudentLearningService {
       const course = enrollment.courseId;
       if (!course?._id || course.deletedAt || course.status !== COURSE_STATUS.PUBLIC || seen.has(String(course._id))) continue;
       seen.add(String(course._id));
-      const [totalLessons, completedLessons] = await Promise.all([
-        this.lessonRepository.countByCourseId(course._id, { publishedOnly: true }),
-        this.progressRepository.countByUserAndCourse(userId, course._id, { publishedOnly: true }),
-      ]);
+      const progress = await this.progressTrackingService.evaluateCourseProgress(userId, course._id);
+      const { total: totalLessons, completed: completedLessons } = progress.byType.LESSON;
       courses.push({
         id: String(course._id), _id: String(course._id), courseId: String(course._id),
         enrollmentId: String(enrollment._id), title: course.title, description: course.description,
-        thumbnail: course.thumbnail, category: course.category, enrollmentStatus: enrollment.status,
+        thumbnail: course.thumbnail, category: course.category, enrollmentStatus: progress.eligibleToComplete && enrollment.status === 'completed' ? 'completed' : 'active',
         enrolledAt: enrollment.enrolledAt, completedAt: enrollment.completedAt,
         totalLessons, completedLessons,
-        progressPercent: totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0,
+        progressPercent: progress.percentage, eligibleToComplete: progress.eligibleToComplete,
       });
     }
     return { courses };
@@ -169,11 +167,12 @@ class StudentLearningService {
     const currentLesson = last?.lessonId?.isPublished === true
       ? { lessonId: String(last.lessonId._id), title: last.lessonId.title || 'Lesson', status: last.status }
       : await this.firstLesson(courseId);
+    const completion = enrollment ? await this.progressTrackingService.evaluateCourseProgress(userId, courseId) : null;
     return {
       courseId: String(courseRecord?._id || courseId),
       courseTitle: courseRecord?.title || 'Course',
       currentLesson,
-      enrollmentStatus: enrollment?.status || 'active',
+      enrollmentStatus: enrollment?.status === 'completed' && completion?.eligibleToComplete ? 'completed' : 'active',
     };
   }
 
@@ -221,15 +220,17 @@ class StudentLearningService {
     const progress = new Map(progressList
       .filter((record) => record.lessonId?._id)
       .map((record) => [String(record.lessonId._id), record.status]));
+    const completion = enrollment ? await this.progressTrackingService.evaluateCourseProgress(userId, courseId) : null;
     return {
       enrollmentId: enrollment ? String(enrollment._id) : null,
       course: {
         id: String(course._id), _id: String(course._id), courseId: String(course._id),
         title: course.title, description: course.description, thumbnail: course.thumbnail, category: course.category,
       },
-      enrollmentStatus: enrollment?.status || 'active',
+      enrollmentStatus: enrollment?.status === 'completed' && completion?.eligibleToComplete ? 'completed' : 'active',
       lessons: lessons.map((lesson) => ({
         id: String(lesson._id), _id: String(lesson._id), title: lesson.title,
+        sectionId: lesson.sectionId ? String(lesson.sectionId) : null, sectionTitle: lesson.sectionTitle || null,
         content: lesson.content, order: lesson.order, duration: lesson.duration,
         videoRef: lesson.videoRef || null, status: progress.get(String(lesson._id)) || 'not_started',
       })),
@@ -240,7 +241,7 @@ class StudentLearningService {
     const enrollment = await this.enrollmentRepository.findAccessibleEnrollment(userId, courseId);
     if (!enrollment) throw new ServiceError(403, 'You must be enrolled in this course.');
     const lesson = await this.lessonRepository.findById(lessonId);
-    if (!lesson || String(lesson.courseId) !== String(courseId) || !lesson.isPublished) {
+    if (!lesson || lesson.deletedAt || String(lesson.courseId) !== String(courseId) || !lesson.isPublished) {
       throw new ServiceError(404, 'Lesson not found or unavailable.');
     }
     if (lesson.videoRef) {
@@ -262,15 +263,12 @@ class StudentLearningService {
       activeSeconds: 0,
       date: completedAt.toISOString().split('T')[0],
     });
-    const [totalLessons, completedLessons] = await Promise.all([
-      this.lessonRepository.countByCourseId(courseId, { publishedOnly: true }),
-      this.progressRepository.countByUserAndCourse(userId, courseId, { publishedOnly: true }),
-    ]);
-    const isCompleted = totalLessons > 0 && completedLessons >= totalLessons;
+    const progress = await this.progressTrackingService.recalculateCourseProgress(userId, courseId);
+    const { total: totalLessons, completed: completedLessons } = progress.byType.LESSON;
+    const isCompleted = progress.eligibleToComplete;
     let certificate = null;
     if (isCompleted) {
-      await this.enrollmentRepository.markCompleted(enrollment._id);
-      certificate = await this.certificateRepository.issueCertificate(userId, courseId, enrollment._id);
+      certificate = await this.enrollmentLifecycleService.completeCourse(enrollment._id, { _id: userId });
     }
     await this.notifyProgress(userId, courseId, completedLessons, totalLessons, certificate).catch(() => {});
     return {
