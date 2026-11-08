@@ -1,4 +1,4 @@
-const { text, hasOwn, unknownFields, isObjectPayload, strictNumber } = require('../common/DTOUtil');
+const { text, hasOwn, unknownFields, isObjectPayload, strictNumber, objectId } = require('../common/DTOUtil');
 
 function validVideoRef(value) {
   if (value === null || value === '') return true;
@@ -20,7 +20,8 @@ class LessonDTO {
   validate() {
     const errors = {};
     if (!this.payloadIsObject) errors.payload = 'Request body must be an object.';
-    const allowed = ['title', 'content', 'order', 'duration', 'videoRef', 'isPublished'];
+    const allowed = ['title', 'content', 'order', 'duration', 'videoRef', 'isPublished', 'sectionId'];
+    if (hasOwn(this.body, 'sectionId') && this.body.sectionId !== null && (typeof this.body.sectionId !== 'string' || !objectId(this.body.sectionId))) errors.sectionId = 'Select a valid section.';
     const unknown = unknownFields(this.body, allowed);
     if (unknown.length) errors.payload = `Unsupported field(s): ${unknown.join(', ')}`;
     if (this.partial && !Object.keys(this.body).length) errors.payload = 'At least one lesson field is required.';
@@ -52,6 +53,7 @@ class LessonDTO {
 
   toObject() {
     const result = {};
+    if (hasOwn(this.body, 'sectionId')) result.sectionId = this.body.sectionId;
     if (hasOwn(this.body, 'title')) result.title = text(this.body.title);
     if (hasOwn(this.body, 'content')) result.content = text(this.body.content);
     if (hasOwn(this.body, 'order')) result.order = strictNumber(this.body.order);

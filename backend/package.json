@@ -10,7 +10,8 @@
     "test:integration": "node scripts/run-isolated-integration-tests.js",
     "test:architecture": "node --test tests/architecture/*.test.js",
     "check": "node --check src/index.js",
-    "repair:legacy-lessons": "node scripts/restore-legacy-lessons.js"
+    "repair:legacy-lessons": "node scripts/restore-legacy-lessons.js",
+    "migrate:sections": "node scripts/migrate-sections.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

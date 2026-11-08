@@ -1,6 +1,9 @@
 const Voucher = require('../model/voucher/Voucher');
 const VoucherRedemption = require('../model/voucher/VoucherRedemption');
 const Review = require('../model/engagement/Review');
+const Section = require('../model/learning/Section');
+const VideoUpload = require('../model/learning/VideoUpload');
+const Certificate = require('../model/learning/Certificate');
 const PasswordUtil = require('../utils/auth/PasswordUtil');
 const LoggerUtil = require('../utils/common/LoggerUtil');
 const repositories = require('./repositories');
@@ -13,7 +16,14 @@ const DEFAULT_CATEGORIES = [
 ];
 
 async function initializePersistence() {
-  await Promise.all([Voucher.init(), VoucherRedemption.init(), Review.init()]);
+  const { lessonVideoService, assignmentDocumentService } = require('./services');
+  await lessonVideoService.cleanupAbandoned();
+  const videoSweep = setInterval(() => lessonVideoService.cleanupAbandoned().catch(error => LoggerUtil.error('Video cleanup failed', error)), 60000);
+  videoSweep.unref();
+  await assignmentDocumentService.sweepExpired();
+  const documentSweep = setInterval(() => assignmentDocumentService.sweepExpired().catch(error => LoggerUtil.error('Assignment document cleanup failed', error)), 60000);
+  documentSweep.unref();
+  await Promise.all([Voucher.init(), VoucherRedemption.init(), Review.init(), Section.init(), VideoUpload.init(), Certificate.init()]);
   await repositories.reviewRepository.repairPendingRatings();
   const timer = setInterval(() => {
     repositories.reviewRepository.repairPendingRatings()

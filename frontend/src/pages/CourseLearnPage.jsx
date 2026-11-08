@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { studentService } from '../features/student/api.js';
 import { materialService, discussionService, enrollmentService, progressService, learningReportService } from '../features/learning/api.js';
@@ -11,6 +11,9 @@ import AuthenticatedVideo from '../shared/media/AuthenticatedVideo.jsx';
 import MaterialAccessButton from '../features/learning/MaterialAccessButton.jsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import AssignmentAttachment from '../features/learning/AssignmentAttachment.jsx';
+import AssessmentStatus from '../shared/assessment/AssessmentStatus.jsx';
+import { ASSIGNMENT_FILE_ACCEPT, validateAssignmentFile } from '../shared/assignment/documents.js';
 
 export default function CourseLearnPage() {
   const { courseId } = useParams();
@@ -47,7 +50,14 @@ export default function CourseLearnPage() {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [assignmentModalMode, setAssignmentModalMode] = useState('submit'); // 'submit' | 'view'
   const [assignmentAnswer, setAssignmentAnswer] = useState('');
+  const [assignmentFile, setAssignmentFile] = useState(null);
   const [submittingAssignment, setSubmittingAssignment] = useState(false);
+  const [assignmentSubmissionNotice, setAssignmentSubmissionNotice] = useState(null);
+  const assignmentNoticeRef = useRef(null);
+
+  useEffect(() => {
+    if (assignmentSubmissionNotice) assignmentNoticeRef.current?.focus();
+  }, [assignmentSubmissionNotice]);
 
   // Tab state: 'content' | 'materials' | 'discussions'
   const [activeTab, setActiveTab] = useState('content');
@@ -88,7 +98,9 @@ export default function CourseLearnPage() {
   const loadCourseProgress = useCallback(async () => {
     try {
       const res = await progressService.getCourseProgress(courseId);
-      setCourseProgress(res.data?.progress || res.data || null);
+      const progress = res.data?.progress || res.data || null;
+      setCourseProgress(progress);
+      if (progress && !progress.eligibleToComplete) setEnrollmentStatus('active');
     } catch {
       // ignore
     }
@@ -481,18 +493,23 @@ export default function CourseLearnPage() {
   };
 
   const handleOpenAssignmentModal = (assignment, mode = 'submit') => {
+    if (submittingAssignment) return;
     setSelectedAssignment(assignment);
+    setAssignmentSubmissionNotice(null);
+    setAssignmentFile(null);
     setAssignmentModalMode(mode);
     setAssignmentAnswer(assignment.latestSubmission?.answer || '');
   };
 
   const handleSubmitAssignment = async (e) => {
     e.preventDefault();
-    if (!selectedAssignment || !assignmentAnswer.trim()) return;
+    if (submittingAssignment || !selectedAssignment || (!assignmentAnswer.trim() && !assignmentFile)) return;
     setSubmittingAssignment(true);
+    setAssignmentSubmissionNotice(null);
     try {
-      const res = await studentService.submitAssignment(selectedAssignment._id, assignmentAnswer.trim());
-      addToast('Nộp bài tập thành công!', 'success');
+      const res = await studentService.submitAssignment(selectedAssignment._id, assignmentAnswer.trim(), assignmentFile, selectedAssignment.latestSubmission?.revision);
+      setAssignmentFile(null);
+      addToast('Assignment submitted successfully. Awaiting grading.', 'success', 6000);
       const updatedSubmission = res.data?.submission || {
         status: 'submitted',
         answer: assignmentAnswer.trim(),
@@ -503,9 +520,12 @@ export default function CourseLearnPage() {
       );
       setSelectedAssignment((prev) => (prev ? { ...prev, latestSubmission: updatedSubmission } : null));
       setAssignmentModalMode('view');
+      setAssignmentSubmissionNotice({ type: 'success', message: 'Assignment submitted successfully' });
       loadCourseProgress();
     } catch (err) {
-      addToast(err.message || 'Không thể nộp bài tập.', 'error');
+      const message = err.message || 'Unable to submit the assignment. Please try again.';
+      setAssignmentSubmissionNotice({ type: 'error', message });
+      addToast(message, 'error');
     } finally {
       setSubmittingAssignment(false);
     }
@@ -696,10 +716,10 @@ export default function CourseLearnPage() {
                   <strong>{quiz.title}</strong>
                 </div>
                 <small style={{ color: 'var(--muted)', display: 'block', marginTop: '4px' }}>
-                  {quiz.timeLimit} phút · Tối đa {quiz.attemptLimit} lượt làm
+                  {quiz.timeLimit} minutes · Up to {quiz.attemptLimit} attempts
                   {quiz.latestAttempt && (
                     <span style={{ marginLeft: '6px', fontWeight: '500' }}>
-                      · Điểm gần nhất: <span style={{ color: quiz.latestAttempt.passed ? '#16a34a' : '#dc2626' }}>{quiz.latestAttempt.score}%</span>
+                      · Latest score: <span style={{ color: quiz.latestAttempt.passed ? '#16a34a' : '#dc2626' }}>{quiz.latestAttempt.score}%</span>
                     </span>
                   )}
                 </small>
@@ -712,7 +732,7 @@ export default function CourseLearnPage() {
                     type="button"
                     onClick={() => navigate(`/quiz-attempts/${quiz.latestAttempt.id}/result`)}
                   >
-                    Xem lại bài làm
+                    View quiz result
                   </button>
                 )}
                 <button
@@ -720,19 +740,14 @@ export default function CourseLearnPage() {
                   type="button"
                   onClick={() => navigate(`/quizzes/${quiz._id}/start`)}
                 >
-                  Làm bài kiểm tra
+                  Start quiz
                 </button>
               </div>
             </div>
           ))}
           {assignments.map((assignment) => {
             const submission = assignment.latestSubmission;
-            const statusConfig = {
-              passed: { label: 'Đạt ✓', bg: '#dcfce7', color: '#166534' },
-              needs_revision: { label: 'Cần sửa lại ⚠️', bg: '#fee2e2', color: '#dc2626' },
-              submitted: { label: 'Đã nộp (Chờ chấm) ⏳', bg: '#fef3c7', color: '#b45309' },
-            };
-            const badge = submission?.status ? statusConfig[submission.status] : null;
+
 
             return (
               <div
@@ -751,19 +766,8 @@ export default function CourseLearnPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '15px' }}>📋</span>
                     <strong>{assignment.title}</strong>
-                    {badge ? (
-                      <span
-                        style={{
-                          background: badge.bg,
-                          color: badge.color,
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '10px',
-                        }}
-                      >
-                        {badge.label}
-                      </span>
+                    {submission?.status ? (
+                      <AssessmentStatus status={submission.status} />
                     ) : (
                       <span
                         style={{
@@ -775,17 +779,17 @@ export default function CourseLearnPage() {
                           borderRadius: '10px',
                         }}
                       >
-                        Chưa nộp
+                        Not submitted
                       </span>
                     )}
                   </div>
                   <small style={{ color: 'var(--muted)', display: 'block', marginTop: '4px' }}>
                     {assignment.lessonId
-                      ? `Bài học: ${lessons.find((l) => (l._id || l.id) === String(assignment.lessonId))?.title || 'Bài giảng'}`
-                      : 'Bài tập khóa học'}
+                      ? `Lesson: ${lessons.find((l) => (l._id || l.id) === String(assignment.lessonId))?.title || 'Lesson'}`
+                      : 'Course assignment'}
                     {submission?.submittedAt && (
                       <span style={{ marginLeft: '6px' }}>
-                        · Nộp lúc: {new Date(submission.submittedAt).toLocaleString()}
+                        · Submitted: {new Date(submission.submittedAt).toLocaleString('en-US')}
                       </span>
                     )}
                   </small>
@@ -798,7 +802,7 @@ export default function CourseLearnPage() {
                       type="button"
                       onClick={() => handleOpenAssignmentModal(assignment, 'view')}
                     >
-                      Xem bài đã nộp
+                      View submission
                     </button>
                   )}
                   <button
@@ -806,7 +810,7 @@ export default function CourseLearnPage() {
                     type="button"
                     onClick={() => handleOpenAssignmentModal(assignment, 'submit')}
                   >
-                    {submission ? 'Nộp lại bài tập' : 'Làm bài tập'}
+                    {submission ? 'Resubmit assignment' : 'Start assignment'}
                   </button>
                 </div>
               </div>
@@ -879,7 +883,7 @@ export default function CourseLearnPage() {
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                     }}>
-                      {lesson.title}
+                      {lesson.sectionTitle ? `${lesson.sectionTitle} · ` : ''}{lesson.title}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--muted)', display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
                       <span>{lesson.videoRef ? '🎬 Video' : '📖 Reading'}</span>
@@ -1727,63 +1731,52 @@ export default function CourseLearnPage() {
       {/* Modal: Assignment Details & Submission */}
       {selectedAssignment && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: '16px' }}>
-          <div style={{ background: '#fff', borderRadius: '16px', padding: '28px', maxWidth: '780px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="assignment-modal-title" style={{ background: '#fff', borderRadius: '16px', padding: '28px', maxWidth: '780px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--line)', paddingBottom: '16px', gap: '12px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '20px' }}>📋</span>
-                  <h3 style={{ fontFamily: 'Space Grotesk', fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>
+                  <h3 id="assignment-modal-title" style={{ fontFamily: 'Space Grotesk', fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>
                     {selectedAssignment.title}
                   </h3>
                   {selectedAssignment.latestSubmission?.status && (
-                    <span
-                      style={{
-                        background:
-                          selectedAssignment.latestSubmission.status === 'passed'
-                            ? '#dcfce7'
-                            : selectedAssignment.latestSubmission.status === 'needs_revision'
-                            ? '#fee2e2'
-                            : '#fef3c7',
-                        color:
-                          selectedAssignment.latestSubmission.status === 'passed'
-                            ? '#166534'
-                            : selectedAssignment.latestSubmission.status === 'needs_revision'
-                            ? '#dc2626'
-                            : '#b45309',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '3px 10px',
-                        borderRadius: '999px',
-                      }}
-                    >
-                      {selectedAssignment.latestSubmission.status === 'passed'
-                        ? 'Đã đạt ✓'
-                        : selectedAssignment.latestSubmission.status === 'needs_revision'
-                        ? 'Cần chỉnh sửa ⚠️'
-                        : 'Đã nộp (Chờ chấm) ⏳'}
-                    </span>
+                    <AssessmentStatus status={selectedAssignment.latestSubmission.status} />
                   )}
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>
                   {selectedAssignment.lessonId
-                    ? `Bài học: ${lessons.find((l) => (l._id || l.id) === String(selectedAssignment.lessonId))?.title || 'Bài học'}`
-                    : 'Bài tập chung của khóa học'}
+                    ? `Lesson: ${lessons.find((l) => (l._id || l.id) === String(selectedAssignment.lessonId))?.title || 'Lesson'}`
+                    : 'Course assignment'}
+                  <p>Deadline: {selectedAssignment.deadline ? new Date(selectedAssignment.deadline).toLocaleString('en-US') : 'No deadline'}</p>
+                  {selectedAssignment.latestSubmission?.score != null && <p>Score: {selectedAssignment.latestSubmission.score}/{selectedAssignment.latestSubmission.maxScore}</p>}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedAssignment(null)}
+                disabled={submittingAssignment}
+                aria-label="Close assignment"
                 style={{ background: 'transparent', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--muted)', lineHeight: 1 }}
               >
                 ✕
               </button>
             </div>
 
+            {assignmentSubmissionNotice && (
+              <div ref={assignmentNoticeRef} tabIndex={-1} role={assignmentSubmissionNotice.type === 'error' ? 'alert' : 'status'} aria-atomic="true" className={`assignment-submission-notice is-${assignmentSubmissionNotice.type}`}>
+                <span aria-hidden="true">{assignmentSubmissionNotice.type === 'success' ? '✓' : '!'}</span>
+                <div>
+                  <strong>{assignmentSubmissionNotice.message}</strong>
+                  {assignmentSubmissionNotice.type === 'success' && <p>Your submission has been saved and is awaiting grading. You can safely close this window.</p>}
+                </div>
+              </div>
+            )}
+
             {/* Assignment Instructions / Description */}
             <div>
               <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>📖</span> Yêu cầu & Hướng dẫn làm bài
+                <span>📖</span> Assignment instructions
               </h4>
               <div
                 style={{
@@ -1803,6 +1796,8 @@ export default function CourseLearnPage() {
               </div>
             </div>
 
+            <AssignmentAttachment attachment={selectedAssignment.attachment} url={`/api/student/assignments/${selectedAssignment._id}/attachment`} />
+            {selectedAssignment.latestSubmission?.attachment && <div><h4>Submitted file</h4><AssignmentAttachment attachment={selectedAssignment.latestSubmission.attachment} url={`/api/student/assignment-submissions/${selectedAssignment.latestSubmission._id}/attachment`} /></div>}
             {/* Teacher Feedback (if available) */}
             {selectedAssignment.latestSubmission?.feedback && (
               <div
@@ -1814,14 +1809,14 @@ export default function CourseLearnPage() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#166534' : '#92400e' }}>
-                  <span>💬</span> Nhận xét của giảng viên:
+                  <span>💬</span> Instructor feedback:
                 </div>
                 <p style={{ margin: '6px 0 0', fontSize: '14px', color: selectedAssignment.latestSubmission.status === 'passed' ? '#15803d' : '#b45309', whiteSpace: 'pre-wrap' }}>
                   "{selectedAssignment.latestSubmission.feedback}"
                 </p>
                 {selectedAssignment.latestSubmission.gradedAt && (
                   <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
-                    Chấm lúc: {new Date(selectedAssignment.latestSubmission.gradedAt).toLocaleString()}
+                    Graded: {new Date(selectedAssignment.latestSubmission.gradedAt).toLocaleString('en-US')}
                   </small>
                 )}
               </div>
@@ -1832,15 +1827,15 @@ export default function CourseLearnPage() {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>📝</span> Bài làm bạn đã nộp
+                    <span>📝</span> Your submission
                   </h4>
                   <button
                     type="button"
-                    onClick={() => setAssignmentModalMode('submit')}
+                    onClick={() => { setAssignmentSubmissionNotice(null); setAssignmentModalMode('submit'); }}
                     className="btn btn-secondary btn-sm"
                     style={{ fontSize: '12px' }}
                   >
-                    ✏️ Chỉnh sửa / Nộp lại
+                    Edit / Resubmit
                   </button>
                 </div>
                 <div
@@ -1858,36 +1853,39 @@ export default function CourseLearnPage() {
                     fontFamily: 'monospace',
                   }}
                 >
-                  {selectedAssignment.latestSubmission?.answer || '(Chưa có nội dung bài làm)'}
+                  {selectedAssignment.latestSubmission?.answer || (selectedAssignment.latestSubmission?.attachment ? 'Submitted as the file above.' : 'No written answer.')}
                 </div>
                 {selectedAssignment.latestSubmission?.submittedAt && (
                   <small style={{ color: 'var(--muted)', display: 'block', marginTop: '6px' }}>
-                    Thời gian nộp: {new Date(selectedAssignment.latestSubmission.submittedAt).toLocaleString()}
+                    Submitted: {new Date(selectedAssignment.latestSubmission.submittedAt).toLocaleString('en-US')}
                   </small>
                 )}
               </div>
             ) : (
               <form onSubmit={handleSubmitAssignment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>✍️</span> Nhập bài làm / Giải pháp của bạn <span style={{ color: '#ef4444' }}>*</span>
+                  <label htmlFor="assignment-answer" style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>✍️</span> Submission text (optional when uploading a file)
                   </label>
                   {selectedAssignment.latestSubmission && (
                     <button
                       type="button"
                       onClick={() => setAssignmentModalMode('view')}
+                      disabled={submittingAssignment}
                       style={{ background: 'transparent', border: 'none', color: 'var(--purple)', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
                     >
-                      &larr; Xem bài cũ đã nộp
+                      View previous submission
                     </button>
                   )}
                 </div>
                 <textarea
+                  id="assignment-answer"
                   rows="7"
-                  required
+                  disabled={submittingAssignment}
+                  required={!assignmentFile}
                   value={assignmentAnswer}
                   onChange={(e) => setAssignmentAnswer(e.target.value)}
-                  placeholder="Nhập mã nguồn, câu trả lời, giải pháp hoặc đường link bài nộp (GitHub, Drive...) của bạn tại đây..."
+                  placeholder="Enter your answer, code, solution or submission link (GitHub, Drive...)."
                   style={{
                     width: '100%',
                     padding: '14px',
@@ -1900,6 +1898,12 @@ export default function CourseLearnPage() {
                     resize: 'vertical',
                   }}
                 />
+                <label htmlFor="assignment-answer-file">Submission file (PDF, DOC, DOCX — max 25 MB)</label>
+                <input id="assignment-answer-file" type="file" accept={ASSIGNMENT_FILE_ACCEPT} disabled={submittingAssignment} onChange={e => {
+                  const file = e.target.files?.[0]; try { validateAssignmentFile(file); setAssignmentFile(file || null); } catch (err) { addToast(err.message, 'error'); e.target.value = ''; }
+                }} />
+                {assignmentFile && <small>Selected: {assignmentFile.name}</small>}
+                <small>Enter an answer or attach a file. Resubmitting replaces your previous answer and file; grades and feedback are cleared for grading again.</small>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
                   <button
                     type="button"
@@ -1907,14 +1911,14 @@ export default function CourseLearnPage() {
                     className="btn btn-secondary btn-sm"
                     disabled={submittingAssignment}
                   >
-                    Đóng
+                    Close
                   </button>
                   <button
                     type="submit"
                     className="btn btn-primary btn-sm"
-                    disabled={submittingAssignment || !assignmentAnswer.trim()}
+                    disabled={submittingAssignment || (!assignmentAnswer.trim() && !assignmentFile)}
                   >
-                    {submittingAssignment ? 'Đang nộp bài...' : selectedAssignment.latestSubmission ? 'Cập nhật bài nộp' : 'Nộp bài tập'}
+                    {submittingAssignment ? 'Submitting...' : selectedAssignment.latestSubmission ? 'Update submission' : 'Submit assignment'}
                   </button>
                 </div>
               </form>
@@ -1927,7 +1931,7 @@ export default function CourseLearnPage() {
                   onClick={() => setSelectedAssignment(null)}
                   className="btn btn-secondary btn-sm"
                 >
-                  Đóng
+                  Close
                 </button>
               </div>
             )}

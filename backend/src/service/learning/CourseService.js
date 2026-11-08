@@ -8,7 +8,9 @@ const { COURSE_STATUS, canTransition } = require('../../domain/learning/CourseSt
 const ServiceError = require('../common/ServiceError');
 
 class CourseService {
-  constructor({ courseRepository, categoryRepository, lessonRepository, materialRepository, courseCleanupRepository, loggerGateway } = {}) {
+  constructor({ courseRepository, categoryRepository, lessonRepository, materialRepository, courseCleanupRepository, loggerGateway, sectionService, lessonVideoService } = {}) {
+    this.lessonVideoService = lessonVideoService;
+    this.sectionService = sectionService;
     this.courseRepository = courseRepository;
     this.categoryRepository = categoryRepository;
     this.lessonRepository = lessonRepository;
@@ -152,7 +154,9 @@ class CourseService {
   async createLesson(courseId, user, input) {
     const course = await this.getOwnedCourse(courseId, user);
     this.assertContentEditable(course);
-    return this.lessonRepository.create({ ...input, courseId });
+    const section = this.sectionService ? await this.sectionService.resolve(courseId, input.sectionId) : null;
+    const data = { ...input, courseId, ...(section ? { sectionId: section._id } : {}) };
+    return this.lessonVideoService ? this.lessonVideoService.withMetadata(courseId, user, data, null, payload => this.lessonRepository.create(payload)) : this.lessonRepository.create(data);
   }
 
   async updateLesson(courseId, lessonId, user, input) {
@@ -161,7 +165,13 @@ class CourseService {
     this.assertValidId(lessonId, 'Lesson');
     const lesson = await this.lessonRepository.findById(lessonId);
     if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
-    return this.lessonRepository.update(lessonId, { ...input });
+    if (this.sectionService) {
+      if (lesson.sectionId) await this.sectionService.resolve(courseId, lesson.sectionId);
+      const section = await this.sectionService.resolve(courseId, Object.hasOwn(input, 'sectionId') ? input.sectionId : lesson.sectionId);
+      input = { ...input, sectionId: section._id };
+      if (String(section._id) !== String(lesson.sectionId) && input.order === undefined) input.order = (await this.lessonRepository.maxActiveOrder(courseId, section._id)) + 1;
+    }
+    return this.lessonVideoService ? this.lessonVideoService.withMetadata(courseId, user, input, lesson, payload => this.lessonRepository.update(lessonId, payload)) : this.lessonRepository.update(lessonId, { ...input });
   }
 
   async deleteLesson(courseId, lessonId, user) {
@@ -172,7 +182,7 @@ class CourseService {
     if (!lesson || String(lesson.courseId) !== String(course._id)) throw new ServiceError(404, 'Lesson not found.');
     await this.materialRepository.softDeleteByLessonId(lessonId);
     await this.lessonRepository.softDelete(lessonId);
-    await this.lessonRepository.normalizeOrder(course._id);
+    await this.lessonRepository.normalizeOrder(course._id, lesson.sectionId);
     return true;
   }
 

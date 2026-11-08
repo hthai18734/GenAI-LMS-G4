@@ -9,7 +9,9 @@ const EDITABLE_COURSE_STATUSES = new Set([
 ]);
 
 class LessonManagementService {
-  constructor({ lessonRepository, courseRepository, enrollmentRepository, progressRepository, materialRepository } = {}) {
+  constructor({ lessonRepository, courseRepository, enrollmentRepository, progressRepository, materialRepository, sectionService, lessonVideoService } = {}) {
+    this.lessonVideoService = lessonVideoService;
+    this.sectionService = sectionService;
     this.lessonRepository = lessonRepository;
     this.courseRepository = courseRepository;
     this.enrollmentRepository = enrollmentRepository;
@@ -55,18 +57,19 @@ class LessonManagementService {
     if (title.length > 200) throw new ServiceError(422, 'Lesson title must not exceed 200 characters.');
     this.assertPublicationStatus(payload.isPublished);
 
-    const nextOrder = (await this.lessonRepository.maxActiveOrder(course._id)) + 1;
-    const lesson = await this.lessonRepository.create({
+    const section = this.sectionService ? await this.sectionService.resolve(courseId, payload.sectionId) : null;
+    const nextOrder = (await this.lessonRepository.maxActiveOrder(course._id, section?._id)) + 1;
+    const data = {
       courseId: course._id,
+      ...(section ? { sectionId: section._id } : {}),
       title,
       content: (payload.content || '').trim(),
       videoRef: payload.videoRef ? String(payload.videoRef).trim() : null,
       isPublished: payload.isPublished !== undefined ? payload.isPublished : false,
       order: payload.order && Number.isInteger(Number(payload.order)) ? Number(payload.order) : nextOrder,
       duration: payload.duration && Number(payload.duration) >= 0 ? Number(payload.duration) : 0,
-    });
-
-    return lesson;
+    };
+    return this.lessonVideoService ? this.lessonVideoService.withMetadata(courseId, user, data, null, payload => this.lessonRepository.create(payload)) : this.lessonRepository.create(data);
   }
 
   async getLessonDetail(courseId, lessonId, user) {
@@ -129,6 +132,8 @@ class LessonManagementService {
       lesson: {
         id: String(lesson._id),
         courseId: String(lesson.courseId),
+        sectionId: lesson.sectionId ? String(lesson.sectionId) : null,
+        sectionTitle: lesson.sectionTitle || null,
         title: lesson.title,
         content: lesson.content,
         videoRef: lesson.videoRef,
@@ -158,6 +163,10 @@ class LessonManagementService {
     this.assertPublicationStatus(payload.isPublished);
 
     const updates = {};
+    if (this.sectionService) {
+      if (lesson.sectionId) await this.sectionService.resolve(lesson.courseId, lesson.sectionId);
+      updates.sectionId = (await this.sectionService.resolve(lesson.courseId, Object.hasOwn(payload, 'sectionId') ? payload.sectionId : lesson.sectionId))._id;
+    }
     if (payload.title !== undefined) {
       const title = String(payload.title).trim();
       if (!title) throw new ServiceError(422, 'Lesson title cannot be empty.');
@@ -172,7 +181,7 @@ class LessonManagementService {
       if (Number.isFinite(dur) && dur >= 0) updates.duration = dur;
     }
 
-    const updated = await this.lessonRepository.update(lessonId, updates);
+    const updated = this.lessonVideoService ? await this.lessonVideoService.withMetadata(lesson.courseId, user, updates, lesson, payload => this.lessonRepository.update(lessonId, payload)) : await this.lessonRepository.update(lessonId, updates);
     return updated;
   }
 
@@ -185,17 +194,27 @@ class LessonManagementService {
 
     await this.materialRepository.softDeleteByLessonId(lessonId);
     await this.lessonRepository.softDelete(lessonId);
-    await this.lessonRepository.normalizeOrder(lesson.courseId);
+    await this.lessonRepository.normalizeOrder(lesson.courseId, lesson.sectionId);
     return true;
   }
 
-  async reorderLessons(courseId, user, orderedLessonIds) {
+  async reorderLessons(courseId, user, orderedLessonIds, sectionId) {
     const course = await this.getOwnedEditableCourse(courseId, user);
     if (!Array.isArray(orderedLessonIds) || orderedLessonIds.length < 2) {
       throw new ServiceError(422, 'orderedLessonIds must be an array with at least 2 lesson IDs.');
     }
 
-    const currentLessons = await this.lessonRepository.findByCourseId(course._id);
+    let currentLessons = await this.lessonRepository.findByCourseId(course._id);
+    if (!sectionId) {
+      const sections = new Set(currentLessons.map(l => String(l.sectionId || 'legacy')));
+      if (sections.size > 1) throw new ServiceError(400, 'sectionId is required when reordering multiple sections.');
+      sectionId = currentLessons[0]?.sectionId;
+    }
+    if (sectionId) {
+      await this.sectionService.resolve(courseId, sectionId);
+      currentLessons = currentLessons.filter(l => String(l.sectionId) === String(sectionId));
+    }
+    if (new Set(orderedLessonIds.map(String)).size !== orderedLessonIds.length) throw new ServiceError(409, 'Duplicate lesson IDs are not allowed.');
     const currentIdSet = new Set(currentLessons.map((l) => String(l._id)));
 
     // Ensure sets match identically
@@ -209,7 +228,7 @@ class LessonManagementService {
       }
     }
 
-    const reordered = await this.lessonRepository.reorderLessons(course._id, orderedLessonIds);
+    const reordered = await this.lessonRepository.reorderLessons(course._id, orderedLessonIds, sectionId);
     return reordered;
   }
 

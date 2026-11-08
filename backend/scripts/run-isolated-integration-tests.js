@@ -3,6 +3,9 @@ const path = require('node:path');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 const integrationTests = [
+  'tests/controller/CourseCompletion.integration.test.js',
+  'tests/controller/Iteration3Huy.integration.test.js',
+  'tests/controller/SectionMigration.integration.test.js',
   'tests/controller/Auth.integration.test.js',
   'tests/controller/AuthQC.integration.test.js',
   'tests/controller/Iteration2.integration.test.js',

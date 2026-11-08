@@ -42,8 +42,12 @@ const videoStorageGateway = assertPort(
   new LocalFileStorageGateway({
     rootDirectory: path.resolve(__dirname, '../../uploads/lesson-videos'),
   }),
-  ['resolveWithin'],
+  ['resolveWithin', 'removeBestEffort', 'validVideo', 'expiredVideoFilenames'],
 );
+const AssignmentDocumentStorageGateway = require('../infrastructure/storage/AssignmentDocumentStorageGateway');
+const documentStorageGateway = assertPort('AssignmentDocumentStorageGateway', new AssignmentDocumentStorageGateway({
+  rootDirectory: path.resolve(__dirname, '../../uploads/assignment-documents'),
+}), ['validDocument', 'exists', 'resolveWithin', 'removeBestEffort', 'expiredDocumentFilenames']);
 
 const create = (path, dependencies = repositories) => {
   const Service = require(path);
@@ -51,7 +55,9 @@ const create = (path, dependencies = repositories) => {
 };
 
 const progressTrackingService = create('../service/learning/ProgressTrackingService');
-const courseService = create('../service/learning/CourseService', { ...repositories, loggerGateway });
+const sectionService = create('../service/learning/SectionService');
+const lessonVideoService = create('../service/learning/LessonVideoService', { ...repositories, videoStorageGateway });
+const courseService = create('../service/learning/CourseService', { ...repositories, loggerGateway, sectionService, lessonVideoService });
 const quizService = create('../service/learning/QuizService', { ...repositories, courseService });
 const questionService = create('../service/learning/QuestionService', {
   ...repositories,
@@ -88,7 +94,10 @@ const voucherCheckoutService = createVoucherCheckoutService({
   voucherService,
 });
 const studentProfileService = new StudentProfileService(repositories);
-const studentLearningService = new StudentLearningService(repositories);
+const enrollmentLifecycleService = create('../service/learning/EnrollmentLifecycleService', {
+  ...repositories, progressTrackingService,
+});
+const studentLearningService = new StudentLearningService({ ...repositories, progressTrackingService, enrollmentLifecycleService });
 const studentNotificationService = new StudentNotificationService(repositories);
 const studentTeacherApplicationService = new StudentTeacherApplicationService(repositories);
 const studentService = new StudentService({
@@ -99,6 +108,10 @@ const studentService = new StudentService({
 });
 
 const services = {
+  assignmentDocumentService: create('../service/learning/AssignmentDocumentService', { ...repositories, documentStorageGateway }),
+  gradebookService: create('../service/learning/GradebookService', { ...repositories, courseService, progressTrackingService }),
+  assignmentAssessmentService: create('../service/learning/AssignmentAssessmentService', { ...repositories, courseService, progressTrackingService }),
+  sectionService,
   accountService: create('../service/admin/AccountService', { ...repositories, passwordGateway }),
   adminDashboardService: create('../service/admin/AdminDashboardService'),
   adminTeacherService: create('../service/admin/AdminTeacherService'),
@@ -118,18 +131,12 @@ const services = {
   courseModerationService,
   courseService,
   discussionService: create('../service/learning/DiscussionService'),
-  enrollmentLifecycleService: create('../service/learning/EnrollmentLifecycleService', {
-    ...repositories,
-    progressTrackingService,
-  }),
+  enrollmentLifecycleService,
   learningContentReportService: create('../service/learning/LearningContentReportService'),
   learningGoalService: create('../service/learning/LearningGoalService'),
   learningStatisticsService: create('../service/learning/LearningStatisticsService'),
-  lessonManagementService: create('../service/learning/LessonManagementService'),
-  lessonVideoService: create('../service/learning/LessonVideoService', {
-    ...repositories,
-    videoStorageGateway,
-  }),
+  lessonManagementService: create('../service/learning/LessonManagementService', { ...repositories, sectionService, lessonVideoService }),
+  lessonVideoService,
   materialService: create('../service/learning/MaterialService', {
     ...repositories,
     fileStorageGateway: materialStorageGateway,
