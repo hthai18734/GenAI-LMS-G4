@@ -74,7 +74,7 @@ export default function VoucherRedemptionHistory({ voucherId }) {
               </tbody>
             </table>
           </div>
-          <div className="form-actions">
+          <div className="form-actions pagination-bar">
             <button
               className="ghost"
               disabled={data.page <= 1}

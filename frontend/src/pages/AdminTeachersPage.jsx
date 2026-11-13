@@ -153,7 +153,7 @@ export default function AdminTeachersPage() {
             </table>
           </div>
           {data?.pagination && (
-            <div className="form-actions">
+            <div className="form-actions pagination-bar">
               <button className="ghost" disabled={!data.pagination.hasPrevPage} onClick={() => setQuery({ ...query, page: query.page - 1 })}>Previous</button>
               <span>Page {data.pagination.page} / {data.pagination.totalPages}</span>
               <button className="ghost" disabled={!data.pagination.hasNextPage} onClick={() => setQuery({ ...query, page: query.page + 1 })}>Next</button>

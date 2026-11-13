@@ -262,7 +262,7 @@ export default function AdminVouchersPage({ mode = "list" }) {
                   </table>
                 </div>
               )}
-              <div className="form-actions">
+              <div className="form-actions pagination-bar">
                 <button
                   className="ghost"
                   disabled={data.page <= 1}

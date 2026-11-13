@@ -10,34 +10,66 @@ export function StarRating({ value = 0, onChange, readOnly = false, size = '20px
   const activeRating = hover || value || 0;
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          disabled={readOnly}
-          onClick={() => onChange && onChange(star)}
-          onMouseEnter={() => !readOnly && setHover(star)}
-          onMouseLeave={() => !readOnly && setHover(0)}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: readOnly ? 'default' : 'pointer',
-            padding: '2px',
-            fontSize: size,
-            lineHeight: 1,
-            color: activeRating >= star ? '#f59e0b' : '#cbd5e1',
-            transition: 'transform 0.15s ease, color 0.15s ease',
-            transform: !readOnly && hover === star ? 'scale(1.25)' : 'none',
-          }}
-          aria-label={`${star} star${star > 1 ? 's' : ''}`}
-        >
-          ★
-        </button>
-      ))}
-      <span style={{ fontSize: '13px', fontWeight: 700, color: '#f59e0b', marginLeft: '6px' }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            disabled={readOnly}
+            onClick={() => onChange && onChange(star)}
+            onMouseEnter={() => !readOnly && setHover(star)}
+            onMouseLeave={() => !readOnly && setHover(0)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: readOnly ? 'default' : 'pointer',
+              padding: '1px',
+              fontSize: size,
+              lineHeight: 1,
+              color: activeRating >= star ? '#f59e0b' : '#cbd5e1',
+              transition: 'transform 0.15s ease, color 0.15s ease',
+              transform: !readOnly && hover === star ? 'scale(1.25)' : 'none',
+            }}
+            aria-label={`${star} star${star > 1 ? 's' : ''}`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <span style={{ fontSize: '13px', fontWeight: 700, color: '#f59e0b', marginLeft: '6px', whiteSpace: 'nowrap' }}>
         {value ? `${Number(value).toFixed(1)} / 5` : '0 / 5'}
       </span>
+    </div>
+  );
+}
+
+function StudentAvatar({ name }) {
+  const initials = (() => {
+    if (!name) return 'S';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  })();
+  return (
+    <div
+      style={{
+        width: '32px',
+        height: '32px',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 700,
+        fontSize: '12px',
+        flexShrink: 0,
+        boxShadow: '0 2px 4px rgba(79, 70, 229, 0.15)'
+      }}
+      aria-hidden="true"
+    >
+      {initials}
     </div>
   );
 }
@@ -225,8 +257,7 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
     <section className="management-page" style={{ margin: '24px 0' }}>
       <div className="management-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>⭐</span>
+          <h2>
             {scope === 'student' ? 'My Course Reviews' : 'Student Ratings & Reviews'}
           </h2>
           <p style={{ color: 'var(--text-dim, #64748b)', margin: '4px 0 0', fontSize: '14px' }}>
@@ -251,7 +282,7 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
                   disabled={busy}
                   onClick={() => open(myCourseReview, 'edit')}
                 >
-                  ✏️ Edit My Review
+                  Edit My Review
                 </button>
                 <button
                   type="button"
@@ -260,7 +291,7 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
                   disabled={busy}
                   onClick={() => open(myCourseReview, 'delete')}
                 >
-                  🗑️ Delete Review
+                  Delete Review
                 </button>
               </div>
             ) : (
@@ -269,9 +300,9 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
                 className="btn btn-primary"
                 disabled={busy}
                 onClick={() => open(null, 'create')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+                style={{ display: 'inline-flex', alignItems: 'center', fontWeight: 600 }}
               >
-                <span>⭐</span> Write a Review
+                Write a Review
               </button>
             )
           )}
@@ -334,7 +365,6 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
         </div>
       ) : reviews.length === 0 ? (
         <div className="empty-state management-card" style={{ padding: '40px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: '36px', marginBottom: '12px' }}>💬</div>
           <h3 style={{ margin: '0 0 8px' }}>No reviews found</h3>
           <p style={{ color: 'var(--text-dim, #64748b)', margin: '0 0 16px' }}>
             {courseId
@@ -350,7 +380,7 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
                 className="btn btn-primary"
                 onClick={() => open(null, 'create')}
               >
-                ⭐ Write a Review
+                Write a Review
               </button>
               <Link to="/courses" className="btn btn-secondary">
                 View Enrolled Courses
@@ -363,13 +393,13 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
           <table className="management-table">
             <thead>
               <tr>
-                {!courseId && <th>Course</th>}
-                <th>Student</th>
-                <th>Rating</th>
-                <th>Review Content</th>
-                {scope !== 'public' && <th>Status</th>}
-                <th>Date</th>
-                <th>Actions</th>
+                {!courseId && <th style={{ verticalAlign: 'middle', width: '22%', minWidth: '180px' }}>Course</th>}
+                <th style={{ verticalAlign: 'middle', width: '18%', minWidth: '150px' }}>Student</th>
+                <th style={{ verticalAlign: 'middle', width: '16%', minWidth: '140px' }}>Rating</th>
+                <th style={{ verticalAlign: 'middle', width: '22%' }}>Review Content</th>
+                {scope !== 'public' && <th style={{ verticalAlign: 'middle', width: '8%', minWidth: '70px' }}>Status</th>}
+                <th style={{ verticalAlign: 'middle', width: '8%', minWidth: '70px' }}>Date</th>
+                <th style={{ verticalAlign: 'middle', width: '10%', minWidth: '120px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -378,7 +408,7 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
                 return (
                   <tr key={review._id} style={{ background: isMine ? 'rgba(59, 130, 246, 0.04)' : undefined }}>
                     {!courseId && (
-                      <td>
+                      <td style={{ verticalAlign: 'middle', minWidth: '180px' }}>
                         {review.courseId ? (
                           <Link to={`/courses/${review.courseId._id || review.courseId}`} style={{ fontWeight: 600, color: 'var(--primary, #3b82f6)' }}>
                             {review.courseId.title || 'Course'}
@@ -388,26 +418,30 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
                         )}
                       </td>
                     )}
-                    <td>
-                      <strong>{review.userId?.fullName || 'Anonymous student'}</strong>
-                      {isMine && (
-                        <span style={{
-                          marginLeft: '6px',
-                          fontSize: '11px',
-                          background: '#dbeafe',
-                          color: '#1d4ed8',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          fontWeight: 700
-                        }}>
-                          You
+                    <td style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <StudentAvatar name={review.userId?.fullName} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <strong>{review.userId?.fullName || 'Anonymous student'}</strong>
+                          {isMine && (
+                            <span style={{
+                              fontSize: '11px',
+                              background: '#dbeafe',
+                              color: '#1d4ed8',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 700
+                            }}>
+                              You
+                            </span>
+                          )}
                         </span>
-                      )}
+                      </div>
                     </td>
-                    <td>
+                    <td style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                       <StarRating value={review.rating} readOnly size="15px" />
                     </td>
-                    <td style={{ maxWidth: '320px' }}>
+                    <td style={{ verticalAlign: 'middle', maxWidth: '320px' }}>
                       <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text)' }}>
                         {review.content.slice(0, 160)}
                         {review.content.length > 160 ? '...' : ''}
@@ -426,24 +460,27 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
                       )}
                     </td>
                     {scope !== 'public' && (
-                      <td>
+                      <td style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                         <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
                           padding: '3px 8px',
                           borderRadius: '4px',
                           fontSize: '11px',
                           fontWeight: 600,
                           background: review.status === 'visible' ? '#dcfce7' : '#fee2e2',
                           color: review.status === 'visible' ? '#166534' : '#991b1b',
+                          textTransform: 'capitalize'
                         }}>
                           {review.status}
                         </span>
                       </td>
                     )}
-                    <td style={{ fontSize: '12px', color: 'var(--text-dim, #64748b)', whiteSpace: 'nowrap' }}>
+                    <td style={{ verticalAlign: 'middle', fontSize: '13px', color: 'var(--text-dim, #64748b)', whiteSpace: 'nowrap' }}>
                       {new Date(review.createdAt).toLocaleDateString()}
                     </td>
-                    <td>
-                      <div className="form-actions" style={{ gap: '4px' }}>
+                    <td style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                      <div className="table-actions">
                         <button
                           type="button"
                           className="ghost compact"
@@ -505,7 +542,7 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
 
       {/* Pagination */}
       {!loading && !error && pagination && pagination.totalPages > 1 && (
-        <div className="form-actions" style={{ marginTop: '16px', justifyContent: 'center' }}>
+        <div className="form-actions pagination-bar" style={{ marginTop: '16px', justifyContent: 'center' }}>
           <button className="ghost" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}>
             Previous
           </button>
@@ -523,14 +560,14 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
             <div className="modal-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 id="review-dialog-title" style={{ margin: 0, fontSize: '20px' }}>
                 {mode === 'create'
-                  ? '⭐ Write Course Review'
+                  ? 'Write Course Review'
                   : mode === 'edit'
-                  ? '✏️ Update Your Review'
+                  ? 'Update Your Review'
                   : mode === 'reply'
-                  ? '💬 Reply to Review'
+                  ? 'Reply to Review'
                   : mode === 'delete'
-                  ? '🗑️ Delete Review'
-                  : '👁️ Review Details'}
+                  ? 'Delete Review'
+                  : 'Review Details'}
               </h2>
               <button
                 type="button"
