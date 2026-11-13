@@ -7,8 +7,7 @@ class AdminDashboardService {
     this.categoryRepository = categoryRepository;
   }
   async getDashboard() {
-    const [totalUsers, totalStudents, totalTeachers, totalAdmins,
-      courseAgg, totalCategories, recentPendingCourses,
+    const [totalUsers, totalStudents, totalTeachers, totalAdmins, courseAgg, totalCategories, recentPendingCourses,
       recentUsers] = await Promise.all([
       this.userRepository.countByRole(),
       this.userRepository.countByRole('student'),
@@ -28,11 +27,9 @@ class AdminDashboardService {
     return {
       metrics: {
         users: { total: totalUsers, students: totalStudents, teachers: totalTeachers, admins: totalAdmins },
-        applications: { pending: 0, approved: 0, rejected: 0, total: 0 },
         courses: courseCounts,
         categories: { total: totalCategories },
       },
-      recentApplications: [],
       recentPendingCourses,
       recentUsers,
     };

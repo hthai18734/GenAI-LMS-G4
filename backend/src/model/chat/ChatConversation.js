@@ -8,7 +8,7 @@ const turnSchema = new mongoose.Schema({
 }, { _id: false });
 const schema = new mongoose.Schema({
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  title: { type: String, default: 'Cuộc trò chuyện mới' },
+  title: { type: String, default: 'New conversation' },
   courseId: { type: mongoose.Schema.Types.ObjectId, default: null },
   lessonId: { type: mongoose.Schema.Types.ObjectId, default: null },
   turns: { type: [turnSchema], default: [] },

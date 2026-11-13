@@ -37,10 +37,10 @@ async function main() {
     const Lesson = require(path.join(backend, 'src/model/learning/Lesson'));
     const Progress = require(path.join(backend, 'src/model/learning/Progress'));
     const password = `Aa1!${crypto.randomBytes(4).toString('hex')}`;
-    const teacher = await User.create({ fullName: 'Tạ Gia Huy', email: 'teacher@browser.test', passwordHash: await require(path.join(backend, 'src/utils/auth/PasswordUtil')).hash(password), role: 'teacher', emailVerifiedAt: new Date() });
-    const student = await User.create({ fullName: 'Học viên Tiếng Việt', email: 'student@browser.test', passwordHash: await require(path.join(backend, 'src/utils/auth/PasswordUtil')).hash(password), emailVerifiedAt: new Date() });
-    const course = await Course.create({ title: 'Khóa học Tiếng Việt', teacherId: teacher._id, status: 'DRAFT' });
-    const assignment = await Assignment.create({ courseId: course._id, title: 'Bài tập', content: 'Instructions', maxScore: 10, passingScore: 5 });
+    const teacher = await User.create({ fullName: 'Browser Test Teacher', email: 'teacher@browser.test', passwordHash: await require(path.join(backend, 'src/utils/auth/PasswordUtil')).hash(password), role: 'teacher', emailVerifiedAt: new Date() });
+    const student = await User.create({ fullName: 'Browser Test Student', email: 'student@browser.test', passwordHash: await require(path.join(backend, 'src/utils/auth/PasswordUtil')).hash(password), emailVerifiedAt: new Date() });
+    const course = await Course.create({ title: 'Browser Test Course', teacherId: teacher._id, status: 'DRAFT' });
+    const assignment = await Assignment.create({ courseId: course._id, title: 'Assignment', content: 'Instructions', maxScore: 10, passingScore: 5 });
     const [quiz] = await Quiz.create([
       { courseId: course._id, title: 'Practice quiz', timeLimit: 15, passingScore: 50, isPublished: false },
       { courseId: course._id, title: 'Review quiz with a longer title to verify that names wrap without overlapping the edit action', timeLimit: 20, passingScore: 50, isPublished: false },
@@ -48,7 +48,7 @@ async function main() {
     await Enrollment.create({ courseId: course._id, userId: student._id });
     const lesson = await Lesson.create({ courseId: course._id, title: 'Introduction', content: 'Read the lesson', order: 1, isPublished: true });
     await Progress.create({ userId: student._id, courseId: course._id, lessonId: lesson._id, status: 'completed', completedAt: new Date() });
-    const submission = await Submission.create({ courseId: course._id, assignmentId: assignment._id, studentId: student._id, answer: 'Giải pháp của học viên' });
+    const submission = await Submission.create({ courseId: course._id, assignmentId: assignment._id, studentId: student._id, answer: 'Student solution' });
     server = require(path.join(backend, 'src/index')).app.listen(0, '127.0.0.1');
     await new Promise(r => server.once('listening', r));
     const { createServer } = await import(pathToFileURL(path.resolve(__dirname, '../node_modules/vite/dist/node/index.js')).href);

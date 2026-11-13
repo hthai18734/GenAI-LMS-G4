@@ -91,11 +91,9 @@ export default function AdminDashboardPage() {
 
   const metrics = data?.metrics || {};
   const users = metrics.users || { total: 0, students: 0, teachers: 0, admins: 0 };
-  const applications = metrics.applications || { pending: 0, approved: 0, rejected: 0, total: 0 };
   const courses = metrics.courses || { PENDING_REVIEW: 0, APPROVED: 0, PUBLIC: 0, DRAFT: 0, REJECTED: 0, ARCHIVED: 0, total: 0 };
   const categories = metrics.categories || { total: 0 };
 
-  const recentApps = data?.recentApplications || [];
   const recentCourses = data?.recentPendingCourses || [];
   const recentUsers = data?.recentUsers || [];
 

@@ -1,7 +1,7 @@
 /**
  * Author: ThaiQH - CE181542
  * Created at: 01/10/2026
- * Description: Unit Tests for Public Courses and Admin Teacher Application DTOs
+ * Description: Unit Tests for Public Course DTOs
  */
 
 const test = require('node:test');
@@ -13,6 +13,7 @@ const SearchCoursesQueryDTO = require('../../src/dto/public/SearchCoursesQueryDT
 const FilterCoursesQueryDTO = require('../../src/dto/public/FilterCoursesQueryDTO');
 const CourseDetailQueryDTO = require('../../src/dto/public/CourseDetailQueryDTO');
 const TeacherProfileQueryDTO = require('../../src/dto/public/TeacherProfileQueryDTO');
+
 
 // ─── UC-1.1: HomepageQueryDTO ───────────────────────────────────────
 test('HomepageQueryDTO accepts valid limit and clamps to max', () => {

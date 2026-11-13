@@ -24,11 +24,9 @@ test('AdminController: getDashboardStats returns admin statistics', async () => 
   UseCases.adminDashboardService.getDashboard = async () => ({
     metrics: {
       users: { total: 10, students: 8, teachers: 1, admins: 1 },
-      applications: { pending: 0, approved: 0, rejected: 0, total: 0 },
       courses: { total: 5 },
       categories: { total: 2 },
     },
-    recentApplications: [],
     recentPendingCourses: [],
     recentUsers: [],
   });

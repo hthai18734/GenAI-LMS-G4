@@ -1,5 +1,11 @@
 # Iteration 3 implementation checkpoints
 
+## PR 17 conflict resolution (2026-11-13)
+- [x] Reproduce the dashboard contract regression with main's test.
+- [x] Resolve backend conflicts and verify service, controller and retired routes.
+- [x] Resolve frontend conflicts while preserving the branch's UI changes.
+- [x] Pass full tests/lint/build and review the merge before branch delivery.
+
 - [x] Align inner Quiz workspace, question list and dialogs with Assignment styling.
 
 - [x] Course Quizzes matches the Assignment card with clear per-quiz edit actions.

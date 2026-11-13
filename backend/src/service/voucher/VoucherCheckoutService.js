@@ -22,7 +22,7 @@ function assertInput(input, completePurchase) {
       throw new ServiceError(400, `${key} is invalid.`);
   }
   if (typeof input.code !== "string" || !input.code.trim())
-    throw new ServiceError(400, "Vui lòng nhập mã voucher.");
+    throw new ServiceError(400, "Please enter a voucher code.");
   if (
     typeof input.transactionId !== "string" ||
     !input.transactionId.trim() ||
@@ -83,7 +83,7 @@ async function redeemForCheckout(input, completePurchase) {
         // A shared document write serializes all redemptions of this voucher,
         // including different users competing for its final available use.
         const voucher = await VoucherRepository.lockByCode(input.code.trim().toUpperCase(), session);
-        if (!voucher) throw new ServiceError(400, "Mã voucher không tồn tại.");
+        if (!voucher) throw new ServiceError(400, "Voucher code does not exist.");
         const course = await CourseRepository.findPublicForCheckout(input.courseId, session);
         if (!course) throw new ServiceError(404, "Course not found.");
         if (!Number.isFinite(course.price) || course.price < 0)
@@ -126,7 +126,7 @@ async function redeemForCheckout(input, completePurchase) {
           (await VoucherRepository.findByCode(input.code.trim().toUpperCase()))?._id,
         )
       )
-        throw new ServiceError(409, "Bạn đã sử dụng voucher này rồi.");
+        throw new ServiceError(409, "You have already used this voucher.");
     }
     if (error.code === 20 && /Transaction numbers/.test(error.message))
       throw new ServiceError(

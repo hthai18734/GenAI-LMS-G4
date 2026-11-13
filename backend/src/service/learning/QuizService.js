@@ -105,7 +105,7 @@ class QuizService {
     this.courseService.assertContentEditable(course);
     const deleted = await this.quizRepository.softDelete(quiz._id);
     if (!deleted) throw new ServiceError(409, 'The quiz changed while the request was being processed. Please try again.');
-    // Requirement #7: Xóa Quiz không được xóa Question khỏi Question Bank, chỉ xóa/gỡ mapping
+    // Requirement #7: Deleting a quiz removes only its mappings, not Question Bank entries.
     await this.quizQuestionRepository.deleteByQuizId(quiz._id);
     return deleted;
   }
@@ -186,7 +186,7 @@ class QuizService {
     if (!quiz) throw new ServiceError(409, INVALID_ATTEMPT);
     if (quiz.deadline && this.clock() >= new Date(quiz.deadline)) throw new ServiceError(409, DEADLINE_PASSED);
 
-    // Chấm điểm bằng snapshot nếu có, ngược lại fallback sang questions hiện hành
+    // Grade from the snapshot when available; otherwise use the current questions.
     let questions = attempt.questionsSnapshot;
     if (!questions || questions.length === 0) {
       questions = await this.getQuizQuestions(quiz._id);

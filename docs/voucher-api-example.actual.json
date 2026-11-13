@@ -10,10 +10,10 @@
   "response": {
     "status": 200,
     "success": true,
-    "message": "Áp dụng voucher thành công!",
+    "message": "Voucher applied successfully.",
     "data": {
       "success": true,
-      "message": "Áp dụng voucher thành công!",
+      "message": "Voucher applied successfully.",
       "voucher": {
         "voucherID": "6af734300eb79d511e18875a",
         "code": "TEST",

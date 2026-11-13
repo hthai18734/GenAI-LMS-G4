@@ -91,6 +91,7 @@ router.post('/quizzes/:quizId/attempts', StudentQuizController.start.bind(Studen
 router.post('/quiz-attempts/:attemptId/submit', StudentQuizController.submit.bind(StudentQuizController));
 router.get('/quiz-attempts/:attemptId/result', StudentQuizController.getResult.bind(StudentQuizController));
 
+
 module.exports = router;
 
 

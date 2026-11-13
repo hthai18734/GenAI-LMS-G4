@@ -8,7 +8,7 @@ module.exports = function ChatLimitFilter(req, res, next) {
   for (const [key, value] of windows) if (value.until < now) windows.delete(key);
   const key = String(req.user._id);
   const window = windows.get(key) || { count: 0, until: now + 60000 };
-  if (window.count >= 15 || active >= 4 || (!windows.has(key) && windows.size >= 10000)) return ResponseUtil.error(res, { status: 429, message: 'Chat đang bận. Vui lòng đợi một phút rồi thử lại.' });
+  if (window.count >= 15 || active >= 4 || (!windows.has(key) && windows.size >= 10000)) return ResponseUtil.error(res, { status: 429, message: 'Chat is busy. Please wait a minute and try again.' });
   window.count++;
   windows.set(key, window);
   active++;

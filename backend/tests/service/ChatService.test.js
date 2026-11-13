@@ -25,8 +25,8 @@ test('send persists successful pair, includes authorized context, retries idempo
   assert.equal(state.row.turns.length, 1);
   assert.equal(state.row.turns[0].model, 'fallback');
   assert.match(JSON.stringify(state.payload.contents), /Private source/);
-  assert.match(JSON.stringify(state.payload.systemInstruction), /gia sư/i);
-  assert.match(JSON.stringify(state.payload.systemInstruction), /ngôn ngữ khác/i);
+  assert.match(JSON.stringify(state.payload.systemInstruction), /tutor/i);
+  assert.match(JSON.stringify(state.payload.systemInstruction), /another language/i);
   assert.equal(state.unlocked, 2);
 });
 test('foreign conversation does not call Gemini', async () => {
