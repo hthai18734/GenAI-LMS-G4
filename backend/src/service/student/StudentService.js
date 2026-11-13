@@ -2,11 +2,10 @@
 // is implemented by an independently testable application service and wired in
 // the composition root.
 class StudentService {
-  constructor({ profileService, learningService, notificationService, teacherApplicationService } = {}) {
+  constructor({ profileService, learningService, notificationService } = {}) {
     this.profileService = profileService;
     this.learningService = learningService;
     this.notificationService = notificationService;
-    this.teacherApplicationService = teacherApplicationService;
   }
 
   getProfile(...args) { return this.profileService.getProfile(...args); }
@@ -29,9 +28,6 @@ class StudentService {
   updateNotificationPreferences(...args) { return this.notificationService.updateNotificationPreferences(...args); }
   listNotifications(...args) { return this.notificationService.listNotifications(...args); }
   sendTestNotification(...args) { return this.notificationService.sendTestNotification(...args); }
-
-  getTeacherApplication(...args) { return this.teacherApplicationService.getTeacherApplication(...args); }
-  applyTeacher(...args) { return this.teacherApplicationService.applyTeacher(...args); }
 }
 
 module.exports = StudentService;

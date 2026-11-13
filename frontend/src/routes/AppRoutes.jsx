@@ -33,9 +33,7 @@ const CategoriesPage = lazyPage('CategoriesPage', () => import('../pages/Categor
 const PublicCoursesPage = lazyPage('PublicCoursesPage', () => import('../pages/PublicCoursesPage'));
 const PublicCourseDetailPage = lazyPage('PublicCourseDetailPage', () => import('../pages/PublicCourseDetailPage'));
 const TeacherProfilePage = lazyPage('TeacherProfilePage', () => import('../pages/TeacherProfilePage'));
-const AdminTeacherApplicationsPage = lazyPage('AdminTeacherApplicationsPage', () => import('../pages/AdminTeacherApplicationsPage'));
 const AdminDashboardPage = lazyPage('AdminDashboardPage', () => import('../pages/AdminDashboardPage'));
-const TeacherApplicationPage = lazyPage('TeacherApplicationPage', () => import('../pages/TeacherApplicationPage'));
 const TeacherQuestionBankPage = lazyPage('TeacherQuestionBankPage', () => import('../pages/TeacherQuestionBankPage'));
 const TeacherContentReportsPage = lazyPage('TeacherContentReportsPage', () => import('../pages/TeacherContentReportsPage'));
 const StudentQuizStartPage = lazyPage('StudentQuizStartPage', () => import('../pages/StudentQuizStartPage'));
@@ -102,7 +100,7 @@ export default function AppRoutes() {
         <Route path="/quizzes/:quizId/start" element={<StudentQuizStartPage />} />
         <Route path="/quiz-attempts/:attemptId" element={<StudentQuizAttemptPage />} />
         <Route path="/quiz-attempts/:attemptId/result" element={<StudentQuizResultPage />} />
-        <Route path="/apply-teacher" element={<TeacherApplicationPage />} />
+        <Route path="/apply-teacher" element={<Navigate to="/dashboard" replace />} />
         <Route path="/account" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
@@ -129,7 +127,7 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute roles={['admin']}><Layout /></ProtectedRoute>}>
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-        <Route path="/admin/teacher-applications" element={<AdminTeacherApplicationsPage />} />
+        <Route path="/admin/teacher-applications" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/moderation" element={<AdminModerationPage />} />
         <Route path="/admin/categories" element={<CategoriesPage />} />
         <Route path="/admin/users" element={<AdminAccountsPage />} />

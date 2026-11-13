@@ -38,7 +38,6 @@ const mongooseAdapters = {
   quizRepository: require(`${root}/learning/QuizRepository`),
   refreshSessionRepository: require(`${root}/identity/RefreshSessionRepository`),
   reviewRepository: require(`${root}/engagement/ReviewRepository`),
-  teacherApplicationRepository: require(`${root}/governance/TeacherApplicationRepository`),
   transactionRepository: require(`${root}/common/TransactionRepository`),
   userRepository: require(`${root}/identity/UserRepository`),
   videoProgressRepository: require(`${root}/learning/VideoProgressRepository`),

@@ -20,7 +20,6 @@ const createVoucherCheckoutService = require('../service/voucher/VoucherCheckout
 const StudentProfileService = require('../service/student/StudentProfileService');
 const StudentLearningService = require('../service/student/StudentLearningService');
 const StudentNotificationService = require('../service/student/StudentNotificationService');
-const StudentTeacherApplicationService = require('../service/student/StudentTeacherApplicationService');
 const StudentService = require('../service/student/StudentService');
 
 const loggerGateway = assertPort('LoggerGateway', {
@@ -99,12 +98,10 @@ const enrollmentLifecycleService = create('../service/learning/EnrollmentLifecyc
 });
 const studentLearningService = new StudentLearningService({ ...repositories, progressTrackingService, enrollmentLifecycleService });
 const studentNotificationService = new StudentNotificationService(repositories);
-const studentTeacherApplicationService = new StudentTeacherApplicationService(repositories);
 const studentService = new StudentService({
   profileService: studentProfileService,
   learningService: studentLearningService,
   notificationService: studentNotificationService,
-  teacherApplicationService: studentTeacherApplicationService,
 });
 
 const services = {
@@ -152,10 +149,6 @@ const services = {
   quizService,
   reviewService: create('../service/engagement/ReviewService'),
   studentService,
-  teacherApplicationService: create('../service/admin/TeacherApplicationService', {
-    ...repositories,
-    emailGateway: EmailUtil,
-  }),
   teacherDashboardService: create('../service/teacher/TeacherDashboardService'),
   wishlistService: create('../service/learning/WishlistService'),
   voucherCheckoutService,

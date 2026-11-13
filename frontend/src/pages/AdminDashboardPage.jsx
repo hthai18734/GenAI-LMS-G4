@@ -33,26 +33,19 @@ export default function AdminDashboardPage() {
       console.warn('Dashboard API failed, attempting fallback aggregations...', err);
       // Fallback: try querying available endpoints concurrently
       try {
-        const [appsRes, coursesRes, catRes] = await Promise.all([
-          adminService.getTeacherApplications().catch(() => ({ data: { applications: [] } })),
+        const [usersRes, coursesRes, catRes] = await Promise.all([
+          adminService.getUsers(1, { limit: 5 }).catch(() => ({ data: { users: [] } })),
           adminService.getModerationCourses('status=PENDING_REVIEW').catch(() => ({ data: { courses: [] } })),
           adminService.getCategories().catch(() => ({ data: { categories: [] } })),
         ]);
 
-        const apps = appsRes.data?.applications || [];
-        const pendingApps = apps.filter((a) => a.status === 'pending');
+        const uList = usersRes.data?.users || [];
         const courses = coursesRes.data?.courses || [];
         const categories = catRes.data?.categories || [];
 
         setData({
           metrics: {
-            users: { total: 1, students: 0, teachers: 0, admins: 1 },
-            applications: {
-              pending: pendingApps.length,
-              approved: apps.filter((a) => a.status === 'approved').length,
-              rejected: apps.filter((a) => a.status === 'rejected').length,
-              total: apps.length,
-            },
+            users: { total: uList.length, students: uList.filter(u => u.role === 'student').length, teachers: uList.filter(u => u.role === 'teacher').length, admins: uList.filter(u => u.role === 'admin').length },
             courses: {
               PENDING_REVIEW: courses.length,
               total: courses.length,
@@ -61,9 +54,8 @@ export default function AdminDashboardPage() {
               total: categories.length,
             },
           },
-          recentApplications: pendingApps.slice(0, 5),
           recentPendingCourses: courses.slice(0, 5),
-          recentUsers: [],
+          recentUsers: uList.slice(0, 5),
         });
       } catch {
         setError(err.message || 'Unable to load admin statistics.');
@@ -128,7 +120,7 @@ export default function AdminDashboardPage() {
             <span className="admin-hero-badge">System Ready</span>
           </h1>
           <p>
-            Hello <strong>{user?.fullName || 'Admin'}</strong>! Monitor activity, review teacher applications, and moderate courses in real time.
+            Hello <strong>{user?.fullName || 'Admin'}</strong>! Monitor platform activity, manage teachers and users, and moderate courses in real time.
           </p>
         </div>
         <div className="admin-hero-actions">
@@ -160,25 +152,23 @@ export default function AdminDashboardPage() {
           </div>
         </button>
 
-        {/* KPI 2: Teacher Applications */}
+        {/* KPI 2: Teaching Staff */}
         <button
           type="button"
           className="admin-kpi-card"
-          onClick={() => navigate('/admin/teacher-applications')}
+          onClick={() => navigate('/admin/teachers')}
         >
           <div className="admin-kpi-top">
             <div className="admin-kpi-icon amber">👨‍🏫</div>
-            <span className={`admin-kpi-badge ${applications.pending > 0 ? 'alert' : 'success'}`}>
-              {applications.pending > 0 ? `${applications.pending} Pending Review` : 'All Reviewed'}
-            </span>
+            <span className="admin-kpi-badge info">{users.teachers} Active</span>
           </div>
           <div>
-            <div className="admin-kpi-value">{applications.pending}</div>
-            <div className="admin-kpi-label">Teacher Applications</div>
+            <div className="admin-kpi-value">{users.teachers}</div>
+            <div className="admin-kpi-label">Teaching Staff</div>
           </div>
           <div className="admin-kpi-footer">
-            <span>{applications.approved} Approved · {applications.rejected} Rejected</span>
-            <span>Review →</span>
+            <span>Manage Teacher Accounts</span>
+            <span>Manage →</span>
           </div>
         </button>
 
@@ -231,11 +221,11 @@ export default function AdminDashboardPage() {
           <span>⚡ Quick Actions</span>
         </div>
         <div className="admin-shortcuts-links">
-          <Link to="/admin/teacher-applications" className="admin-shortcut-btn primary">
-            👨‍🏫 Review Teacher Applications {applications.pending > 0 && `(${applications.pending})`}
-          </Link>
           <Link to="/admin/moderation" className="admin-shortcut-btn primary">
             🛡️ Course Moderation {courses.PENDING_REVIEW > 0 && `(${courses.PENDING_REVIEW})`}
+          </Link>
+          <Link to="/admin/teachers" className="admin-shortcut-btn primary">
+            👨‍🏫 Teacher Management
           </Link>
           <Link to="/admin/categories" className="admin-shortcut-btn secondary">
             🏷️ Add & Edit Categories
@@ -245,40 +235,40 @@ export default function AdminDashboardPage() {
 
       {/* ─── 4. Main Split Grid: Pending Queues ────────────────────── */}
       <section className="admin-split-grid">
-        {/* Panel 1: Pending Teacher Applications */}
+        {/* Panel 1: Recent Users */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">
-              <h3>Recent Teacher Applications</h3>
-              <span className={`admin-panel-count ${applications.pending > 0 ? 'alert' : ''}`}>
-                {applications.pending} pending
+              <h3>Recent Users</h3>
+              <span className="admin-panel-count">
+                {users.total} total
               </span>
             </div>
-            <Link to="/admin/teacher-applications" className="admin-panel-viewall">
+            <Link to="/admin/users" className="admin-panel-viewall">
               View all →
             </Link>
           </div>
           <div className="admin-panel-list">
-            {recentApps.length === 0 ? (
+            {recentUsers.length === 0 ? (
               <div className="admin-empty-panel">
-                <span className="admin-empty-icon">🎉</span>
-                <p>No teacher applications are awaiting review!</p>
+                <span className="admin-empty-icon">👥</span>
+                <p>No recent user registrations found.</p>
               </div>
             ) : (
-              recentApps.map((app) => (
-                <div className="admin-panel-item" key={app._id}>
+              recentUsers.map((u) => (
+                <div className="admin-panel-item" key={u._id}>
                   <div className="admin-item-info">
                     <div className="admin-item-avatar">
-                      {(app.userId?.fullName || 'U').charAt(0).toUpperCase()}
+                      {(u.fullName || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div className="admin-item-meta">
-                      <strong>{app.userId?.fullName || 'Applicant'}</strong>
-                      <span>{app.userId?.email || 'No email'} · {app.bio ? app.bio.slice(0, 38) + '…' : 'No bio'}</span>
+                      <strong>{u.fullName || 'User'}</strong>
+                      <span>{u.email || 'No email'} · {u.role || 'student'}</span>
                     </div>
                   </div>
                   <div className="admin-item-action">
-                    <Link to="/admin/teacher-applications" className="admin-quick-action-btn">
-                      Review
+                    <Link to={`/admin/users/${u._id}`} className="admin-quick-action-btn">
+                      View
                     </Link>
                   </div>
                 </div>

@@ -81,8 +81,6 @@ class StudentController {
     const input = this.parse(res, CompleteLessonDTO, { userId: req.user._id, courseId: req.params.courseId, lessonId: req.params.lessonId }); if (!input) return undefined;
     return this.respond(res, next, () => StudentService.completeLesson(input.userId, input.courseId, input.lessonId), { message: 'Lesson marked as completed.' });
   }
-  async getTeacherApplicationStatus(req, res, next) { return this.respond(res, next, () => StudentService.getTeacherApplication(req.user._id)); }
-  async applyTeacher(req, res, next) { return this.respond(res, next, () => StudentService.applyTeacher(req.user, req.body || {}), { status: 201, message: 'Teacher application submitted successfully! Please wait for administrator approval.' }); }
   async getNotifications(req, res, next) { return this.respond(res, next, () => StudentService.listNotifications(req.user._id, req.query.limit)); }
   async getUnreadCount(req, res, next) { return this.respond(res, next, () => NotificationService.unreadCount(req.user._id)); }
   async markNotificationRead(req, res, next) {

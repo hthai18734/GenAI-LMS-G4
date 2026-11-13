@@ -6,7 +6,7 @@ const source = await readFile(new URL('./AdminDashboardPage.jsx', import.meta.ur
 
 test('admin dashboard KPI cards are keyboard controls and open their matching modules', () => {
   assert.match(source, /<button type="button" className="admin-kpi-card" onClick=\{\(\) => navigate\('\/admin\/users'\)\}>/);
-  assert.match(source, /navigate\('\/admin\/teacher-applications'\)/);
+  assert.match(source, /navigate\('\/admin\/teachers'\)/);
   assert.match(source, /navigate\('\/admin\/moderation'\)/);
   assert.match(source, /navigate\('\/admin\/categories'\)/);
   assert.doesNotMatch(source, /<div[^>]*className="admin-kpi-card"[^>]*onClick=/);
