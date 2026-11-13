@@ -28,6 +28,16 @@ API paths start with `/api/teacher`; `/api/v1/teacher` aliases are also mounted.
 | UC-19.3 Calculate Final Grade | Superseded by shared course completion; no weighted final grade | Gradebook / Refresh Results | GET `/courses/:id/gradebook`; POST `/courses/:id/gradebook/calculate` compatibility alias; policy PUT returns410 | GradebookService / ProgressTrackingService / CourseCompletionPolicy / live learning sources | [Spec](UC-19.3-calculate-final-grade.md) |
 | **UC-19.4 Proposed** Generate Grade Report | PDF implementation; UC ID needs review | Gradebook / Download Report (PDF) | GET `/courses/:id/grade-report` supplies authorized report data | GradebookService.report → same repositories/sources as Gradebook | [Spec](UC-19.4-generate-grade-report.md) |
 
+## Existing Assignment CRUD specification drafts
+
+Existing Assignment CRUD has additional implementation-aligned SRS drafts in the
+requested **a. Functional Description / b. Business Rules** format. These document
+existing functions, not additional Iteration 3 implementations. Their UC IDs and
+new DRAFT-ASG rule identifiers are **proposed**, pending the authoritative registry:
+
+- [UC-17.6 Update Assignment (Proposed ID)](UC-17.6-update-assignment.md).
+- [UC-17.7 Delete Assignment (Proposed ID)](UC-17.7-delete-assignment.md).
+
 ## Confirmed owner decisions (this implementation session)
 
 - Reject submission at **server time >= deadline**; persist UTC and display local time.
