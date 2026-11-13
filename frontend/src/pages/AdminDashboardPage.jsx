@@ -33,17 +33,19 @@ export default function AdminDashboardPage() {
       console.warn('Dashboard API failed, attempting fallback aggregations...', err);
       // Fallback: try querying available endpoints concurrently
       try {
-        const [coursesRes, catRes] = await Promise.all([
+        const [usersRes, coursesRes, catRes] = await Promise.all([
+          adminService.getUsers(1, { limit: 5 }).catch(() => ({ data: { users: [] } })),
           adminService.getModerationCourses('status=PENDING_REVIEW').catch(() => ({ data: { courses: [] } })),
           adminService.getCategories().catch(() => ({ data: { categories: [] } })),
         ]);
 
+        const uList = usersRes.data?.users || [];
         const courses = coursesRes.data?.courses || [];
         const categories = catRes.data?.categories || [];
 
         setData({
           metrics: {
-            users: { total: 1, students: 0, teachers: 0, admins: 1 },
+            users: { total: uList.length, students: uList.filter(u => u.role === 'student').length, teachers: uList.filter(u => u.role === 'teacher').length, admins: uList.filter(u => u.role === 'admin').length },
             courses: {
               PENDING_REVIEW: courses.length,
               total: courses.length,
@@ -53,7 +55,7 @@ export default function AdminDashboardPage() {
             },
           },
           recentPendingCourses: courses.slice(0, 5),
-          recentUsers: [],
+          recentUsers: uList.slice(0, 5),
         });
       } catch {
         setError(err.message || 'Unable to load admin statistics.');
@@ -116,7 +118,7 @@ export default function AdminDashboardPage() {
             <span className="admin-hero-badge">System Ready</span>
           </h1>
           <p>
-            Hello <strong>{user?.fullName || 'Admin'}</strong>! Monitor activity, manage users, and moderate courses in real time.
+            Hello <strong>{user?.fullName || 'Admin'}</strong>! Monitor platform activity, manage teachers and users, and moderate courses in real time.
           </p>
         </div>
         <div className="admin-hero-actions">
@@ -148,7 +150,27 @@ export default function AdminDashboardPage() {
           </div>
         </button>
 
-        {/* KPI 2: Course Moderation */}
+        {/* KPI 2: Teaching Staff */}
+        <button
+          type="button"
+          className="admin-kpi-card"
+          onClick={() => navigate('/admin/teachers')}
+        >
+          <div className="admin-kpi-top">
+            <div className="admin-kpi-icon amber">👨‍🏫</div>
+            <span className="admin-kpi-badge info">{users.teachers} Active</span>
+          </div>
+          <div>
+            <div className="admin-kpi-value">{users.teachers}</div>
+            <div className="admin-kpi-label">Teaching Staff</div>
+          </div>
+          <div className="admin-kpi-footer">
+            <span>Manage Teacher Accounts</span>
+            <span>Manage →</span>
+          </div>
+        </button>
+
+        {/* KPI 3: Course Moderation */}
         <button
           type="button"
           className="admin-kpi-card"
@@ -170,7 +192,7 @@ export default function AdminDashboardPage() {
           </div>
         </button>
 
-        {/* KPI 3: Categories */}
+        {/* KPI 4: Categories */}
         <button
           type="button"
           className="admin-kpi-card"
@@ -200,6 +222,9 @@ export default function AdminDashboardPage() {
           <Link to="/admin/moderation" className="admin-shortcut-btn primary">
             🛡️ Course Moderation {courses.PENDING_REVIEW > 0 && `(${courses.PENDING_REVIEW})`}
           </Link>
+          <Link to="/admin/teachers" className="admin-shortcut-btn primary">
+            👨‍🏫 Teacher Management
+          </Link>
           <Link to="/admin/categories" className="admin-shortcut-btn secondary">
             🏷️ Add & Edit Categories
           </Link>
@@ -207,8 +232,50 @@ export default function AdminDashboardPage() {
       </section>
 
       {/* ─── 4. Main Split Grid: Pending Queues ────────────────────── */}
-      <section>
-        {/* Courses Pending Moderation */}
+      <section className="admin-split-grid">
+        {/* Panel 1: Recent Users */}
+        <div className="admin-panel-card">
+          <div className="admin-panel-header">
+            <div className="admin-panel-title">
+              <h3>Recent Users</h3>
+              <span className="admin-panel-count">
+                {users.total} total
+              </span>
+            </div>
+            <Link to="/admin/users" className="admin-panel-viewall">
+              View all →
+            </Link>
+          </div>
+          <div className="admin-panel-list">
+            {recentUsers.length === 0 ? (
+              <div className="admin-empty-panel">
+                <span className="admin-empty-icon">👥</span>
+                <p>No recent user registrations found.</p>
+              </div>
+            ) : (
+              recentUsers.map((u) => (
+                <div className="admin-panel-item" key={u._id}>
+                  <div className="admin-item-info">
+                    <div className="admin-item-avatar">
+                      {(u.fullName || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="admin-item-meta">
+                      <strong>{u.fullName || 'User'}</strong>
+                      <span>{u.email || 'No email'} · {u.role || 'student'}</span>
+                    </div>
+                  </div>
+                  <div className="admin-item-action">
+                    <Link to={`/admin/users/${u._id}`} className="admin-quick-action-btn">
+                      View
+                    </Link>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Panel 2: Courses Pending Moderation */}
         <div className="admin-panel-card">
           <div className="admin-panel-header">
             <div className="admin-panel-title">

@@ -39,6 +39,6 @@ export default function AdminAccountsPage() {
     </form>
     {loading ? <div className="spinner" /> : error ? <div className="page-error">{error}<button className="ghost" onClick={() => setReload(reload + 1)}>Retry</button></div> : users.length === 0 ? <div className="empty-state management-card"><h3>No accounts found.</h3></div> :
       <div className="management-card table-wrap"><table className="management-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>{users.map((user) => <tr key={user._id}><td>{user.fullName}</td><td>{user.email}</td><td>{user.role}</td><td>{user.status}</td><td><Link to={'/admin/users/' + user._id}>View detail</Link> <Link to={'/admin/users/' + user._id + '/edit'}>Edit</Link></td></tr>)}</tbody></table></div>}
-    {!loading && !error && pagination && <div className="form-actions"><button className="ghost" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}>Previous</button><span>Page {pagination.page} / {pagination.totalPages}</span><button className="ghost" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}>Next</button></div>}
+    {!loading && !error && pagination && <div className="form-actions pagination-bar"><button className="ghost" disabled={!pagination.hasPrevPage} onClick={() => setPage(page - 1)}>Previous</button><span>Page {pagination.page} / {pagination.totalPages}</span><button className="ghost" disabled={!pagination.hasNextPage} onClick={() => setPage(page + 1)}>Next</button></div>}
   </section>;
 }

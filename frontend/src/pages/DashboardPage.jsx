@@ -204,9 +204,10 @@ function CourseCard({ course, index, onAction }) {
       }}>
         {course.thumbnail
           ? <img src={course.thumbnail} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }} />
-          : <span style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}>
-              {isCompleted ? '🏆' : course.category === 'AI' ? '🤖' : '💻'}
-            </span>
+          : <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
         }
         {/* Overlay gradient */}
         <div style={{
@@ -377,7 +378,10 @@ function RecoCard({ course, index, onEnroll, enrollingId }) {
       }}>
         {course.thumbnail
           ? <img src={course.thumbnail} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))' }}>💡</span>
+          : <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
         }
         <div style={{
           position: 'absolute', top: '10px', left: '10px',
@@ -821,10 +825,53 @@ export default function DashboardPage() {
         gap: '18px',
         marginBottom: '32px',
       }}>
-        <StatCard icon="📚" label="Courses In Progress" value={active} gradient="linear-gradient(135deg, #6366f1, #818cf8)" delay={100} />
-        <StatCard icon="✅" label="Lessons Completed" value={totalCompletedLessons} gradient="linear-gradient(135deg, #10b981, #34d399)" delay={200} />
-        <StatCard icon="🏆" label="Certificates Earned" value={completed} gradient="linear-gradient(135deg, #f59e0b, #fbbf24)" delay={300} />
-        <StatCard icon="⚡" label="Avg. Progress" value={avgProgress} suffix="%" gradient="linear-gradient(135deg, #8b5cf6, #a78bfa)" delay={400} />
+        <StatCard
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          }
+          label="Courses In Progress"
+          value={active}
+          gradient="linear-gradient(135deg, #6366f1, #818cf8)"
+          delay={100}
+        />
+        <StatCard
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+          label="Lessons Completed"
+          value={totalCompletedLessons}
+          gradient="linear-gradient(135deg, #10b981, #34d399)"
+          delay={200}
+        />
+        <StatCard
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="7"/>
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+            </svg>
+          }
+          label="Certificates Earned"
+          value={completed}
+          gradient="linear-gradient(135deg, #f59e0b, #fbbf24)"
+          delay={300}
+        />
+        <StatCard
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          }
+          label="Avg. Progress"
+          value={avgProgress}
+          suffix="%"
+          gradient="linear-gradient(135deg, #8b5cf6, #a78bfa)"
+          delay={400}
+        />
       </div>
 
       {/* ═══════════════════════════════════════════════════════
@@ -1086,12 +1133,17 @@ export default function DashboardPage() {
               color: '#15182d', margin: '0 0 4px',
               display: 'flex', alignItems: 'center', gap: '10px',
             }}>
-              <span style={{
+              <div style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: '32px', height: '32px', borderRadius: '10px',
-                background: 'linear-gradient(135deg, #6366f1, #818cf8)',
-                fontSize: '16px',
-              }}>📚</span>
+                width: '32px', height: '32px', borderRadius: '8px',
+                background: '#eef2ff', border: '1px solid #e0e7ff',
+                color: '#4f46e5', flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+              </div>
               My Courses
             </h2>
             <p style={{ color: '#68708a', fontSize: '13px', margin: 0 }}>
@@ -1227,12 +1279,17 @@ export default function DashboardPage() {
                 color: '#15182d', margin: '0 0 4px',
                 display: 'flex', alignItems: 'center', gap: '10px',
               }}>
-                <span style={{
+                <div style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width: '32px', height: '32px', borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
-                  fontSize: '16px',
-                }}>✨</span>
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: '#f5f3ff', border: '1px solid #ede9fe',
+                  color: '#7c3aed', flexShrink: 0,
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+                  </svg>
+                </div>
                 Recommended For You
               </h2>
               <p style={{ color: '#68708a', fontSize: '13px', margin: 0 }}>
@@ -1286,12 +1343,17 @@ export default function DashboardPage() {
                 color: '#15182d', margin: '0 0 4px',
                 display: 'flex', alignItems: 'center', gap: '10px',
               }}>
-                <span style={{
+                <div style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width: '32px', height: '32px', borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-                  fontSize: '16px',
-                }}>🕒</span>
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: '#fffbeb', border: '1px solid #fef3c7',
+                  color: '#d97706', flexShrink: 0,
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
                 Recent Activity
               </h2>
               <p style={{ color: '#68708a', fontSize: '13px', margin: 0 }}>
@@ -1344,16 +1406,24 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   {/* Icon */}
                   <div style={{
-                    width: '44px', height: '44px',
-                    borderRadius: '14px',
-                    background: item.status === 'completed'
-                      ? 'linear-gradient(135deg, #dcfce7, #bbf7d0)'
-                      : 'linear-gradient(135deg, #ede9fe, #ddd6fe)',
-                    color: item.status === 'completed' ? '#15803d' : '#6d28d9',
+                    width: '40px', height: '40px',
+                    borderRadius: '10px',
+                    background: item.status === 'completed' ? '#f0fdf4' : '#f5f3ff',
+                    border: `1px solid ${item.status === 'completed' ? '#bbf7d0' : '#ede9fe'}`,
+                    color: item.status === 'completed' ? '#16a34a' : '#7c3aed',
                     display: 'grid', placeItems: 'center',
-                    fontSize: '20px', flexShrink: 0,
+                    flexShrink: 0,
                   }}>
-                    {item.status === 'completed' ? '✅' : '📖'}
+                    {item.status === 'completed' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                      </svg>
+                    )}
                   </div>
                   {/* Text */}
                   <div>

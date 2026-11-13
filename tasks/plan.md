@@ -1,5 +1,24 @@
 # Iteration 3 — HuyTGCE182405
 
+## PR 17 conflict resolution (2026-11-13)
+Merge origin/main into HuyTGCE182405 without rewriting branch history. Both
+branches retired teacher applications: retain main's removal of dashboard fields
+and the branch's teacher-management navigation, icons and UI updates. Preserve
+current dashboard controller coverage. First reproduce main's dashboard contract
+test against this branch, then resolve backend and frontend conflicts. Run the
+focused tests, full backend/frontend suites, lint and build; inspect the final
+merge diff and push only HuyTGCE182405. Completion requires a clean working tree,
+main as an ancestor and PR 17 reported mergeable. Do not merge the PR into main.
+
+Verification: main's dashboard service test failed against the original branch
+and passed after adopting main's dashboard contract. All 13 focused backend
+tests passed, including real HTTP checks for retired endpoints. Full checks:
+351 backend tests passed, 7 skipped; 41 frontend tests passed; lint clean; build
+passed with the existing large-chunk warning. Backend dependencies were synced
+to google-auth-library 11.3.3 and nodemailer 10.4.0 before the final backend run;
+the committed lockfile remains identical to main. Reviewed the conflict-only
+diff and auto-merged student progress changes; no conflict markers remain.
+
 ## Authorized Git delivery (2026-11-08)
 Owner requests all completed work pushed to HuyTGCE182405 in function-scoped commits
 named HuyTGCE182405_FunctionName_add/update/delete. Preserve existing branch history,

@@ -4,9 +4,16 @@ const { adminDashboardService: AdminDashboardService } = UseCases;
 
 class AdminController {
   async getDashboardStats(req, res, next) {
-    try { return ResponseUtil.success(res, { message: 'Admin dashboard statistics retrieved successfully.', data: await AdminDashboardService.getDashboard() }); }
-    catch (error) { return next(error); }
+    try {
+      return ResponseUtil.success(res, {
+        message: 'Admin dashboard statistics retrieved successfully.',
+        data: await AdminDashboardService.getDashboard(),
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 }
-return  new AdminController();
+
+return new AdminController();
 };

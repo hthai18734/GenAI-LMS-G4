@@ -100,6 +100,7 @@ export default function AppRoutes() {
         <Route path="/quizzes/:quizId/start" element={<StudentQuizStartPage />} />
         <Route path="/quiz-attempts/:attemptId" element={<StudentQuizAttemptPage />} />
         <Route path="/quiz-attempts/:attemptId/result" element={<StudentQuizResultPage />} />
+        <Route path="/apply-teacher" element={<Navigate to="/dashboard" replace />} />
         <Route path="/account" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
@@ -126,6 +127,7 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute roles={['admin']}><Layout /></ProtectedRoute>}>
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="/admin/teacher-applications" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/moderation" element={<AdminModerationPage />} />
         <Route path="/admin/categories" element={<CategoriesPage />} />
         <Route path="/admin/users" element={<AdminAccountsPage />} />
