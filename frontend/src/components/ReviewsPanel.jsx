@@ -254,7 +254,7 @@ export default function ReviewsPanel({ scope = 'public', courseId, onRatingChang
   };
 
   return (
-    <section className="management-page" style={{ margin: '24px 0' }}>
+    <section className="management-page reviews-management-page">
       <div className="management-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h2>

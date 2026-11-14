@@ -980,6 +980,7 @@ a { text-decoration: none; color: inherit; }
 
 /* Course and category management */
 .management-page { max-width: 1100px; margin: 0 auto; }
+.reviews-management-page { margin-block: 24px; }
 .management-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 .management-filters input, .management-filters select { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 10px 12px; font: inherit; }
 .management-filters input { flex: 1; min-width: 180px; }
