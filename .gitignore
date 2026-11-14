@@ -1,13 +1,47 @@
+# Dependencies
 node_modules/
+
+# Build and test output
 dist/
 dist-ssr/
-*.local
-.env
-*.log
-/backend/uploads/
+build/
+coverage/
 /outputs/
-*.DS_Store
-README.md
-!docs/use-cases/iteration-3-huy/README.md
+/reports/
+
+# Runtime files
+/backend/uploads/
+/frontend/uploads/
+*.log
+*.pid
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# Temporary and generated files
+.cache/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+/screenshots/
+/project_structure.txt
+/structure_clean.txt
+
+# Internal planning and documentation excluded from source delivery
+/docs/
+/tasks/
+
+# IDE and operating system files
 .idea/
 .vscode/
+.DS_Store
+Thumbs.db
