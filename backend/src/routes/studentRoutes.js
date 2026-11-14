@@ -33,8 +33,6 @@ router.get('/materials/:materialId/download', RoleFilter('student', 'teacher', '
 
 // Student-only features
 router.use(RoleFilter('student'));
-router.post('/vouchers/apply',require('../composition/http').controllers.VoucherController.apply);
-router.get('/vouchers/available',require('../composition/http').controllers.VoucherController.available);
 router.get('/reviews', ReviewController.list.bind(ReviewController));
 router.get('/reviews/:reviewId', ReviewController.getById.bind(ReviewController));
 router.post('/courses/:courseId/reviews', ReviewController.create.bind(ReviewController));

@@ -40,7 +40,5 @@ module.exports = Object.freeze({
   transactionRepository: port('run'),
   userRepository: port('changePassword', 'clearPasswordReset', 'countAccounts', 'countByRole', 'createUser', 'deleteUser', 'findAccounts', 'findActiveVerifiedStudent', 'findByEmail', 'findById', 'findPublicTeacherById', 'findRecent', 'findTeacherSummaryById', 'findTeachers', 'findTopTeachers', 'isEmailExists', 'recordLoginSuccess', 'resetPassword', 'savePasswordReset', 'updateProfile', 'updateRole', 'updateStatus', 'updateUser', 'verifyEmail'),
   videoProgressRepository: port('findByStudentAndVideo', 'saveProgress'),
-  voucherRedemptionRepository: port('countAllUsed', 'countUsed', 'create', 'findByTransactionId', 'hasUsed', 'history'),
-  voucherRepository: port('countList', 'create', 'existsCode', 'expireBefore', 'findAllActiveRecords', 'findByCode', 'findById', 'findCurrentlyActive', 'findPageByCriteria', 'lockByCode', 'softDeleteAtRevision', 'toggle', 'update'),
   wishlistRepository: port('add', 'findByStudent', 'remove'),
 });

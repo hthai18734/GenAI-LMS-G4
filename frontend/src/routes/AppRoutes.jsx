@@ -51,7 +51,6 @@ const AdminAccountsPage = lazyPage('AdminAccountsPage', () => import('../pages/A
 const AdminUserFormPage = lazyPage('AdminUserFormPage', () => import('../pages/AdminUserFormPage'));
 const AdminUserDetailPage = lazyPage('AdminUserDetailPage', () => import('../pages/AdminUserDetailPage'));
 const AdminTeachersPage = lazyPage('AdminTeachersPage', () => import('../pages/AdminTeachersPage'));
-const AdminVouchersPage = lazyPage('AdminVouchersPage', () => import('../pages/AdminVouchersPage'));
 const NotFoundPage = lazyPage('NotFoundPage', () => import('../pages/NotFoundPage'));
 
 const TeacherAssignmentSubmissionsPage = lazyPage('TeacherAssignmentSubmissionsPage', () => import('../pages/TeacherAssignmentSubmissionsPage'));
@@ -136,10 +135,6 @@ export default function AppRoutes() {
         <Route path="/admin/users/:userId/edit" element={<AdminUserFormPage />} />
         <Route path="/admin/teachers" element={<AdminTeachersPage />} />
         <Route path="/admin/reviews" element={<ReviewsPage />} />
-        <Route path="/admin/vouchers" element={<AdminVouchersPage />} />
-        <Route path="/admin/vouchers/new" element={<AdminVouchersPage mode="new" />} />
-        <Route path="/admin/vouchers/:id" element={<AdminVouchersPage mode="detail" />} />
-        <Route path="/admin/vouchers/:id/edit" element={<AdminVouchersPage mode="edit" />} />
       </Route>
 
       {/* Catch-all */}

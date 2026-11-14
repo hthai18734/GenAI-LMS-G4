@@ -5,13 +5,12 @@ import { studentService } from '../features/student/api.js';
 import { wishlistService } from '../features/learning/api.js';
 import { useAuth } from '../features/auth/useAuth.js';
 import { useToast } from '../components/toastContext';
-import VoucherPreview from '../components/VoucherPreview';
 import ReviewsPanel from '../components/ReviewsPanel';
 
 export default function PublicCourseDetailPage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { addToast } = useToast();
 
   const [course, setCourse] = useState(null);
@@ -226,7 +225,6 @@ export default function PublicCourseDetailPage() {
               )}
             </div>
 
-            {isAuthenticated && user?.role === 'student' && !isEnrolled && <VoucherPreview key={courseId} courseId={courseId} />}
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <button
                 onClick={handleEnroll}

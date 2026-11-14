@@ -7,8 +7,6 @@ import { ChatProvider } from './chat/ChatContext';
 import ChatWidget from './chat/ChatWidget';
 
 const titles = {
-  '/admin/vouchers': 'Voucher Management',
-  '/admin/vouchers/new': 'Create Voucher',
   '/notifications': 'Notifications',
   '/admin/teachers': 'Teacher Management',
   '/change-password': 'Change Password',

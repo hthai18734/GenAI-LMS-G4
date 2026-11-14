@@ -15,8 +15,6 @@ const OAuthUtil = require('../utils/auth/OAuthUtil');
 const ContentGenerationService = require('../service/ai/ContentGenerationService');
 const path = require('path');
 const LocalFileStorageGateway = require('../infrastructure/storage/LocalFileStorageGateway');
-const createVoucherService = require('../service/voucher/VoucherService');
-const createVoucherCheckoutService = require('../service/voucher/VoucherCheckoutService');
 const StudentProfileService = require('../service/student/StudentProfileService');
 const StudentLearningService = require('../service/student/StudentLearningService');
 const StudentNotificationService = require('../service/student/StudentNotificationService');
@@ -87,11 +85,6 @@ const chatService = new ChatService({
   learning: chatLearningService,
   documentParser: documentParserGateway,
 });
-const voucherService = createVoucherService(repositories);
-const voucherCheckoutService = createVoucherCheckoutService({
-  ...repositories,
-  voucherService,
-});
 const studentProfileService = new StudentProfileService(repositories);
 const enrollmentLifecycleService = create('../service/learning/EnrollmentLifecycleService', {
   ...repositories, progressTrackingService,
@@ -151,8 +144,6 @@ const services = {
   studentService,
   teacherDashboardService: create('../service/teacher/TeacherDashboardService'),
   wishlistService: create('../service/learning/WishlistService'),
-  voucherCheckoutService,
-  voucherService,
 };
 
 module.exports = Object.freeze(services);

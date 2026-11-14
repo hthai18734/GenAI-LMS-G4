@@ -1,5 +1,3 @@
-const Voucher = require('../model/voucher/Voucher');
-const VoucherRedemption = require('../model/voucher/VoucherRedemption');
 const Review = require('../model/engagement/Review');
 const Section = require('../model/learning/Section');
 const VideoUpload = require('../model/learning/VideoUpload');
@@ -23,7 +21,7 @@ async function initializePersistence() {
   await assignmentDocumentService.sweepExpired();
   const documentSweep = setInterval(() => assignmentDocumentService.sweepExpired().catch(error => LoggerUtil.error('Assignment document cleanup failed', error)), 60000);
   documentSweep.unref();
-  await Promise.all([Voucher.init(), VoucherRedemption.init(), Review.init(), Section.init(), VideoUpload.init(), Certificate.init()]);
+  await Promise.all([Review.init(), Section.init(), VideoUpload.init(), Certificate.init()]);
   await repositories.reviewRepository.repairPendingRatings();
   const timer = setInterval(() => {
     repositories.reviewRepository.repairPendingRatings()

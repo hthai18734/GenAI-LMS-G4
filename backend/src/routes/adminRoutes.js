@@ -13,14 +13,6 @@ const ReviewController = require('../composition/http').controllers.ReviewContro
 const router = express.Router();
 const AdminController = require('../composition/http').controllers.AdminController;
 router.use(NoCacheFilter, AuthFilter, RoleFilter('admin'));
-const VoucherController=require('../composition/http').controllers.VoucherController;
-router.get('/vouchers',VoucherController.list);
-router.post('/vouchers',VoucherController.create);
-router.get('/vouchers/:id',VoucherController.detail);
-router.put('/vouchers/:id',VoucherController.update);
-router.delete('/vouchers/:id',VoucherController.remove);
-router.patch('/vouchers/:id/status',VoucherController.toggle);
-router.get('/vouchers/:id/redemptions',VoucherController.history);
 const AdminTeacherController = require('../composition/http').controllers.AdminTeacherController;
 router.get('/teachers', AdminTeacherController.list.bind(AdminTeacherController));
 router.get('/teachers/:teacherId', AdminTeacherController.detail.bind(AdminTeacherController));

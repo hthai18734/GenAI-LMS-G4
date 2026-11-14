@@ -47,7 +47,6 @@ export default function Sidebar() {
           <NavLink to="/admin/dashboard" className={linkClass}>
             <span className="link-text">Dashboard</span>
           </NavLink>
-          <NavLink to="/admin/vouchers" className={linkClass}><span className="link-text">Voucher Management</span></NavLink>
           <NavLink to="/admin/users" className={linkClass}><span className="link-text">Account Management</span></NavLink>
           <NavLink to="/admin/reviews" className={linkClass}><span className="link-text">Review Management</span></NavLink>
           <NavLink to="/admin/teachers" className={linkClass}><span className="link-text">Teacher Management</span></NavLink>

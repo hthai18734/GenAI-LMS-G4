@@ -140,7 +140,6 @@ frontend/src/
 │   ├── public/
 │   ├── student/
 │   ├── teacher/
-│   └── voucher/
 ├── shared/
 │   ├── api/client.js                  HTTP client, token refresh, common errors
 │   └── media/AuthenticatedVideo.jsx   Video cần Bearer token

@@ -41,8 +41,6 @@ const mongooseAdapters = {
   transactionRepository: require(`${root}/common/TransactionRepository`),
   userRepository: require(`${root}/identity/UserRepository`),
   videoProgressRepository: require(`${root}/learning/VideoProgressRepository`),
-  voucherRedemptionRepository: require(`${root}/voucher/VoucherRedemptionRepository`),
-  voucherRepository: require(`${root}/voucher/VoucherRepository`),
   wishlistRepository: require(`${root}/learning/WishlistRepository`),
 };
 

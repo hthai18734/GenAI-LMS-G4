@@ -49,7 +49,7 @@ test('portal navigation and quiz links resolve to pages with the correct role gu
     ['/quiz-attempts/attempt-id', 'StudentQuizAttemptPage'],
     ['/quiz-attempts/attempt-id/result', 'StudentQuizResultPage'],
   ]) assert.equal(resolve(path, 'student'), name);
-  for (const path of ['/admin/users/new', '/admin/users/user-id', '/admin/users/user-id/edit', '/admin/vouchers/new', '/admin/vouchers/voucher-id', '/admin/vouchers/voucher-id/edit']) resolve(path, 'admin');
+  for (const path of ['/admin/users/new', '/admin/users/user-id', '/admin/users/user-id/edit']) resolve(path, 'admin');
   assert.equal(pageName(matchRoutes(routes, '/missing-page').at(-1).route.element), 'NotFoundPage');
 
   const passwordMarkup = renderToStaticMarkup(createElement(PasswordInput, { name: 'password', defaultValue: 'test' }));
